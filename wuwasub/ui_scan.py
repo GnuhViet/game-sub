@@ -52,10 +52,11 @@ class ScanWindow(QWidget):
         except ValueError: return ""
 
     def _render_src(self):
-        self.src_view.setHtml(f"<div style='color:{self.cfg['src_fg']}'>{tokens_html(self.src, self.cfg['src_fg'])}</div>")
+        body = tokens_html(self.src, self.cfg['src_fg']).replace("\n", "<br><br>")        # giữ chia đoạn
+        self.src_view.setHtml(f"<div style='color:{self.cfg['src_fg']}'>{body}</div>")
 
     def show_result(self, src, vi, tag):
         if src != self.src: self.src = src; self._render_src()
-        self.vi_view.setPlainText(vi); self.tag.setText(tag)
+        self.vi_view.setPlainText(vi.replace("\n", "\n\n")); self.tag.setText(tag)
         if not self.isVisible(): self.show()
         self.raise_()

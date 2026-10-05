@@ -66,7 +66,7 @@ def test_streaming_parsers():
     def post(url, **kw): sent["url"], sent["json"] = url, kw["json"]; return FakeResp(sse)
     tr.s.post = post; parts = []
     out = tr.translate("Hello.", "Yangyang", [], parts.append)
-    assert out == ("Xin chào.", "gemini") and parts == ["Xin ", "Xin chào."] and "streamGenerateContent" in sent["url"]
+    assert out[:2] == ("Xin chào.", "gemini") and parts == ["Xin ", "Xin chào."] and "streamGenerateContent" in sent["url"]
     assert sent["json"]["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0} and "Yangyang: Hello." in sent["json"]["contents"][0]["parts"][0]["text"]
     # 429 -> cooldown; chỉ Gemini thì báo lỗi
     tr.s.post = lambda url, **kw: FakeResp([], 429)
@@ -74,11 +74,11 @@ def test_streaming_parsers():
     except Exception as e: assert "429" in str(e) and tr.cool["gemini"] > time.time()
     # Gemini lỗi/cooldown -> Google; engine riêng cho vùng chụp; chọn Google thì không gọi Gemini
     tr.google = lambda text: "Bản Google"
-    assert tr.translate("x", "", [], None, engine="ocr_gemini") == ("Bản Google", "google")
+    r = tr.translate("x", "", [], None, engine="ocr_gemini"); assert r[:2] == ("Bản Google", "google") and "Gemini lỗi" in r[2], r
     cfg["dialog_engine"] = "gemini_google"; assert tr.translate("x")[1] == "google"
     tr.cool.clear(); calls = []; tr.gemini = lambda *a, **k: calls.append(1) or "AI"
-    cfg["dialog_engine"] = "google"; assert tr.translate("x") == ("Bản Google", "google") and not calls
-    assert tr.translate("x", engine="ocr_gemini") == ("AI", "gemini")
+    cfg["dialog_engine"] = "google"; assert tr.translate("x") == ("Bản Google", "google", "") and not calls
+    assert tr.translate("x", engine="ocr_gemini") == ("AI", "gemini", "")
 
 if __name__ == "__main__":
     test_capture_waits_for_stable_text(); print("PASS capture"); test_capture_skips_same_frame(); print("PASS skip same frame"); test_streaming_parsers(); print("PASS translate")

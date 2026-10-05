@@ -42,12 +42,14 @@ class Translator:
 
     # ---------- public
     def translate(self, text, speaker="", context=(), on_partial=None, engine=None):
+        """-> (bản dịch, nhà cung cấp, ghi chú lỗi của nhà cung cấp bị bỏ qua — vd. Gemini lỗi nên dùng Google)"""
         errs = []
         for name in CHAINS.get(engine or self.cfg["dialog_engine"], ["google"]):
-            if time.time() < self.cool.get(name, 0): errs.append(f"{name}: đang cooldown"); continue
+            if time.time() < self.cool.get(name, 0): errs.append(f"{name}: đang nghỉ do hết quota"); continue
+            note = ("; ".join(errs)).replace("gemini:", "Gemini lỗi:")
             try:
-                if name == "google": return self.google(text), name
-                if name == "gemini": return self.gemini(self.system_prompt(text), self.user_prompt(text, speaker, context), on_partial), name
+                if name == "google": return self.google(text), name, note
+                if name == "gemini": return self.gemini(self.system_prompt(text), self.user_prompt(text, speaker, context), on_partial), name, note
             except ProviderError as e: errs.append(f"{name}: {e}")
             except requests.RequestException as e: errs.append(f"{name}: {type(e).__name__}")
         raise ProviderError("; ".join(errs) or "Chưa cấu hình nhà cung cấp dịch")
@@ -71,7 +73,11 @@ class Translator:
         if r.status_code >= 400:
             try: msg = r.json().get("error", {}); msg = msg.get("message", msg) if isinstance(msg, dict) else msg
             except Exception: msg = r.text[:200]
-            raise ProviderError(f"HTTP {r.status_code} {str(msg)[:160]}")
+            msg = str(msg)
+            if "API key not valid" in msg or "API_KEY_INVALID" in msg: raise ProviderError("API key sai")
+            if r.status_code == 404: raise ProviderError(f"model '{self.cfg.get('gemini_model')}' không tồn tại / không dùng được")
+            if r.status_code == 403: raise ProviderError("key không có quyền (bị chặn hoặc chưa bật Gemini API)")
+            raise ProviderError(f"HTTP {r.status_code} {msg[:160]}")
 
     def google(self, text):
         protected, mapping = self._protect(text)
@@ -97,7 +103,8 @@ class Translator:
     def read_image(self, png, on_partial=None):
         """Gemini đọc ảnh vùng chụp: chép nguyên văn + dịch. -> (câu gốc, bản dịch)"""
         user = ("Ảnh là một phần màn hình game (thư, bảng thông tin…). Chép lại NGUYÊN VĂN toàn bộ chữ trong ảnh theo đúng thứ tự đọc, "
-                f"rồi một dòng chỉ có {SEP}, rồi bản dịch sang tiếng Việt theo các quy tắc trên. Không thêm gì khác.")
+                "giữ cách chia đoạn như trong ảnh (mỗi đoạn một dòng; dòng bị ngắt giữa câu thì nối lại), "
+                f"rồi một dòng chỉ có {SEP}, rồi bản dịch sang tiếng Việt theo các quy tắc trên, chia đoạn y như bản gốc. Không thêm gì khác.")
         split = lambda t: [x.strip() for x in t.split(SEP, 1)] if SEP in t else ["", t.strip()]
         part = (lambda t: on_partial(split(t)[1] if SEP in t else "")) if on_partial else None
         src, vi = split(self.gemini(self.system_prompt(""), user, part, image=png, max_tokens=4096))

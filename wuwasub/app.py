@@ -17,7 +17,7 @@ from .ui_region import RegionSelector
 from .ui_scan import ScanWindow
 from .capture import open_sct, grab
 from . import ocr
-from .textnorm import join_lines
+from .textnorm import paragraphs
 from .ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog
 
 class _Sig(QObject):
@@ -48,7 +48,7 @@ class App:
         self.index = SubIndex(); self.spacer = Spacer(); self.rebuild_index()
         self.dicts = Dictionaries().load(cfg["dict_files"])
         self.tr = Translator(cfg, self.db)
-        self.history, self.pos, self.last, self.seq, self.cleared = [], -1, "", 0, False
+        self.history, self.pos, self.last, self.seq, self.cleared, self.noted = [], -1, "", 0, False, set()
         self.ov = Overlay(cfg); self.pop = WordPopup(cfg)
         self.lookup_ctx = None                    # câu ngữ cảnh khi tra từ trong cửa sổ Dịch vùng
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(lambda w, p: self._hover_from(None, w, p)); self.ov.word_click.connect(lambda w, p: self._click_from(None, w, p))
@@ -130,9 +130,14 @@ class App:
         i = next((k for k, l in enumerate(self.history) if l is line), len(self.history))
         ctx = [(l["speaker"], l["src"], l["vi"]) for l in self.history[max(0, i - c["context_lines"]):i]] if c["context_lines"] else []
         def partial(t): line["vi"] = t; self.render(line)
-        def done(res): line.update(vi=res[0], tag=self.tr.label(res[1]), busy=False); self.render(line)
+        def done(res): line.update(vi=res[0], tag=self.tr.label(res[1]) + self._note(res[2] if len(res) > 2 else ""), busy=False); self.render(line)
         def err(e): line.update(tag=f"Lỗi dịch: {e}", busy=False); self.render(line)
         run(lambda p: self.tr.translate(line["src"], line["speaker"], ctx, p), done, err, partial)
+
+    def _note(self, note):
+        """Lý do bỏ qua Gemini (lỗi key/quota…) chỉ báo 1 lần cho mỗi loại; đổi cài đặt thì báo lại."""
+        if not note or note in self.noted: return ""
+        self.noted.add(note); return f" · {note}"
 
     def render(self, line=None):
         if not self.history: return
@@ -291,15 +296,15 @@ class App:
                 except Exception as e: gem_err = str(e) or type(e).__name__        # lỗi/hết quota -> quay về OCR
             s = float(c["ocr_scale"] or 1)
             if abs(s - 1) > 0.01: img = ocr._resize(img, s)
-            return "ocr", join_lines(ocr.create(c["ocr_engine"], c["ocr_lang"]).recognize(img)), gem_err
+            return "ocr", paragraphs(ocr.create(c["ocr_engine"], c["ocr_lang"]).recognize(img)), gem_err     # giữ chia đoạn như trong ảnh
         def done(res):
             kind, text, extra = res
             if kind == "gemini":
                 self.scan = {"src": text, "vi": extra}; self.scan_win.show_result(text, extra, f"Gemini đọc ảnh · {c['gemini_model']}"); return
-            if extra: self._toast(f"Gemini đọc ảnh lỗi ({extra}) — dùng OCR")
+            note = f"Gemini đọc ảnh lỗi: {extra} → dùng OCR" if extra else ""
             if c["fix_spacing"]: text = self.spacer.fix(text)
-            self.scan = {"src": text, "vi": ""}
-            if not text.strip(): self.scan_win.show_result("", "", "Không đọc được chữ trong vùng này"); return
+            self.scan = {"src": text, "vi": "", "note": note}
+            if not text.strip(): self.scan_win.show_result("", "", "Không đọc được chữ trong vùng này" + self._note(note)); return
             self.scan_translate()
         run(work, done, lambda e: self.scan_win.show_result(self.scan["src"], "", f"Lỗi OCR: {e}"),
             lambda t: self.scan_win.show_result("", t, "Gemini đang đọc ảnh…"))
@@ -311,7 +316,9 @@ class App:
         if m: sc["vi"] = m.vi; self.scan_win.show_result(src, m.vi, f"Bộ sub · khớp {m.score:.0f}%"); return
         self.scan_win.show_result(src, "", "Đang dịch…")
         def partial(t): self.scan_win.show_result(src, t, "Đang dịch…")
-        def done(res): sc["vi"] = res[0]; self.scan_win.show_result(src, res[0], self.tr.label(res[1]))
+        def done(res):
+            sc["vi"] = res[0]
+            self.scan_win.show_result(src, res[0], self.tr.label(res[1]) + self._note(sc.get("note", "")) + self._note(res[2] if len(res) > 2 else ""))
         run(lambda p: self.tr.translate(src, "", [], p, engine=c["scan_engine"]), done, lambda e: self.scan_win.show_result(src, "", f"Lỗi dịch: {e}"), partial)
 
     def open_settings(self):
@@ -319,7 +326,7 @@ class App:
         d = on_top(SettingsDialog(c, on_preview=lambda: (self.ov.apply_style(), self.pop.apply_style())))   # đổi màu/khung -> overlay đổi ngay
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
         if not d.exec(): return
-        d.apply()
+        d.apply(); self.noted.clear()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:
             self.dicts.load(c["dict_files"])

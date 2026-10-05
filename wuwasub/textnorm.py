@@ -38,6 +38,19 @@ def join_lines(lines) -> str:
         else: out = f"{out} {l}" if out else l
     return re.sub(r"\s+", " ", out).strip()
 
+def paragraphs(lines) -> str:
+    """Dòng OCR của thư/bảng -> các đoạn cách nhau '\\n' (giống bố cục trong ảnh).
+    Dòng bị ngắt giữa câu thì nối lại; xuống đoạn khi dòng kết thúc bằng dấu câu và ngắn hơn hẳn dòng dài nhất
+    (cuối đoạn, lời chào 'Dear Rover,', ký tên…)."""
+    ls = [l.strip() for l in lines if l.strip()]
+    if not ls: return ""
+    full = max(len(l) for l in ls); paras, cur = [], []
+    for l in ls:
+        cur.append(l)
+        if re.search(r"[.!?:;,\"'”’)…]$", l) and len(l) < 0.75 * full: paras.append(join_lines(cur)); cur = []
+    if cur: paras.append(join_lines(cur))
+    return "\n".join(paras)
+
 SENT_RE = re.compile(r"(?<=[.!?…])\s+(?=[\"'A-Z“])")
 def split_sentences(text: str):
     return [s for s in SENT_RE.split(text) if s.strip()]

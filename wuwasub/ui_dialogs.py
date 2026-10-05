@@ -1,4 +1,4 @@
-import random, html
+import random, html, time
 from pathlib import Path
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient
@@ -49,7 +49,12 @@ class SettingsDialog(QDialog):
         f = self._group(tab, "Dịch vùng chụp 📷 (thư, bảng…)")
         self._combo(f, "scan_engine", "Dịch bằng", SCAN_ENGINES)
         f = self._group(tab, "Gemini AI — chỉ dùng khi chọn Gemini ở trên")
+        self.gem_warn = QLabel(); self.gem_warn.setWordWrap(True); self.gem_warn.setStyleSheet("color:#e8a33a"); f.addRow(self.gem_warn)
         self._line(f, "gemini_key", "API key (free: aistudio.google.com)", password=True); self._line(f, "gemini_model", "Model")
+        bt = QPushButton("Kiểm tra key"); self.key_status = QLabel(); self.key_status.setWordWrap(True); bt.clicked.connect(self._test_key)
+        hb = QHBoxLayout(); hb.addWidget(bt); hb.addWidget(self.key_status, 1); f.addRow(hb)
+        for k in ("dialog_engine", "scan_engine"): self.w[k][0].currentIndexChanged.connect(self._gem_warn)
+        self.w["gemini_key"][0].textChanged.connect(self._gem_warn); self._gem_warn()
         self._spin(f, "context_lines", "Số câu thoại trước làm ngữ cảnh", 0, 20); self._check(f, "keep_terms", "Không dịch tên riêng / thuật ngữ")
         self._check(f, "stream", "Hiện chữ dần khi đang dịch (streaming)")
         self._spin(f, "gemini_thinking_budget", "Thinking budget (0 = nhanh nhất, -1 = mặc định)", -1, 8192)
@@ -142,6 +147,26 @@ class SettingsDialog(QDialog):
             st.setText(f"✓ đã cài — {engines.size_mb(k):.0f} MB trên đĩa" if ok[k] else "chưa cài")
             bi.setText("Tải lại" if ok[k] else f"Tải ({dl})"); bd.setEnabled(ok[k])
         self.eng_status.setText(f"<i>Nằm trong {html.escape(str(engines.ENG_DIR))}</i>")
+
+    def _gem_warn(self):
+        uses = [n for k, n in (("dialog_engine", "dịch thoại"), ("scan_engine", "dịch vùng chụp")) if "gemini" in (self.w[k][1]() or "")]
+        no_key = not self.w["gemini_key"][1]()
+        self.gem_warn.setText(f"⚠ Đang chọn Gemini cho {' và '.join(uses)} nhưng chưa có API key → sẽ dùng Google." if uses and no_key else "")
+        self.gem_warn.setVisible(bool(uses and no_key))
+
+    def _test_key(self):
+        key, model = self.w["gemini_key"][1](), self.w["gemini_model"][1]()
+        if not key: self.key_status.setText("⚠ Chưa nhập key"); return
+        from .translator import Translator
+        c = dict(self.cfg); c.update(gemini_key=key, gemini_model=model, stream=False, timeout_s=20)
+        res = {}; self.key_status.setText("Đang thử…")
+        def work(_):
+            t0 = time.time(); res["out"] = Translator(c, None).gemini("", "Reply with exactly one word: OK", None); res["t"] = time.time() - t0
+        job = _Job(work)
+        def done(err):
+            if err: self.key_status.setText(f"<span style='color:#e86a6a'>✗ {html.escape(err.split(': ', 1)[-1])}</span>")
+            else: self.key_status.setText(f"<span style='color:#7bd88f'>✓ Key dùng được — {html.escape(model)} trả lời sau {res['t']:.1f}s</span>")
+        job.done.connect(done); self._key_job = job; job.start()
 
     def _remove(self, key):
         name = {"rapidocr": "RapidOCR", "tesseract": "Tesseract"}[key]

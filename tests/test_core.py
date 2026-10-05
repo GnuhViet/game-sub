@@ -112,6 +112,12 @@ def test_engine_remove():
     finally: E.shutil.rmtree = real
     E.setup(); assert not E.TESS_DIR.exists() and not E.PENDING.exists()   # khởi động lại -> xóa hẳn
 
+def test_paragraphs():
+    from wuwasub.textnorm import paragraphs
+    L = ["Dear Rover,", "I hope this letter finds you well. The Black Shores have", "been quiet since the incident, but I fear the",
+         "calm will not last.", "Yours,", "Jinhsi"]
+    assert paragraphs(L).split("\n") == ["Dear Rover,", "I hope this letter finds you well. The Black Shores have been quiet since the incident, but I fear the calm will not last.", "Yours,", "Jinhsi"]
+
 if __name__ == "__main__":
     for n, f in list(globals().items()):
         if n.startswith("test_"): f(); print("PASS", n)

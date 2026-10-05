@@ -99,6 +99,13 @@ assert a.ov.vi.text() == "" and a.ov.src == "Brand new untranslated line here." 
 a.tr.translate = fake_tr; a.on_action("translate"); pump(); assert a.ov.vi.text() == "Câu dịch máy." and len(calls) == n_calls + 1
 sd = SettingsDialog(a.cfg); cb = sd.w["dialog_engine"][0]; cb.setCurrentIndex(cb.findData("gemini_google")); sd.apply(); assert a.cfg["dialog_engine"] == "gemini_google"
 assert "openai_key" not in a.cfg and sd.w["scan_engine"][0].count() == 3
+assert not sd.gem_warn.isHidden() and "chưa có API key" in sd.gem_warn.text()          # chọn Gemini mà không có key -> cảnh báo
+sd.w["gemini_key"][0].setText("k"); assert sd.gem_warn.isHidden()
+import wuwasub.translator as T; T.Translator.gemini = lambda self, *a, **k: (_ for _ in ()).throw(T.ProviderError("API key sai"))
+sd._test_key(); sd._key_job.wait(3000); pump(); assert "API key sai" in sd.key_status.text(), sd.key_status.text()
+T.Translator.gemini = lambda self, *a, **k: "OK"; sd._test_key(); sd._key_job.wait(3000); pump(); assert "dùng được" in sd.key_status.text()
+# lý do Gemini lỗi chỉ báo 1 lần
+assert a._note("Gemini lỗi: API key sai") == " · Gemini lỗi: API key sai" and a._note("Gemini lỗi: API key sai") == "" and a._note("") == ""
 assert (C.DATA_DIR / "settings.json").exists()
 sub = SubsDialog(a.db, a.index, a.cfg, a.rebuild_index); sub.test.setText("Rover you finally woke up"); sub._test(); assert "100" in sub.test_out.text() or "%" in sub.test_out.text()
 gd = GlossaryDialog(a.db, a.cfg); gd._row("Resonator", "Cộng Minh Giả", "translate"); gd._save(); assert any(g["term"] == "Resonator" for g in a.db.glossary())
@@ -134,7 +141,7 @@ a.scan_capture({"x": 0, "y": 0, "w": 40, "h": 20}); pump()
 assert a.scan_win.src == "Dear Rover, the letter." and a.scan_win.vi_view.toPlainText() == "Rover thân mến, lá thư." and a.scan_win.tag.text().startswith("Gemini đọc ảnh")
 def gem_fail(png, p=None): raise RuntimeError("429")
 a.tr.read_image = gem_fail; a.scan_capture({"x": 0, "y": 0, "w": 40, "h": 20}); pump()
-assert a.scan_win.src.startswith("Dear Rover, thank you") and "Gemini đọc ảnh lỗi" in a.ov.status.text()
+assert a.scan_win.src.startswith("Dear Rover, thank you") and "Gemini đọc ảnh lỗi: 429" in a.scan_win.tag.text(), a.scan_win.tag.text()
 a.cfg.update(scan_engine="ocr_google", gemini_key="")
 # 11) nguồn dịch chỉ hiện khi rê chuột; khóa overlay; khung tự giãn; tooltip có hotkey; 1/2 ngôn ngữ
 a.ov.show_line("", "Hi.", "Xin chào.", "Google Translate"); assert a.ov.tag.text() == ""
