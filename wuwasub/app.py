@@ -14,6 +14,10 @@ from .capture import CaptureWorker
 from .hotkeys import Hotkeys
 from .ui_overlay import Overlay, WordPopup
 from .ui_region import RegionSelector
+from .ui_scan import ScanWindow
+from .capture import open_sct, grab
+from . import ocr
+from .textnorm import join_lines
 from .ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog
 
 class _Sig(QObject):
@@ -46,7 +50,11 @@ class App:
         self.tr = Translator(cfg, self.db)
         self.history, self.pos, self.last, self.seq = [], -1, "", 0
         self.ov = Overlay(cfg); self.pop = WordPopup(cfg)
-        self.ov.action.connect(self.on_action); self.ov.word_hover.connect(self.on_hover); self.ov.word_click.connect(self.on_click)
+        self.lookup_ctx = None                    # câu ngữ cảnh khi tra từ trong cửa sổ Dịch vùng
+        self.ov.action.connect(self.on_action); self.ov.word_hover.connect(lambda w, p: self._hover_from(None, w, p)); self.ov.word_click.connect(lambda w, p: self._click_from(None, w, p))
+        self.scan_win = ScanWindow(cfg); self.scan = {"src": "", "vi": ""}
+        self.scan_win.word_hover.connect(lambda w, p: self._hover_from(self.scan, w, p)); self.scan_win.word_click.connect(lambda w, p: self._click_from(self.scan, w, p))
+        self.scan_win.action.connect(self.on_action)
         self.ov.phrase_action.connect(self.on_phrase); self.pop.act.connect(self.on_pop_action)
         self.pop.lang_changed.connect(self.on_lang)
         self.hover_t = QTimer(singleShot=True, timeout=lambda: self.lookup(*self._pending)); self._pending = ("", QPoint())
@@ -82,7 +90,7 @@ class App:
         f = QFont(); f.setPointSize(26); f.setBold(True); p.setFont(f); p.setPen(QColor("#111")); p.drawText(pm.rect(), Qt.AlignCenter, "W"); p.end()
         self.icon = QIcon(pm); self.q.setWindowIcon(self.icon)
         self.tray = QSystemTrayIcon(self.icon); m = QMenu()
-        for txt, k in [("Ẩn/hiện overlay", "toggle"), ("Chọn vùng", "region"), ("Tạm dừng", "pause"), ("Bộ sub", "subs"),
+        for txt, k in [("Ẩn/hiện overlay", "toggle"), ("Chụp & dịch 1 vùng", "scan"), ("Chọn vùng", "region"), ("Tạm dừng", "pause"), ("Bộ sub", "subs"),
                        ("Glossary", "glossary"), ("Sổ từ", "vocab"), ("Cài đặt", "settings"), (None, None), ("Thoát", "quit")]:
             if txt is None: m.addSeparator(); continue
             a = QAction(txt, m); a.triggered.connect(lambda _=0, k=k: self.on_action(k)); m.addAction(a)
@@ -138,7 +146,15 @@ class App:
     def on_error(self, msg): self.ov.tag.setText(msg)
 
     # ---------------- tra từ
-    def cur_line(self): return self.history[self.pos] if self.history else {"src": self.ov.src, "vi": ""}
+    def cur_line(self):
+        if self.lookup_ctx: return self.lookup_ctx
+        return self.history[self.pos] if self.history else {"src": self.ov.src, "vi": ""}
+
+    def _hover_from(self, ctx, word, pos):
+        if word: self.lookup_ctx = ctx
+        self.on_hover(word, pos)
+
+    def _click_from(self, ctx, word, pos): self.lookup_ctx = ctx; self.on_click(word, pos)
 
     def on_hover(self, word, pos):
         if self.pop.pinned and self.pop.isVisible(): return
@@ -222,7 +238,8 @@ class App:
             if self.history: self.resolve(self.history[self.pos])
         elif k == "clear": self.ov.show_line("", "", "", ""); self.pop.close_pop()
         elif k == "retranslate" and self.history: self.resolve(self.history[self.pos], machine=True)
-        elif k in ("region", "speaker"): self.select_region(k)
+        elif k in ("region", "speaker", "scan"): self.select_region(k)
+        elif k == "scan_retranslate" and self.scan["src"]: self.scan_translate(machine=True)
         elif k == "toggle": self.auto_hidden = False; self.ov.setVisible(not self.ov.isVisible()); self.pop.hide()
         elif k == "clickthrough":
             c["click_through"] = not c["click_through"]; self.ov.set_click_through(c["click_through"]); self.ct_action.setChecked(c["click_through"])
@@ -235,20 +252,51 @@ class App:
         elif k == "quit": self.quit()
 
     def select_region(self, kind):
-        self.ov.hide(); self.pop.hide(); self.worker.paused = True
+        ov_vis, scan_vis = self.ov.isVisible() or kind != "scan", self.scan_win.isVisible()
+        self.ov.hide(); self.pop.hide(); self.scan_win.hide(); self.worker.paused = True
         def go():
-            title = "Kéo chọn vùng THOẠI cần dịch — Esc để hủy" if kind == "region" else "Kéo chọn vùng TÊN NHÂN VẬT — Esc để hủy / bỏ vùng tên"
+            title = {"region": "Kéo chọn vùng THOẠI cần dịch — Esc để hủy", "scan": "Kéo chọn vùng cần dịch 1 lần (thư, bảng…) — Esc để hủy"}.get(kind, "Kéo chọn vùng TÊN NHÂN VẬT — Esc để hủy / bỏ vùng tên")
             self.sel = RegionSelector(title)
             def ok(r):
+                if kind == "scan": end(); self.scan_capture(r); return
                 self.cfg["region" if kind == "region" else "speaker_region"] = r; self.cfg.save(); self.last = ""; self.worker.force = True; end()
             def cancel():
                 if kind == "speaker" and self.cfg["speaker_region"]:
                     b = QMessageBox.question(None, "Vùng tên nhân vật", "Bỏ vùng tên nhân vật hiện tại?")
                     if b == QMessageBox.Yes: self.cfg["speaker_region"] = None; self.cfg.save()
                 end()
-            def end(): self.worker.paused = False; self.ov.set_paused(False); self.ov.show()
+            def end():
+                self.worker.paused = False; self.ov.set_paused(False)
+                if ov_vis: self.ov.show()
+                if scan_vis: self.scan_win.show()
             self.sel.selected.connect(ok); self.sel.cancelled.connect(cancel); self.sel.start()
         QTimer.singleShot(180, go)
+
+    # ---------------- chụp & dịch 1 vùng
+    def scan_capture(self, r):
+        c = self.cfg; self.scan_win.show_result(self.scan["src"], "", "Đang OCR…")
+        def work(_):
+            with open_sct() as sct: img = grab(sct, r)
+            s = float(c["ocr_scale"] or 1)
+            if abs(s - 1) > 0.01: img = ocr._resize(img, s)
+            return join_lines(ocr.create(c["ocr_engine"], c["ocr_lang"]).recognize(img))
+        def done(text):
+            if c["fix_spacing"]: text = self.spacer.fix(text)
+            self.scan = {"src": text, "vi": ""}
+            if not text.strip(): self.scan_win.show_result("", "", "Không đọc được chữ trong vùng này"); return
+            self.scan_translate()
+        run(work, done, lambda e: self.scan_win.show_result(self.scan["src"], "", f"Lỗi OCR: {e}"))
+
+    def scan_translate(self, machine=False):
+        c, sc = self.cfg, self.scan; src = sc["src"]
+        if not c["translate"] and not machine: self.scan_win.show_result(src, "", "Không dịch — chỉ câu gốc"); return
+        m = self.index.match(src, c["fuzzy_threshold"]) if c["use_subs"] and not machine else None
+        if m: sc["vi"] = m.vi; self.scan_win.show_result(src, m.vi, f"Bộ sub · khớp {m.score:.0f}%"); return
+        if not c["chain"]: self.scan_win.show_result(src, "", "Chưa cấu hình dịch máy"); return
+        self.scan_win.show_result(src, "", "Đang dịch…")
+        def partial(t): self.scan_win.show_result(src, t, "Đang dịch…")
+        def done(res): sc["vi"] = res[0]; self.scan_win.show_result(src, res[0], self.tr.label(res[1]))
+        run(lambda p: self.tr.translate(src, "", [], p), done, lambda e: self.scan_win.show_result(src, "", f"Lỗi dịch: {e}"), partial)
 
     def open_settings(self):
         c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens", "translate")}
@@ -261,7 +309,7 @@ class App:
             self.dicts.load(c["dict_files"])
             if self.dicts.errors: QMessageBox.warning(None, "Từ điển", "\n".join(self.dicts.errors))
         if any(c[k] != old[k] for k in ("gender", "player_name", "name_tokens")): self.rebuild_index()
-        self.ov.apply_style(); self.pop.apply_style(); self._register_hotkeys(); self.render()
+        self.ov.apply_style(); self.pop.apply_style(); self.scan_win.apply_style(); self._register_hotkeys(); self.render()
         if c["translate"] != old["translate"] and self.history: self.resolve(self.history[self.pos])
 
     def quit(self):

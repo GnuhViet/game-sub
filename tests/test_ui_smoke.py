@@ -109,6 +109,20 @@ class S:
 assert to_physical(S(), QRect(100, 200, 300, 40)) == {"x": 2070, "y": 300, "w": 450, "h": 60}
 
 a.on_action("pause"); assert a.worker.paused; a.on_action("pause")
+# 10) chụp & dịch 1 vùng (thư): OCR 1 lần -> cửa sổ riêng, hover tra từ dùng ngữ cảnh của thư
+class _Sct:
+    def __enter__(self): return self
+    def __exit__(self, *a): pass
+class _Eng:
+    def recognize(self, img): return ["Dear Rover, thank you for", "yourhelp in Jinzhou."]
+A.open_sct = _Sct; A.grab = lambda sct, r: None; A.ocr.create = lambda n, l: _Eng(); a.tr.translate = fake_tr
+a.scan_capture({"x": 0, "y": 0, "w": 10, "h": 10}); pump()
+assert a.scan_win.isVisible() and a.scan_win.src == "Dear Rover, thank you for your help in Jinzhou." and a.scan_win.vi_view.toPlainText() == "Câu dịch máy.", a.scan_win.src
+assert "w:" in a.scan_win.src_view.toHtml()
+a.cfg["dict_mode"] = "auto"; a.pop.hide(); a.pop.pinned = False
+a.scan_win.word_click.emit("help", QPoint(200, 200)); pump(); assert a.cur_line()["src"].startswith("Dear Rover") and a.pop.word == "help"
+a.ov.word_hover.emit("woke", QPoint(1, 1)); pump(0.5); assert a.lookup_ctx is None
+a.on_action("scan_retranslate"); pump(); assert a.scan_win.tag.text().startswith("Gemini")
 
 # 8) tự ẩn khi hết thoại, hiện lại khi có thoại mới; toggle tay không bị auto-show
 a.cfg["auto_hide_s"] = 0.1; a.ov.show(); a.pop.hide(); a.on_text("", ""); pump(0.3)

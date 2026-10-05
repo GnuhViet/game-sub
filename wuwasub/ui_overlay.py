@@ -47,7 +47,7 @@ class Overlay(QWidget):
         self.bar = QWidget(); hb = QHBoxLayout(self.bar); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(2)
         self.btns = {}
         for key, txt, tip in [("prev", "◀", "Câu trước"), ("next", "▶", "Câu sau"), ("pause", "⏸", "Tạm dừng/Tiếp tục"), ("translate", "🌐", ""),
-                              ("rescan", "⟳", "Quét lại"), ("clear", "⌫", "Xóa chữ trên overlay"), ("region", "⬚", "Chọn vùng dịch"), ("speaker", "👤", "Chọn vùng tên nhân vật"),
+                              ("rescan", "⟳", "Quét lại"), ("clear", "⌫", "Xóa chữ trên overlay"), ("scan", "📷", "Chụp & dịch 1 vùng (thư, bảng…)"), ("region", "⬚", "Chọn vùng dịch"), ("speaker", "👤", "Chọn vùng tên nhân vật"),
                               ("subs", "📂", "Bộ sub"), ("glossary", "🏷", "Glossary"), ("vocab", "📖", "Sổ từ"),
                               ("settings", "⚙", "Cài đặt"), ("hide", "—", "Ẩn (hotkey để hiện lại)"), ("quit", "✕", "Thoát")]:
             b = QToolButton(); b.setText(txt); b.setToolTip(tip); b.setAutoRaise(True); b.clicked.connect(lambda _=0, k=key: self.action.emit(k))

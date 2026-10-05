@@ -26,6 +26,7 @@ Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-pla
 | `Alt+C` | Click-through: chuột xuyên qua overlay để bấm game (cũng có ở menu khay) |
 | 🌐 / `Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
 | ⌫ / `Alt+X` | Xóa chữ trên overlay |
+| 📷 / `Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, hover tra từ được |
 | ◀ ▶ | Xem lại các câu trước |
 
 **Tự ẩn khi hết thoại:** Cài đặt → Giao diện → "Tự ẩn… sau (s)" > 0; có thoại mới tự hiện lại.

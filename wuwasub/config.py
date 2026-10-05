@@ -45,7 +45,7 @@ DEFAULTS = {
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
     "click_through": False,                           # chuột xuyên qua overlay (bật/tắt bằng hotkey)
     "overlay_geom": None, "bg": "#101418", "fg": "#f2f2f2", "src_fg": "#9fb3c8", "accent": "#e8c26a",
-    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C", "clear": "Alt+X", "translate": "Alt+D"},
+    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C", "clear": "Alt+X", "translate": "Alt+D", "scan": "Alt+Q"},
 }
 
 class Config(dict):
