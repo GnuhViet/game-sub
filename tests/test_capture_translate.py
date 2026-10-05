@@ -29,6 +29,28 @@ def test_capture_waits_for_stable_text():
     assert got == ["Hello width 200"], got        # chỉ OCR 1 lần khi khung đã đủ & ổn định
     assert Eng.calls == 1
 
+def test_capture_waits_for_target_app():
+    """App khác đang focus -> không OCR; về game -> OCR."""
+    q = QCoreApplication.instance() or QCoreApplication(sys.argv)
+    fg = {"exe": "chrome.exe"}
+    cap.winapp.is_target = lambda t: not t or fg["exe"] == t
+    A = np.zeros((40, 200, 3), np.uint8); A[:, :100] = 255
+    cap.grab = lambda sct, r: A
+    class Eng:
+        name = "fake"; calls = 0
+        def recognize(self, img): Eng.calls += 1; return ["hi"]
+    cap.ocr.create = lambda n, l: Eng()
+    class FakeMss:
+        def close(self): pass
+    cap.open_sct = lambda: FakeMss()
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(region={"x": 0, "y": 0, "w": 200, "h": 40}, interval_ms=20, stable_ms=50, target_app="game.exe")
+    w = cap.CaptureWorker(cfg); st = []; w.status.connect(st.append); w.start()
+    def run(sec):
+        end = time.time() + sec
+        while time.time() < end: q.processEvents(); time.sleep(0.01)
+    run(0.5); assert Eng.calls == 0 and "Chờ game.exe…" in st
+    fg["exe"] = "game.exe"; run(0.5); w.stop(); assert Eng.calls == 1, Eng.calls
+
 def test_capture_skips_same_frame():
     """Nền nhấp nháy rồi trở lại y như cũ -> không OCR lại; đổi sang khung mới thật -> OCR."""
     q = QCoreApplication.instance() or QCoreApplication(sys.argv)
@@ -73,12 +95,25 @@ def test_streaming_parsers():
     try: tr.translate("x", "", [], None); assert False
     except Exception as e: assert "429" in str(e) and tr.cool["gemini"] > time.time()
     # Gemini lỗi/cooldown -> Google; engine riêng cho vùng chụp; chọn Google thì không gọi Gemini
-    tr.google = lambda text: "Bản Google"
+    tr.google = lambda text: "Bản Google"; tr.db.cache_get = lambda k: None      # tắt cache để thử từng engine
     r = tr.translate("x", "", [], None, engine="ocr_gemini"); assert r[:2] == ("Bản Google", "google") and "Gemini lỗi" in r[2], r
     cfg["dialog_engine"] = "gemini_google"; assert tr.translate("x")[1] == "google"
     tr.cool.clear(); calls = []; tr.gemini = lambda *a, **k: calls.append(1) or "AI"
     cfg["dialog_engine"] = "google"; assert tr.translate("x") == ("Bản Google", "google", "") and not calls
     assert tr.translate("x", engine="ocr_gemini") == ("AI", "gemini", "")
 
+def test_google_fallback_and_cache():
+    import wuwasub.translator as T
+    calls = []
+    class S:
+        def get(self, url, params=None, timeout=None):
+            calls.append(url)
+            if "translate.googleapis" in url: return FakeResp([], 429)
+            return FakeResp([], 200, [["Xin chào", "en"]])
+    assert T.google_free(S(), "Hello", "vi", 5, {}) == "Xin chào" and len(calls) == 2      # 429 -> endpoint dự phòng
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); db = DB(Path(tempfile.mkdtemp()) / "t.db"); tr = Translator(cfg, db)
+    n = []; tr.google = lambda text: n.append(1) or "Bản dịch"
+    assert tr.translate("Same line.") == ("Bản dịch", "google", "") and tr.translate("Same line.") == ("Bản dịch", "google", "") and len(n) == 1
+
 if __name__ == "__main__":
-    test_capture_waits_for_stable_text(); print("PASS capture"); test_capture_skips_same_frame(); print("PASS skip same frame"); test_streaming_parsers(); print("PASS translate")
+    test_capture_waits_for_stable_text(); print("PASS capture"); test_capture_skips_same_frame(); print("PASS skip same frame"); test_capture_waits_for_target_app(); print("PASS target app"); test_google_fallback_and_cache(); print("PASS google fallback + cache"); test_streaming_parsers(); print("PASS translate")

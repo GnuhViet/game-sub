@@ -2,7 +2,7 @@
 import time, traceback
 import numpy as np
 from PySide6.QtCore import QThread, Signal
-from . import ocr
+from . import ocr, winapp
 from .textnorm import join_lines
 
 def open_sct():
@@ -40,7 +40,7 @@ class CaptureWorker(QThread):
         return join_lines(eng.recognize(img))
 
     def run(self):
-        sct = open_sct(); eng = self._engine(); prev = last_ocr = None; pending = False; last_change = 0
+        sct = open_sct(); eng = self._engine(); prev = last_ocr = None; pending = False; last_change = 0; waiting = False
         while self.running:
             t0 = time.time()
             try:
@@ -51,6 +51,10 @@ class CaptureWorker(QThread):
                     Image.fromarray(grab(sct, r)).save(self.snapshot_req); self.status.emit(f"Đã lưu ảnh vùng: {self.snapshot_req}"); self.snapshot_req = None
                 if self.paused or not r or eng is None:
                     time.sleep(0.2); continue
+                if not winapp.is_target(self.cfg["target_app"]):          # đang ở app khác -> không chụp
+                    if not waiting: waiting = True; self.status.emit(f"Chờ {self.cfg['target_app']}…")
+                    time.sleep(0.3); continue
+                if waiting: waiting = False; self.status.emit("")
                 img = grab(sct, r); sig = signature(img)
                 if prev is None or prev.shape != sig.shape or float(np.abs(sig - prev).mean()) > self.cfg["diff_threshold"]:
                     prev = sig; pending = True; last_change = time.time()

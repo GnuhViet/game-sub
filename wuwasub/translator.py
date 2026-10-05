@@ -10,6 +10,22 @@ CHAINS = {"google": ["google"], "gemini": ["gemini"], "gemini_google": ["gemini"
 
 class ProviderError(Exception): pass
 
+GOOGLE_COOLDOWN = 10        # endpoint free chặn tạm theo IP khi gửi dồn dập -> nghỉ ngắn
+
+def google_free(s, text, tl, timeout, cool):
+    """Google Translate free: endpoint gtx, bị chặn (429) thì thử endpoint dict-chrome-ex (hạn mức riêng)."""
+    r = s.get("https://translate.googleapis.com/translate_a/single",
+              params={"client": "gtx", "sl": "auto", "tl": tl, "dt": "t", "q": text}, timeout=timeout)
+    if r.status_code == 200: return "".join(seg[0] for seg in r.json()[0] if seg and seg[0])
+    if r.status_code == 429:
+        r = s.get("https://clients5.google.com/translate_a/t", params={"client": "dict-chrome-ex", "sl": "auto", "tl": tl, "q": text}, timeout=timeout)
+        if r.status_code == 200:
+            d = r.json(); d = d[0] if isinstance(d, list) and d else d
+            return d[0] if isinstance(d, list) else str(d)
+    if r.status_code == 429:
+        cool["google"] = time.time() + GOOGLE_COOLDOWN; raise ProviderError("Google tạm chặn do gửi quá nhiều (429), thử lại sau 10s")
+    raise ProviderError(f"Google HTTP {r.status_code}")
+
 class Translator:
     def __init__(self, cfg, db):
         self.cfg, self.db, self.cool = cfg, db, {}
@@ -43,9 +59,18 @@ class Translator:
     # ---------- public
     def translate(self, text, speaker="", context=(), on_partial=None, engine=None):
         """-> (bản dịch, nhà cung cấp, ghi chú lỗi của nhà cung cấp bị bỏ qua — vd. Gemini lỗi nên dùng Google)"""
+        eng = engine or self.cfg["dialog_engine"]; key = f"tr:{eng}:{self.cfg['target_lang']}:{text}"
+        hit = self.db.cache_get(key) if self.db else None                  # câu đã dịch -> khỏi gọi lại (đỡ bị Google chặn)
+        if hit:
+            name, _, vi = hit.partition("\t"); return vi, name, ""
+        res = self._translate(text, speaker, context, on_partial, eng)
+        if self.db and res[0]: self.db.cache_set(key, f"{res[1]}\t{res[0]}")
+        return res
+
+    def _translate(self, text, speaker, context, on_partial, eng):
         errs = []
-        for name in CHAINS.get(engine or self.cfg["dialog_engine"], ["google"]):
-            if time.time() < self.cool.get(name, 0): errs.append(f"{name}: đang nghỉ do hết quota"); continue
+        for name in CHAINS.get(eng, ["google"]):
+            if time.time() < self.cool.get(name, 0): errs.append(f"{name}: đang nghỉ do bị giới hạn (429)"); continue
             note = ("; ".join(errs)).replace("gemini:", "Gemini lỗi:")
             try:
                 if name == "google": return self.google(text), name, note
@@ -81,11 +106,7 @@ class Translator:
 
     def google(self, text):
         protected, mapping = self._protect(text)
-        r = self.s.get("https://translate.googleapis.com/translate_a/single",
-                       params={"client": "gtx", "sl": "auto", "tl": self.cfg["target_lang"], "dt": "t", "q": protected}, timeout=self.cfg["timeout_s"])
-        self._check("google", r)
-        out = "".join(seg[0] for seg in r.json()[0] if seg and seg[0])
-        return self._restore(out, mapping)
+        return self._restore(google_free(self.s, protected, self.cfg["target_lang"], self.cfg["timeout_s"], self.cool), mapping)
 
     def _protect(self, text):
         """Google: thay thuật ngữ bằng token rồi khôi phục."""

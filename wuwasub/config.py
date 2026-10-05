@@ -24,7 +24,8 @@ DEFAULTS = {
     "region": None, "speaker_region": None,          # {"x","y","w","h"} physical px
     "ocr_engine": "windows", "ocr_lang": "en-US", "ocr_scale": 1.0,
     "interval_ms": 250, "stable_ms": 350, "diff_threshold": 3.0, "dedupe_ratio": 92,
-    "src_lang": "tiếng Anh", "fix_spacing": True, "clear_on_empty": True,             # tách từ OCR dính liền
+    "src_lang": "tiếng Anh", "fix_spacing": True, "clear_on_empty": True,
+    "target_app": "",                                 # chỉ chụp khi app này đang focus (vd. client-win64-shipping.exe); "" = mọi cửa sổ             # tách từ OCR dính liền
     # dịch
     "translate": True,                                # False = không dịch, chỉ hiện câu gốc để tra từ
     "dialog_engine": "google",                        # thoại: google / gemini_google / gemini

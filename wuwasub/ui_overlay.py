@@ -40,7 +40,7 @@ RIGHT_BTNS = [("settings", "⚙"), ("hide", "—"), ("quit", "✕")]            
 TIPS = {"prev": "Câu trước", "next": "Câu sau", "pause": "Tạm dừng / tiếp tục nhận dạng", "translate": "Bật/tắt dịch (tắt = chỉ câu gốc để tra từ)",
         "rescan": "Quét lại vùng thoại", "clear": "Xóa chữ trên overlay", "scan": "Chụp & dịch 1 vùng (thư, bảng…)",
         "region": "Chọn vùng thoại", "speaker": "Chọn vùng tên nhân vật", "subs": "Bộ sub Việt hóa", "glossary": "Glossary (tên riêng, thuật ngữ)",
-        "vocab": "Sổ từ", "lock": "Khóa overlay (không hiện toolbar, không kéo/đổi cỡ)", "settings": "Cài đặt", "hide": "Ẩn overlay", "quit": "Thoát"}
+        "vocab": "Sổ từ", "lock": "Khóa overlay (chuột xuyên qua để chơi game)", "settings": "Cài đặt", "hide": "Ẩn overlay", "quit": "Thoát"}
 BUSY = ("Đang", "Lỗi", "Chưa", "Không khớp", "Không đọc")          # trạng thái luôn hiện ở góc (nguồn dịch chỉ hiện khi rê chuột)
 
 class FlowLayout(QLayout):
@@ -205,9 +205,14 @@ class Overlay(QWidget):
         m = QMenu(self); m.addAction("Copy bản dịch", lambda: QApplication.clipboard().setText(self.vi.text()))
         m.addAction("Dịch lại bằng máy", lambda: self.action.emit("retranslate")); m.exec(self.vi.mapToGlobal(pos))
 
-    def set_click_through(self, on):
-        vis = self.isVisible(); self.setWindowFlag(Qt.WindowTransparentForInput, on)   # đổi flag làm ẩn cửa sổ
-        if on: self.bar.setVisible(False)
+    def set_click_through(self, on): self.cfg["click_through"] = on; self._apply_input()
+
+    def _apply_input(self):
+        """Chuột xuyên qua overlay khi khóa hoặc bật click-through (không chắn chuột game)."""
+        want = bool(self.cfg["locked"] or self.cfg["click_through"])
+        if bool(self.windowFlags() & Qt.WindowTransparentForInput) == want: return
+        vis = self.isVisible(); self.setWindowFlag(Qt.WindowTransparentForInput, want)   # đổi flag làm ẩn cửa sổ
+        if want: self.bar.setVisible(False)
         if vis: self.show()
 
     def set_paused(self, p): self.btns["pause"].setText("▶▶" if p else "⏸"); self.status.setText("Tạm dừng" if p else "")
@@ -218,7 +223,7 @@ class Overlay(QWidget):
     def set_locked(self, on):
         self.grip.setVisible(not on)
         if on: self._set_bar(False)
-        self.btns["lock"].setText("🔓" if on else "🔒")
+        self.btns["lock"].setText("🔓" if on else "🔒"); self._apply_input()
 
     def _set_bar(self, on):
         self.bar.setVisible(on); self._tag_vis(); self.update()

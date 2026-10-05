@@ -7,7 +7,7 @@ import wuwasub.config as C
 C.DATA_DIR = Path(tempfile.mkdtemp()); C.CFG_PATH = C.DATA_DIR / "settings.json"
 import wuwasub.app as A
 A.DATA_DIR = C.DATA_DIR
-from PySide6.QtCore import QPoint, QRect, QThreadPool
+from PySide6.QtCore import QPoint, QRect, QThreadPool, Qt
 from PySide6.QtWidgets import QApplication
 from wuwasub.ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog, ReviewDialog
 from wuwasub.ui_region import RegionSelector, to_physical
@@ -156,7 +156,7 @@ a.cfg.update(scan_engine="ocr_google", gemini_key="")
 a.ov.show_line("", "Hi.", "Xin chào.", "Google Translate"); assert a.ov.tag.text() == ""
 a.ov._set_bar(True); assert a.ov.tag.text() == "Google Translate"; a.ov._set_bar(False)
 a.ov.show_line("", "Hi.", "", "Đang dịch…"); assert a.ov.tag.text() == "Đang dịch…"
-a.on_action("lock"); assert a.cfg["locked"] and not a.ov.grip.isVisible() and a.lock_action.isChecked()
+a.on_action("lock"); assert a.cfg["locked"] and not a.ov.grip.isVisible() and a.lock_action.isChecked() and a.ov.windowFlags() & Qt.WindowTransparentForInput
 a.ov.enterEvent(None); assert not a.ov.bar.isVisible(); a.on_action("lock"); assert not a.cfg["locked"]
 h0 = a.ov.height(); bottom = a.ov.geometry().bottom()
 a.ov.show_line("", "word " * 80, "chữ " * 120, "Gemini"); assert a.ov.height() > h0 and abs(a.ov.geometry().bottom() - bottom) <= 1, (h0, a.ov.height())

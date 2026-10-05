@@ -87,6 +87,10 @@ def google_lookup(word, tl="vi", timeout=6):
     """Google Translate (gtx, free): nghĩa chính + phiên âm + nghĩa theo từ loại. -> (nghĩa chính, html) | None"""
     r = net.session().get("https://translate.googleapis.com/translate_a/single", timeout=timeout,
                      params=[("client", "gtx"), ("sl", "auto"), ("tl", tl), ("dt", "t"), ("dt", "bd"), ("dt", "rm"), ("q", word)])
+    if r.status_code == 429:                                    # bị chặn tạm -> endpoint dự phòng (chỉ có nghĩa chính)
+        from .translator import google_free
+        main = google_free(net.session(), word, tl, timeout, {})
+        return (main, f"<b style='font-size:15px'>{html.escape(main)}</b>") if main else None
     r.raise_for_status(); d = r.json()
     main = "".join(s[0] for s in (d[0] or []) if s and s[0]).strip()
     ph = next((s[3] for s in (d[0] or []) if s and len(s) > 3 and s[3]), "")

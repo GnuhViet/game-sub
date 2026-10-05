@@ -245,7 +245,7 @@ class App:
             if self.history: self.resolve(self.history[self.pos])
         elif k == "lock":
             c["locked"] = not c["locked"]; c.save(); self.ov.set_locked(c["locked"]); self.lock_action.setChecked(c["locked"])
-            self._toast("Đã khóa overlay — " + c["hotkeys"].get("lock", "") + " để mở" if c["locked"] else "Đã mở khóa overlay")
+            self._toast("Đã khóa overlay (chuột xuyên qua) — " + c["hotkeys"].get("lock", "") + " hoặc menu khay để mở" if c["locked"] else "Đã mở khóa overlay")
         elif k == "clear": self.ov.show_line("", "", "", ""); self.pop.close_pop()
         elif k == "retranslate" and self.history: self.resolve(self.history[self.pos], machine=True)
         elif k in ("region", "speaker", "scan"): self.select_region(k)

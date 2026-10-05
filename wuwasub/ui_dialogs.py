@@ -27,6 +27,10 @@ class SettingsDialog(QDialog):
         self._spin(f, "stable_ms", "Chờ chữ ổn định (ms)", 0, 3000)
         self._dspin(f, "diff_threshold", "Ngưỡng thay đổi ảnh", 0.2, 50, 0.5)
         self._spin(f, "dedupe_ratio", "Bỏ qua nếu giống câu trước ≥ (%)", 50, 100)
+        self.app_combo = QComboBox(); self.app_combo.setEditable(True); self.app_combo.setMinimumWidth(260)
+        ref = QPushButton("Làm mới"); ref.clicked.connect(self._load_apps); self._load_apps()
+        hb = QHBoxLayout(); hb.addWidget(self.app_combo, 1); hb.addWidget(ref); f.addRow("Chỉ dịch khi đang mở app", hb)
+        self.w["target_app"] = (self.app_combo, self._app_value)
         self._check(f, "clear_on_empty", "Tự xóa chữ khi vùng thoại không còn chữ")
         self._check(f, "fix_spacing", "Tự tách từ bị dính (youfinallywoke → you finally woke)")
         f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút ⬚ / 👤 trên overlay.</i>"))
@@ -154,6 +158,21 @@ class SettingsDialog(QDialog):
             st.setText(f"✓ đã cài — {engines.size_mb(k):.0f} MB trên đĩa" if ok[k] else "chưa cài")
             bi.setText("Tải lại" if ok[k] else f"Tải ({dl})"); bd.setEnabled(ok[k])
         self.eng_status.setText(f"<i>Nằm trong {html.escape(str(engines.ENG_DIR))}</i>")
+
+    def _load_apps(self):
+        """App đang có cửa sổ mở (WuWa: client-win64-shipping.exe) + giá trị đang lưu."""
+        from . import winapp
+        cur = self._app_value() if self.app_combo.count() else self.cfg["target_app"]
+        c = self.app_combo; c.clear(); c.addItem("Mọi cửa sổ (không lọc)", "")
+        apps = dict(winapp.windows())
+        if cur and cur not in apps: apps[cur] = "(chưa mở)"
+        for exe, title in sorted(apps.items()): c.addItem(f"{exe} — {title[:40]}", exe)
+        c.setCurrentIndex(max(0, c.findData(cur)))
+
+    def _app_value(self):
+        c = self.app_combo; t = c.currentText().strip()
+        if c.currentIndex() >= 0 and t == c.itemText(c.currentIndex()): return c.currentData() or ""
+        return t.split(" — ")[0].strip().lower()                              # gõ tay tên exe
 
     def _gem_warn(self):
         uses = [n for k, n in (("dialog_engine", "dịch thoại"), ("scan_engine", "dịch vùng chụp")) if "gemini" in (self.w[k][1]() or "")]
