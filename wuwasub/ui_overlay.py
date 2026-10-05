@@ -1,4 +1,4 @@
-import html
+import ctypes, html, sys
 from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent, QSize
 from PySide6.QtGui import QColor, QPainter, QCursor, QFont
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
@@ -7,6 +7,13 @@ from .textnorm import WORD_RE
 from .dictionary import LANGS
 
 FLAGS = Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+
+def exclude_from_capture(widget, on=True):
+    """Windows 10 2004+: cửa sổ vẫn hiện trên màn hình nhưng vô hình với mọi ảnh chụp (kể cả mss của app)
+    -> đặt overlay đè lên vùng OCR không bị OCR đọc lại chính bản dịch."""
+    if sys.platform != "win32" or not widget.isVisible(): return
+    try: ctypes.windll.user32.SetWindowDisplayAffinity(int(widget.winId()), 0x11 if on else 0)   # WDA_EXCLUDEFROMCAPTURE / WDA_NONE
+    except Exception: pass
 
 def outline_offsets(w):
     """Các điểm lệch tạo viền dày w px (gần tròn)."""
@@ -136,7 +143,7 @@ class Overlay(QWidget):
             tip = TIPS.get(k, ""); hk = c["hotkeys"].get(k) or c["hotkeys"].get({"hide": "toggle"}.get(k, ""), "")
             if k == "translate": tip = "Đang dịch — bấm để tắt (chỉ câu gốc để tra từ)" if c["translate"] else "Đang TẮT dịch — bấm để bật"
             b.setToolTip(tip + (f"  [{hk}]" if hk else ""))
-        self.set_locked(c["locked"]); self._fit()
+        self.set_locked(c["locked"]); self._fit(); exclude_from_capture(self, c["hide_from_capture"])
 
     def paintEvent(self, e):
         p = QPainter(self); p.setRenderHint(QPainter.Antialiasing)
@@ -206,6 +213,8 @@ class Overlay(QWidget):
     def set_paused(self, p): self.btns["pause"].setText("▶▶" if p else "⏸"); self.status.setText("Tạm dừng" if p else "")
 
     # ---- kéo thả / hover toolbar
+    def showEvent(self, e): super().showEvent(e); exclude_from_capture(self, self.cfg["hide_from_capture"])
+
     def set_locked(self, on):
         self.grip.setVisible(not on)
         if on: self._set_bar(False)
@@ -292,5 +301,6 @@ class WordPopup(QFrame):
     def leaveEvent(self, e):
         if not self.pinned: self.hide_t.start()
     def close_pop(self): self.pinned = False; self.hide()
+    def showEvent(self, e): super().showEvent(e); exclude_from_capture(self, self.cfg["hide_from_capture"])
     def mousePressEvent(self, e):
         if e.button() == Qt.RightButton: self.close_pop()

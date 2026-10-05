@@ -98,6 +98,7 @@ class SettingsDialog(QDialog):
         for i, (k, icon) in enumerate(TOOLBAR):
             cb = QCheckBox(f"{icon}  {TIPS[k].split(' (')[0]}".replace("&", "&&")); cb.setChecked(k in cfg["toolbar"]); gl.addWidget(cb, i // 2, i % 2); tb[k] = cb
         f.addRow(g); self.w["toolbar"] = (g, lambda: [k for k, _ in TOOLBAR if tb[k].isChecked()])
+        self._check(f, "hide_from_capture", "Overlay vô hình với ảnh chụp: đặt đè lên vùng OCR được (quay/stream/chụp màn hình cũng không thấy overlay)")
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
         self._combo(f, "show_source", "Hiển thị", {True: "2 ngôn ngữ (câu gốc + bản dịch)", False: "1 ngôn ngữ (chỉ bản dịch)"}); self._check(f, "show_speaker", "Hiện tên nhân vật")
         # --- Hotkey

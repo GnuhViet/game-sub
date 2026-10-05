@@ -2,7 +2,7 @@
 from PySide6.QtCore import Qt, Signal, QPoint, QUrl, QEvent, QTimer
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser, QSplitter, QPushButton, QLabel, QApplication
-from .ui_overlay import tokens_html
+from .ui_overlay import tokens_html, exclude_from_capture
 
 class ScanWindow(QWidget):
     word_hover = Signal(str, QPoint)
@@ -32,6 +32,8 @@ class ScanWindow(QWidget):
     def _selected(self):
         sel = " ".join(self.src_view.textCursor().selectedText().split())     # split() bỏ cả U+2029 xuống đoạn
         if len(sel) >= 2: self.word_click.emit(sel, QCursor.pos())
+
+    def showEvent(self, e): super().showEvent(e); exclude_from_capture(self, self.cfg["hide_from_capture"])
 
     def apply_style(self):
         c = self.cfg
