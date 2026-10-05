@@ -87,6 +87,9 @@ def main():
     import PySide6, mss
     log(f"{platform.platform()} | Python {platform.python_version()} | PySide6 {PySide6.__version__} | mss {mss.__version__ if hasattr(mss, '__version__') else '?'}")
     log(f"ocr_engine={cfg['ocr_engine']} ocr_lang={cfg['ocr_lang']} ocr_scale={cfg['ocr_scale']}")
+    try:
+        from wuwasub.spacing import Spacer; log("Tách từ dính: 'Rover,youfinallywoke up.' -> " + repr(Spacer().fix('Rover,youfinallywoke up.')))
+    except Exception as ex: log(f"Tách từ dính: lỗi {ex}")
     for f in (check_screens, check_ocr, check_hotkeys):
         try: f(cfg)
         except Exception: log(traceback.format_exc().rstrip())
