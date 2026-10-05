@@ -133,7 +133,8 @@ class Overlay(QWidget):
         scr = QApplication.screenAt(g.center()) or QApplication.primaryScreen(); top = max(top, scr.availableGeometry().top())
         self._auto = True; self.setGeometry(g.x(), top, g.width(), h); self._auto = False
 
-    def _render_src(self): self.src_lbl.setText(tokens_html(self.src, self.cfg["src_fg"]))
+    def _render_src(self):   # bọc cả dòng để dấu câu (ngoài link) cùng màu với chữ
+        self.src_lbl.setText(f"<span style='color:{self.cfg['src_fg']}'>{tokens_html(self.src, self.cfg['src_fg'])}</span>")
 
     def _word(self, href):
         try: _, a, b = href.split(":"); return self.src[int(a):int(b)]
