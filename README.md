@@ -8,8 +8,9 @@ run.bat            # lần đầu tự tạo .venv và cài thư viện
 build.bat          # (tùy chọn) đóng gói thành dist\WuWaSub\WuWaSub.exe
 diag.bat           # tự kiểm tra DPI/đa màn hình, chụp game, OCR, hotkey -> data\diag.txt
 ```
-**Chạy trên máy khác không cần Python:** chạy `build.bat` → gửi `dist\WuWaSub.exe` (1 file duy nhất; khởi động mất vài giây
-để tự giải nén). Đặt exe vào thư mục riêng, dữ liệu nằm trong `data\` cạnh exe. Kiểm tra lỗi: `WuWaSub.exe --diag` → `data\diag.txt`.
+**Chạy trên máy khác không cần Python:** chạy `build.bat` → gửi `dist\WuWaSub.zip`. Bên kia **giải nén hết** rồi chạy
+`WuWaSub\WuWaSub.exe` (đừng chạy thẳng trong zip). Dạng thư mục mở nhanh, không giải nén gì ra `%TEMP%`.
+Dữ liệu nằm trong `data\` (và `engines\` nếu tải OCR) cạnh exe — copy cả thư mục là mang sang máy khác được. Kiểm tra lỗi: `WuWaSub.exe --diag` → `data\diag.txt`.
 Bản exe chỉ có Windows OCR (cần gói ngôn ngữ English trong Windows, thường có sẵn).
 
 Gặp lỗi (vùng lệch, ảnh đen, OCR không chạy, hotkey không ăn): chạy `diag.bat` và gửi `data\diag.txt` + `data\diag_region.png`.

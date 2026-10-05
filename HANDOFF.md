@@ -55,6 +55,9 @@ Phiên 4: build exe 1 file (`build.bat`, `--diag`). Nút tải OCR engine (`engi
 (exe cần `--collect-submodules numpy`), Tesseract = bộ cài UB-Mannheim `/S /D=engines/tesseract` (CHƯA test, cần UAC).
 Popup tra từ: Google dịch tự động (`google_lookup`, dt=bd) + chọn ngôn ngữ đích (`target_lang`). EasyOCR: bỏ qua (PyTorch >1GB, chậm trên CPU).
 
+Build: dạng thư mục (onedir) vào `build\out`, robocopy sang `dist\WuWaSub` chừa `data\`/`engines\` (PyInstaller xóa sạch thư mục đích),
+zip ra `dist\WuWaSub.zip`. Bỏ onefile vì giải nén ~160MB ra %TEMP% mỗi lần chạy, để rác khi bị tắt cưỡng bức.
+
 ## 5. Trạng thái test
 **Pass trên Linux:** core (matcher, importer, db, glossary/prompt, StarDict), capture (logic chờ ổn định), parser streaming Gemini + 429 fallback + engine, UI smoke offscreen.
 
