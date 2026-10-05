@@ -24,7 +24,7 @@ DEFAULTS = {
     "region": None, "speaker_region": None,          # {"x","y","w","h"} physical px
     "ocr_engine": "windows", "ocr_lang": "en-US", "ocr_scale": 1.0,
     "interval_ms": 250, "stable_ms": 350, "diff_threshold": 3.0, "dedupe_ratio": 92,
-    "src_lang": "tiếng Anh",
+    "src_lang": "tiếng Anh", "fix_spacing": True,             # tách từ OCR dính liền
     # dịch
     "use_subs": True, "fuzzy_threshold": 86,
     "chain": ["gemini", "google"],                    # thứ tự fallback: gemini/openai/google

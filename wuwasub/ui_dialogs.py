@@ -1,17 +1,18 @@
 import random, html
 from pathlib import Path
 from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog)
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider)
 from . import importer, engines
 from .dictionary import LANGS
 
 PROVIDERS = {"gemini": "Gemini", "openai": "OpenAI-compatible (DeepSeek/OpenRouter/Ollama)", "google": "Google Translate (free)"}
 
 class SettingsDialog(QDialog):
-    def __init__(self, cfg, parent=None):
-        super().__init__(parent); self.cfg = cfg; self.w = {}; self.setWindowTitle("Cài đặt"); self.resize(620, 560)
+    def __init__(self, cfg, parent=None, on_preview=None):
+        super().__init__(parent); self.cfg = cfg; self.on_preview = on_preview; self.w = {}; self.setWindowTitle("Cài đặt"); self.resize(620, 560)
         tabs = QTabWidget(); v = QVBoxLayout(self); v.addWidget(tabs)
         # --- OCR
         f = self._tab(tabs, "OCR")
@@ -22,6 +23,7 @@ class SettingsDialog(QDialog):
         self._spin(f, "stable_ms", "Chờ chữ ổn định (ms)", 0, 3000)
         self._dspin(f, "diff_threshold", "Ngưỡng thay đổi ảnh", 0.2, 50, 0.5)
         self._spin(f, "dedupe_ratio", "Bỏ qua nếu giống câu trước ≥ (%)", 50, 100)
+        self._check(f, "fix_spacing", "Tự tách từ bị dính (youfinallywoke → you finally woke)")
         f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút ⬚ / 👤 trên overlay.</i>"))
         self.btn_snap = QPushButton("Lưu ảnh vùng hiện tại để kiểm tra"); f.addRow(self.btn_snap)
         self.installed = False; self.eng_btns = {}
@@ -63,7 +65,15 @@ class SettingsDialog(QDialog):
         # --- Giao diện
         f = self._tab(tabs, "Giao diện")
         self._spin(f, "font_size", "Cỡ chữ bản dịch", 8, 48); self._spin(f, "src_font_size", "Cỡ chữ câu gốc", 8, 40)
-        self._dspin(f, "opacity", "Độ đậm nền", 0.05, 1, 0.05)
+        # độ trong suốt nền: thanh trượt + ô xem trước; kéo là overlay đổi ngay (Hủy thì trả lại)
+        sl = QSlider(Qt.Horizontal); sl.setRange(0, 95); sl.setValue(round((1 - float(cfg["opacity"])) * 100))
+        pct = QLabel(); pct.setMinimumWidth(44); prev = _OpacityPreview(cfg)
+        def changed(t):
+            op = 1 - t / 100; pct.setText(f"{t}%"); prev.set_opacity(op)
+            if self.on_preview: self.on_preview(op)
+        sl.valueChanged.connect(changed); changed(sl.value())
+        hb = QHBoxLayout(); hb.addWidget(sl, 1); hb.addWidget(pct); f.addRow("Độ trong suốt nền", hb); f.addRow(prev)
+        self.w["opacity"] = (sl, lambda: round(1 - sl.value() / 100, 2))
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
         self._check(f, "show_source", "Hiện câu gốc (hover tra từ)"); self._check(f, "show_speaker", "Hiện tên nhân vật")
         for k, n in [("bg", "Màu nền"), ("fg", "Màu chữ"), ("src_fg", "Màu câu gốc"), ("accent", "Màu nhấn")]: self._line(f, k, n)
@@ -123,6 +133,25 @@ class SettingsDialog(QDialog):
         c["dict_files"] = [self.dicts.item(i).text() for i in range(self.dicts.count())]
         c["hotkeys"] = {k: e.text().strip() for k, e in self.hk.items()}
         c.save()
+
+
+class _OpacityPreview(QWidget):
+    """Nền giả lập cảnh game (sáng/tối/nhiều màu) + khung thoại mẫu với độ trong suốt đang chọn."""
+    def __init__(self, cfg):
+        super().__init__(); self.cfg = cfg; self.op = float(cfg["opacity"]); self.setMinimumHeight(86)
+    def set_opacity(self, op): self.op = op; self.update()
+    def paintEvent(self, e):
+        p = QPainter(self); p.setRenderHint(QPainter.Antialiasing); r = self.rect()
+        g = QLinearGradient(0, 0, r.width(), 0)
+        for pos, col in [(0, "#f4f1e8"), (0.3, "#7fb7e6"), (0.55, "#3c7a3a"), (0.8, "#d9a441"), (1, "#141414")]: g.setColorAt(pos, QColor(col))
+        p.fillRect(r, g)
+        for x in range(0, r.width(), 40): p.fillRect(x, 0, 14, r.height(), QColor(255, 255, 255, 60))   # sọc chi tiết nền
+        box = r.adjusted(18, 14, -18, -14); col = QColor(self.cfg["bg"]); col.setAlphaF(max(0.05, self.op))
+        p.setBrush(col); p.setPen(Qt.NoPen); p.drawRoundedRect(box, 10, 10)
+        f = QFont(); f.setPointSize(9); p.setFont(f); p.setPen(QColor(self.cfg["src_fg"]))
+        p.drawText(box.adjusted(12, 6, -12, 0), Qt.AlignTop | Qt.AlignLeft, "Rover, you finally woke up.")
+        f.setPointSize(12); p.setFont(f); p.setPen(QColor(self.cfg["fg"]))
+        p.drawText(box.adjusted(12, 0, -12, -8), Qt.AlignBottom | Qt.AlignLeft, "Rover, cuối cùng anh cũng tỉnh rồi.")
 
 
 class _Job(QThread):

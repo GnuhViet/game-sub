@@ -84,6 +84,13 @@ def test_dictionaries():
     assert d.lookup("running")[0] == "run" and d.lookup("Apples") == ("apple", "quả táo") and d.lookup("going")[1] == "đi"
     assert len(d.errors) == 1 and d.lookup("zzz") is None
 
+def test_spacing():
+    from wuwasub.spacing import Spacer
+    s = Spacer(); s.set_known(["Huanglong"])
+    assert s.fix("Rover,youfinallywoke up.") == "Rover, you finally woke up."
+    assert s.fix("Letsheadto Jinzhou with Yangyang.") == "Lets head to Jinzhou with Yangyang."    # tên riêng giữ nguyên
+    assert s.fix("Huanglong, Tacetdiscord, Resonators, understanding") == "Huanglong, Tacetdiscord, Resonators, understanding"
+
 if __name__ == "__main__":
     for n, f in list(globals().items()):
         if n.startswith("test_"): f(); print("PASS", n)

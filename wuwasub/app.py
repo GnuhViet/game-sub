@@ -8,7 +8,8 @@ from .db import DB
 from .matcher import SubIndex
 from .translator import Translator
 from .dictionary import Dictionaries, online_lookup, google_lookup
-from .textnorm import norm
+from .textnorm import norm, WORD_RE
+from .spacing import Spacer
 from .capture import CaptureWorker
 from .hotkeys import Hotkeys
 from .ui_overlay import Overlay, WordPopup
@@ -40,7 +41,7 @@ class App:
     def __init__(self, qapp):
         self.q = qapp; DATA_DIR.mkdir(parents=True, exist_ok=True)
         self.cfg = cfg = Config(); self.db = DB(DATA_DIR / "wuwasub.db")
-        self.index = SubIndex(); self.rebuild_index()
+        self.index = SubIndex(); self.spacer = Spacer(); self.rebuild_index()
         self.dicts = Dictionaries().load(cfg["dict_files"])
         self.tr = Translator(cfg, self.db)
         self.history, self.pos, self.last, self.seq = [], -1, "", 0
@@ -64,7 +65,12 @@ class App:
 
     # ---------------- setup
     def rebuild_index(self):
-        c = self.cfg; n = self.index.build(self.db.all_subs(), c["gender"], c["name_tokens"], c["player_name"]); return n
+        c = self.cfg; n = self.index.build(self.db.all_subs(), c["gender"], c["name_tokens"], c["player_name"]); self._known_words(); return n
+
+    def _known_words(self):
+        """Tên riêng/từ trong bộ sub + glossary: không tách khi sửa chữ OCR dính."""
+        src = " ".join(s for s, _ in self.db.all_subs()) + " " + " ".join(g["term"] for g in self.db.glossary()) + " " + self.cfg["player_name"]
+        self.spacer.set_known(WORD_RE.findall(src))
 
     def _register_hotkeys(self):
         errs = self.hk.register(self.cfg["hotkeys"])
@@ -95,6 +101,7 @@ class App:
             return
         self.idle_t.stop()
         if self.auto_hidden: self.auto_hidden = False; self.ov.show()
+        if self.cfg["fix_spacing"]: text = self.spacer.fix(text)
         n = norm(text)
         if self.last and fuzz.ratio(n, self.last) >= self.cfg["dedupe_ratio"]: return
         self.last = n; self.seq += 1
@@ -217,7 +224,7 @@ class App:
             self._toast("Click-through: " + ("BẬT — " + c["hotkeys"].get("clickthrough", "") + " để tắt" if c["click_through"] else "TẮT"))
         elif k == "hide": self.auto_hidden = False; self.ov.hide(); self.pop.hide(); self._toast("")
         elif k == "subs": on_top(SubsDialog(self.db, self.index, c, self.rebuild_index)).exec(); self.render()
-        elif k == "glossary": on_top(GlossaryDialog(self.db, c)).exec()
+        elif k == "glossary": on_top(GlossaryDialog(self.db, c)).exec(); self._known_words()
         elif k == "vocab": on_top(VocabDialog(self.db)).exec()
         elif k == "settings": self.open_settings()
         elif k == "quit": self.quit()
@@ -240,9 +247,11 @@ class App:
 
     def open_settings(self):
         c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens")}
-        d = on_top(SettingsDialog(c))
+        old_op = c["opacity"]
+        def preview(op): c["opacity"] = op; self.ov.update()       # kéo thanh trượt -> overlay đổi ngay
+        d = on_top(SettingsDialog(c, on_preview=preview))
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
-        if not d.exec(): return
+        if not d.exec(): preview(old_op); return
         d.apply()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:

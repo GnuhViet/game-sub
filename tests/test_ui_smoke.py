@@ -83,7 +83,9 @@ a.cfg["dict_mode"] = "llm"
 # 6) dialogs khởi tạo được
 for d in (SettingsDialog(a.cfg), GlossaryDialog(a.db, a.cfg), VocabDialog(a.db), SubsDialog(a.db, a.index, a.cfg, a.rebuild_index)):
     d.show(); pump(0.05); d.close()
-sd = SettingsDialog(a.cfg); sd.chain.setText("google, bogus, gemini"); sd.apply(); assert a.cfg["chain"] == ["google", "gemini"]
+seen = []; sd = SettingsDialog(a.cfg, on_preview=seen.append); sd.show(); pump(0.05)
+sl = sd.w["opacity"][0]; sl.setValue(40); assert abs(seen[-1] - 0.6) < 1e-6; sd.apply(); assert a.cfg["opacity"] == 0.6
+sd = SettingsDialog(a.cfg);sd.chain.setText("google, bogus, gemini"); sd.apply(); assert a.cfg["chain"] == ["google", "gemini"]
 assert (C.DATA_DIR / "settings.json").exists()
 sub = SubsDialog(a.db, a.index, a.cfg, a.rebuild_index); sub.test.setText("Rover you finally woke up"); sub._test(); assert "100" in sub.test_out.text() or "%" in sub.test_out.text()
 gd = GlossaryDialog(a.db, a.cfg); gd._row("Resonator", "Cộng Minh Giả", "translate"); gd._save(); assert any(g["term"] == "Resonator" for g in a.db.glossary())

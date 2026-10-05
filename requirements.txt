@@ -5,6 +5,7 @@ numpy
 pillow
 requests
 openpyxl
+wordninja
 # Windows OCR (khuyên dùng)
 winrt-runtime; sys_platform == "win32"
 winrt-Windows.Foundation; sys_platform == "win32"
