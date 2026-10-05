@@ -1,1 +1,1 @@
-__version__ = "0.1.4"          # tăng khi ra release (hiện ở góc trái dưới Cài đặt)
+__version__ = "0.1.5"          # tăng khi ra release (hiện ở góc trái dưới Cài đặt)

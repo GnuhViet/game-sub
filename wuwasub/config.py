@@ -45,7 +45,8 @@ DEFAULTS = {
     # overlay
     "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "locked": False, "hide_from_capture": True, "show_speaker": True,
     "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
-    "alt_unlock": True,                               # đang khóa: giữ Alt thì overlay nhận chuột
+    "alt_unlock": True,
+    "run_as_admin": False,                            # game chạy quyền admin -> WuWaSub cũng phải admin thì hotkey/giữ Alt mới tới                               # đang khóa: giữ Alt thì overlay nhận chuột
     "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"],
     "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)

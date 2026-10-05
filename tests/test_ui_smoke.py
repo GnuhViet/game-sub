@@ -128,6 +128,12 @@ assert a.ov.btns["quit"].mapTo(a.ov, QPoint(0, 0)).x() > a.ov.width() - 80      
 a.cfg["toolbar"].insert(0, "prev"); a.ov.apply_style(); a.ov._set_bar(False)
 from wuwasub import __version__
 assert any(l.text() == f"WuWa Sub v{__version__}" for l in SettingsDialog(a.cfg).findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QLabel))
+# game chạy quyền admin, WuWaSub không -> cảnh báo 1 lần
+W = A.winapp; _orig = (W.self_elevated, W.foreground, W.elevated)
+W.self_elevated = lambda: False; W.foreground = lambda: (4242, "client-win64-shipping.exe"); W.elevated = lambda pid: True
+shown = []; a.tray.showMessage = lambda *x: shown.append(x)
+a._check_elevation(); a._check_elevation(); assert len(shown) == 1 and "quyền admin" in a.ov.status.text() and "client-win64-shipping.exe" in shown[0][1]
+W.self_elevated, W.foreground, W.elevated = _orig
 # lý do Gemini lỗi chỉ báo 1 lần
 assert a._note("Gemini lỗi: API key sai") == " · Gemini lỗi: API key sai" and a._note("Gemini lỗi: API key sai") == "" and a._note("") == ""
 assert (C.DATA_DIR / "settings.json").exists()

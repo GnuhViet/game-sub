@@ -15,6 +15,7 @@ from .hotkeys import Hotkeys
 from .ui_overlay import Overlay, WordPopup
 from .ui_region import RegionSelector
 from .ui_scan import ScanWindow
+from . import winapp
 from .capture import open_sct, grab
 from . import ocr
 from .textnorm import paragraphs
@@ -66,6 +67,7 @@ class App:
         self.worker.start()
         self.hk = Hotkeys(qapp); self.hk.triggered.connect(self.on_action); self._register_hotkeys()
         self._tray()
+        self.elev_warned = set(); self.elev_t = QTimer(interval=2000, timeout=self._check_elevation); self.elev_t.start()
         self.ov.show()
         hint = [] if cfg["region"] else ["Bấm ⬚ (hoặc " + cfg["hotkeys"]["region"] + ") để chọn vùng thoại."]
         if not len(self.index): hint.append("Bấm 📂 để nhập bộ sub.")
@@ -92,7 +94,7 @@ class App:
         self.icon = QIcon(pm); self.q.setWindowIcon(self.icon)
         self.tray = QSystemTrayIcon(self.icon); m = QMenu()
         for txt, k in [("Ẩn/hiện overlay", "toggle"), ("Chụp & dịch 1 vùng", "scan"), ("Chọn vùng", "region"), ("Tạm dừng", "pause"), ("Bộ sub", "subs"),
-                       ("Glossary", "glossary"), ("Sổ từ", "vocab"), ("Cài đặt", "settings"), (None, None), ("Thoát", "quit")]:
+                       ("Glossary", "glossary"), ("Sổ từ", "vocab"), ("Cài đặt", "settings"), (None, None)] + ([] if winapp.self_elevated() else [("Chạy lại với quyền admin", "relaunch_admin")]) + [("Thoát", "quit")]:
             if txt is None: m.addSeparator(); continue
             a = QAction(txt, m); a.triggered.connect(lambda _=0, k=k: self.on_action(k)); m.addAction(a)
             if k == "pause":
@@ -146,6 +148,15 @@ class App:
         if line is not None and (line is not cur or self.cleared): return     # đã xóa (hết thoại): bản dịch về muộn không hiện lại
         nav = f"  [{self.pos + 1}/{len(self.history)}]" if self.pos != len(self.history) - 1 else ""
         self.ov.show_line(cur["speaker"], cur["src"], cur["vi"] or ("" if cur.get("busy") or cur["tag"].startswith(("Lỗi", "Không")) else cur["src"]), cur["tag"] + nav)
+
+    def _check_elevation(self):
+        """Game chạy quyền admin mà WuWaSub thì không -> Windows (UIPI) chặn hotkey/giữ Alt/focus: báo 1 lần."""
+        if sys.platform != "win32" or winapp.self_elevated(): self.elev_t.stop(); return
+        pid, exe = winapp.foreground(); tgt = self.cfg["target_app"]
+        if not exe or exe in self.elev_warned or (tgt and exe != tgt) or not winapp.elevated(pid): return
+        self.elev_warned.add(exe)
+        msg = f"{exe} chạy quyền admin nên hotkey / giữ Alt không tới được WuWaSub. Menu khay → «Chạy lại với quyền admin»."
+        self.ov.status.setText("⚠ Game chạy quyền admin — xem menu khay"); self.tray.showMessage("WuWa Sub", msg, QSystemTrayIcon.Warning, 8000)
 
     def _auto_hide(self):
         if self.ov.isVisible() and not self.ov.underMouse() and not self.pop.isVisible():
@@ -269,6 +280,8 @@ class App:
         elif k == "glossary": on_top(GlossaryDialog(self.db, c)).exec(); self._known_words()
         elif k == "vocab": on_top(VocabDialog(self.db)).exec()
         elif k == "settings": self.open_settings()
+        elif k == "relaunch_admin":
+            if winapp.relaunch_as_admin(): self.quit()
         elif k == "quit": self.quit()
 
     def select_region(self, kind):
@@ -349,6 +362,7 @@ class App:
         self.cfg.save(); self.worker.stop(); self.tray.hide(); self.q.quit()
 
 def main():
+    if sys.platform == "win32" and Config()["run_as_admin"] and not winapp.self_elevated() and winapp.relaunch_as_admin(): return
     qapp = QApplication(sys.argv); qapp.setQuitOnLastWindowClosed(False); qapp.setApplicationName("WuWa Sub")
     a = App(qapp); qapp.aboutToQuit.connect(lambda: a.cfg.save())
     sys.exit(qapp.exec())

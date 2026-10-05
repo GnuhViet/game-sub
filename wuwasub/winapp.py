@@ -25,6 +25,30 @@ def foreground():
     if not hwnd: return 0, ""
     pid = _pid(hwnd); return pid, _exe(pid)
 
+def self_elevated():
+    return bool(WIN and ctypes.windll.shell32.IsUserAnAdmin())
+
+def elevated(pid):
+    """Tiến trình chạy quyền admin? True/False; None nếu không xác định. Không mở được token (bị từ chối) -> coi là admin."""
+    if not WIN or not pid: return None
+    adv = ctypes.windll.advapi32
+    h = k32.OpenProcess(0x1000, False, pid)
+    if not h: return None
+    try:
+        tok = wt.HANDLE()
+        if not adv.OpenProcessToken(h, 0x0008, ctypes.byref(tok)): return True        # TOKEN_QUERY bị chặn -> tiến trình cao quyền hơn
+        try:
+            val, n = wt.DWORD(), wt.DWORD()
+            return bool(val.value) if adv.GetTokenInformation(tok, 20, ctypes.byref(val), 4, ctypes.byref(n)) else None   # TokenElevation
+        finally: k32.CloseHandle(tok)
+    finally: k32.CloseHandle(h)
+
+def relaunch_as_admin():
+    """Mở lại WuWaSub với quyền admin (Windows hỏi UAC). -> True nếu đã mở."""
+    if getattr(sys, "frozen", False): exe, args = sys.executable, ""
+    else: exe, args = sys.executable, f'"{os.path.abspath(sys.argv[0])}"'
+    return ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, os.getcwd(), 1) > 32
+
 def force_foreground(hwnd):
     """Đưa cửa sổ lên trên cùng + lấy focus kể cả khi game đang giữ tiền cảnh (Windows chặn SetForegroundWindow thường)."""
     if not WIN or not hwnd: return
