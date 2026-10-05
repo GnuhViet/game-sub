@@ -24,7 +24,7 @@ DEFAULTS = {
     "region": None, "speaker_region": None,          # {"x","y","w","h"} physical px
     "ocr_engine": "windows", "ocr_lang": "en-US", "ocr_scale": 1.0,
     "interval_ms": 250, "stable_ms": 350, "diff_threshold": 3.0, "dedupe_ratio": 92,
-    "src_lang": "tiếng Anh", "fix_spacing": True,             # tách từ OCR dính liền
+    "src_lang": "tiếng Anh", "fix_spacing": True, "clear_on_empty": True,             # tách từ OCR dính liền
     # dịch
     "translate": True,                                # False = không dịch, chỉ hiện câu gốc để tra từ
     "dialog_engine": "google",                        # thoại: google / gemini_google / gemini
@@ -46,8 +46,12 @@ DEFAULTS = {
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
     "click_through": False,                           # chuột xuyên qua overlay (bật/tắt bằng hotkey)
     "overlay_geom": None, "bg": "#101418", "fg": "#f2f2f2", "src_fg": "#9fb3c8", "accent": "#e8c26a",
-    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C", "clear": "Alt+X", "translate": "Alt+D", "scan": "Alt+Q", "lock": "Alt+L"},
+    "hotkeys": {"toggle": "Ctrl+Alt+T", "region": "Ctrl+Alt+R", "pause": "Ctrl+Alt+P", "rescan": "Ctrl+Alt+S", "clickthrough": "Ctrl+Alt+C",
+                "clear": "Ctrl+Alt+X", "translate": "Ctrl+Alt+D", "scan": "Ctrl+Alt+Q", "lock": "Ctrl+Alt+L"},   # Alt+phím trùng nhiều app
 }
+
+OLD_HOTKEYS = {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C",
+               "clear": "Alt+X", "translate": "Alt+D", "scan": "Alt+Q", "lock": "Alt+L"}
 
 class Config(dict):
     def __init__(self, path=None):
@@ -56,7 +60,8 @@ class Config(dict):
             try:
                 data = json.loads(self.path.read_text("utf-8"))
                 for k, v in data.items():
-                    if k == "hotkeys" and isinstance(v, dict): self[k].update(v)
+                    if k == "hotkeys" and isinstance(v, dict):    # hotkey còn để mặc định cũ (Alt+phím) -> lên mặc định mới
+                        self[k].update({a: s for a, s in v.items() if s != OLD_HOTKEYS.get(a)})
                     elif k in DEFAULTS: self[k] = v
             except Exception as e: print("settings.json lỗi, dùng mặc định:", e)
 

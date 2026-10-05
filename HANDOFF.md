@@ -24,7 +24,7 @@ Tool overlay dịch thoại game **Wuthering Waves** sang tiếng Việt, chạy
 | Hover tra từ | `ui_overlay.py`: câu gốc render thành link mỗi từ (`linkHovered`) → `WordPopup` (ghim bằng click). Bôi đen cụm → menu chuột phải. `dictionary.py`: StarDict/TSV/JSON offline, dictionaryapi.dev online, AI giải nghĩa theo câu (cache SQLite). |
 | Mapping bộ sub | `importer.py` (CSV/TSV/TXT/XLSX/JSON, đoán cột EN/VI), `matcher.py` (exact → rapidfuzz lọc theo độ dài → tách câu). Xử lý `{PlayerName}`, `{Male=..;Female=..}`, `<color>`. |
 
-Ngoài ra: `capture.py` chờ ảnh đứng yên `stable_ms` (hiệu ứng chữ chạy) rồi mới OCR, bỏ câu trùng (dedupe); lịch sử ◀ ▶; tray icon; hotkey Win32 `RegisterHotKey` (Alt+T/R/P/S); cooldown khi gặp 429.
+Ngoài ra: `capture.py` chờ ảnh đứng yên `stable_ms` (hiệu ứng chữ chạy) rồi mới OCR, bỏ câu trùng (dedupe); lịch sử ◀ ▶; tray icon; hotkey Win32 `RegisterHotKey` (Ctrl+Alt+T/R/P/S); cooldown khi gặp 429.
 
 ## 4. Cấu trúc
 ```
@@ -46,7 +46,7 @@ tests/                   test_core, test_capture_translate, test_ui_smoke (offsc
 ```
 
 Phiên 2: `diag.py`/`diag.bat` (tự kiểm tra các mục chưa test ở §5), tự ẩn khi hết thoại (`auto_hide_s`),
-click-through (`click_through`, Alt+C, menu khay), tương thích mss 10 (`capture.open_sct`). RapidOCR đã kiểm chứng trên Linux.
+click-through (`click_through`, Ctrl+Alt+C, menu khay), tương thích mss 10 (`capture.open_sct`). RapidOCR đã kiểm chứng trên Linux.
 
 Phiên 3 (Windows 11, Python 3.12, 1 màn 1920x1080 @100%): diag OK. Sửa `WindowsOcr`: pywinrt không có overload 5 tham số
 của `create_copy_from_buffer` → dùng 4 tham số. Windows OCR: 81ms, khớp 100%, chạy được trong QThread. Đăng ký hotkey OK.

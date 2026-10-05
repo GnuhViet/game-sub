@@ -1,4 +1,4 @@
-import html, sys, traceback
+import html, re, sys, traceback
 from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal, QTimer, QPoint
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QCursor, QAction
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QInputDialog, QMessageBox
@@ -48,7 +48,7 @@ class App:
         self.index = SubIndex(); self.spacer = Spacer(); self.rebuild_index()
         self.dicts = Dictionaries().load(cfg["dict_files"])
         self.tr = Translator(cfg, self.db)
-        self.history, self.pos, self.last, self.seq = [], -1, "", 0
+        self.history, self.pos, self.last, self.seq, self.cleared = [], -1, "", 0, False
         self.ov = Overlay(cfg); self.pop = WordPopup(cfg)
         self.lookup_ctx = None                    # câu ngữ cảnh khi tra từ trong cửa sổ Dịch vùng
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(lambda w, p: self._hover_from(None, w, p)); self.ov.word_click.connect(lambda w, p: self._click_from(None, w, p))
@@ -105,11 +105,12 @@ class App:
 
     # ---------------- pipeline
     def on_text(self, speaker, text):
-        if not text.strip():
+        if not re.search(r"[A-Za-z]{2,}", text):              # rỗng / chỉ ký tự rác = hết thoại
             self.last = ""
+            if self.cfg["clear_on_empty"] and not self.cleared: self.cleared = True; self.ov.show_line("", "", "", ""); self.pop.request_hide()
             if self.cfg["auto_hide_s"] > 0 and self.ov.isVisible(): self.idle_t.start(int(self.cfg["auto_hide_s"] * 1000))
             return
-        self.idle_t.stop()
+        self.idle_t.stop(); self.cleared = False
         if self.auto_hidden: self.auto_hidden = False; self.ov.show()
         if self.cfg["fix_spacing"]: text = self.spacer.fix(text)
         n = norm(text)
@@ -136,7 +137,7 @@ class App:
     def render(self, line=None):
         if not self.history: return
         cur = self.history[self.pos]
-        if line is not None and line is not cur: return
+        if line is not None and (line is not cur or self.cleared): return     # đã xóa (hết thoại): bản dịch về muộn không hiện lại
         nav = f"  [{self.pos + 1}/{len(self.history)}]" if self.pos != len(self.history) - 1 else ""
         self.ov.show_line(cur["speaker"], cur["src"], cur["vi"] or ("" if cur.get("busy") or cur["tag"].startswith(("Lỗi", "Không")) else cur["src"]), cur["tag"] + nav)
 
@@ -230,8 +231,8 @@ class App:
     # ---------------- actions
     def on_action(self, k):
         c = self.cfg
-        if k == "prev" and self.pos > 0: self.pos -= 1; self.render()
-        elif k == "next" and self.pos < len(self.history) - 1: self.pos += 1; self.render()
+        if k == "prev" and self.pos > 0: self.pos -= 1; self.cleared = False; self.render()
+        elif k == "next" and self.pos < len(self.history) - 1: self.pos += 1; self.cleared = False; self.render()
         elif k == "pause": self.worker.paused = not self.worker.paused; self.ov.set_paused(self.worker.paused)
         elif k == "rescan": self.last = ""; self.worker.force = True
         elif k == "translate":

@@ -19,16 +19,16 @@ Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-pla
 ## Dùng
 | Nút / Hotkey | Chức năng |
 |---|---|
-| ⬚ / `Alt+R` | Chọn vùng thoại (màn hình dưới con trỏ) |
+| ⬚ / `Ctrl+Alt+R` | Chọn vùng thoại (màn hình dưới con trỏ) |
 | 👤 | Chọn vùng tên nhân vật (Esc để bỏ) |
-| ⏸ / `Alt+P` | Tạm dừng |
-| ⟳ / `Alt+S` | Quét lại |
-| `Alt+T` | Ẩn/hiện overlay (hoặc click icon khay) |
-| `Alt+C` | Click-through: chuột xuyên qua overlay để bấm game (cũng có ở menu khay) |
-| 🌐 / `Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
-| ⌫ / `Alt+X` | Xóa chữ trên overlay |
-| 🔒 / `Alt+L` | Khóa overlay: rê chuột không hiện toolbar, không kéo/đổi cỡ (tra từ vẫn được) |
-| 📷 / `Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, hover tra từ được |
+| ⏸ / `Ctrl+Alt+P` | Tạm dừng |
+| ⟳ / `Ctrl+Alt+S` | Quét lại |
+| `Ctrl+Alt+T` | Ẩn/hiện overlay (hoặc click icon khay) |
+| `Ctrl+Alt+C` | Click-through: chuột xuyên qua overlay để bấm game (cũng có ở menu khay) |
+| 🌐 / `Ctrl+Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
+| ⌫ / `Ctrl+Alt+X` | Xóa chữ trên overlay |
+| 🔒 / `Ctrl+Alt+L` | Khóa overlay: rê chuột không hiện toolbar, không kéo/đổi cỡ (tra từ vẫn được) |
+| 📷 / `Ctrl+Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, hover tra từ được |
 | ◀ ▶ | Xem lại các câu trước |
 
 **Tự ẩn khi hết thoại:** Cài đặt → Giao diện → "Tự ẩn… sau (s)" > 0; có thoại mới tự hiện lại.

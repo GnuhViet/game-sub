@@ -91,6 +91,14 @@ def test_spacing():
     assert s.fix("Letsheadto Jinzhou with Yangyang.") == "Lets head to Jinzhou with Yangyang."    # tên riêng giữ nguyên
     assert s.fix("Huanglong, Tacetdiscord, Resonators, understanding") == "Huanglong, Tacetdiscord, Resonators, understanding"
 
+def test_hotkey_migration():
+    import json, tempfile
+    from wuwasub.config import Config
+    p = Path(tempfile.mkdtemp()) / "s.json"
+    p.write_text(json.dumps({"hotkeys": {"toggle": "Alt+T", "pause": "F8", "scan": "Alt+Q"}}), "utf-8")
+    hk = Config(p)["hotkeys"]
+    assert hk["toggle"] == "Ctrl+Alt+T" and hk["scan"] == "Ctrl+Alt+Q" and hk["pause"] == "F8", hk    # mặc định cũ -> mới, tự đặt giữ nguyên
+
 if __name__ == "__main__":
     for n, f in list(globals().items()):
         if n.startswith("test_"): f(); print("PASS", n)

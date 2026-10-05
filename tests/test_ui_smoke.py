@@ -145,7 +145,7 @@ a.ov.enterEvent(None); assert not a.ov.bar.isVisible(); a.on_action("lock"); ass
 h0 = a.ov.height(); bottom = a.ov.geometry().bottom()
 a.ov.show_line("", "word " * 80, "chữ " * 120, "Gemini"); assert a.ov.height() > h0 and abs(a.ov.geometry().bottom() - bottom) <= 1, (h0, a.ov.height())
 a.ov.show_line("", "Hi.", "Xin chào.", ""); assert a.ov.height() == h0 and a.cfg["overlay_geom"][3] == h0
-assert "[Alt+P]" in a.ov.btns["pause"].toolTip() and "[Alt+T]" in a.ov.btns["hide"].toolTip() and a.ov.btns["lock"].toolTip()
+assert "[Ctrl+Alt+P]" in a.ov.btns["pause"].toolTip() and "[Ctrl+Alt+T]" in a.ov.btns["hide"].toolTip() and a.ov.btns["lock"].toolTip()
 sd = SettingsDialog(a.cfg); cb = sd.w["show_source"][0]; cb.setCurrentIndex(cb.findData(False)); sd.apply(); assert a.cfg["show_source"] is False
 a.ov.apply_style(); assert not a.ov.src_lbl.isVisibleTo(a.ov); a.cfg["show_source"] = True; a.ov.apply_style()
 
@@ -155,6 +155,13 @@ assert not a.ov.isVisible() and a.auto_hidden
 a.on_text("", "A completely new line appears."); assert a.ov.isVisible() and not a.auto_hidden
 a.on_text("", "Some other line again."); a.on_action("toggle"); assert not a.ov.isVisible() and not a.auto_hidden
 a.on_action("toggle"); a.cfg["auto_hide_s"] = 0
+
+# 8b) hết thoại -> tự xóa chữ; bản dịch về muộn không hiện lại; ký tự rác coi như rỗng
+a.on_text("", "Yet another fresh line."); pump(); assert a.ov.vi.text()
+a.on_text("", " |- . "); assert a.ov.vi.text() == "" and a.ov.src == "" and a.cleared
+a.render(a.history[a.pos]); assert a.ov.vi.text() == ""
+a.on_text("", "Yet another fresh line."); pump(); assert a.ov.src == "Yet another fresh line." and not a.cleared
+a.on_action("prev"); assert a.ov.src and not a.cleared; a.on_action("next")
 
 # 9) click-through
 from PySide6.QtCore import Qt

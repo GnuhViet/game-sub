@@ -27,6 +27,7 @@ class SettingsDialog(QDialog):
         self._spin(f, "stable_ms", "Chờ chữ ổn định (ms)", 0, 3000)
         self._dspin(f, "diff_threshold", "Ngưỡng thay đổi ảnh", 0.2, 50, 0.5)
         self._spin(f, "dedupe_ratio", "Bỏ qua nếu giống câu trước ≥ (%)", 50, 100)
+        self._check(f, "clear_on_empty", "Tự xóa chữ khi vùng thoại không còn chữ")
         self._check(f, "fix_spacing", "Tự tách từ bị dính (youfinallywoke → you finally woke)")
         f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút ⬚ / 👤 trên overlay.</i>"))
         self.btn_snap = QPushButton("Lưu ảnh vùng hiện tại để kiểm tra"); f.addRow(self.btn_snap)

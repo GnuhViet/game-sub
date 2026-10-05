@@ -40,7 +40,7 @@ class CaptureWorker(QThread):
         return join_lines(eng.recognize(img))
 
     def run(self):
-        sct = open_sct(); eng = self._engine(); prev = None; pending = False; last_change = 0
+        sct = open_sct(); eng = self._engine(); prev = last_ocr = None; pending = False; last_change = 0
         while self.running:
             t0 = time.time()
             try:
@@ -55,10 +55,13 @@ class CaptureWorker(QThread):
                 if prev is None or prev.shape != sig.shape or float(np.abs(sig - prev).mean()) > self.cfg["diff_threshold"]:
                     prev = sig; pending = True; last_change = time.time()
                 if self.force or (pending and (time.time() - last_change) * 1000 >= self.cfg["stable_ms"]):
-                    pending = False; self.force = False
-                    text = self._ocr(eng, img)
-                    spk = self._ocr(eng, grab(sct, self.cfg["speaker_region"])) if text and self.cfg["speaker_region"] else ""
-                    self.text_ready.emit(spk, text)
+                    pending = False
+                    same = last_ocr is not None and last_ocr.shape == sig.shape and float(np.abs(sig - last_ocr).mean()) <= self.cfg["diff_threshold"]
+                    if not same or self.force:                     # ảnh y như lần OCR trước (nền nhấp nháy rồi về cũ) -> khỏi OCR lại
+                        self.force = False; last_ocr = sig
+                        text = self._ocr(eng, img)
+                        spk = self._ocr(eng, grab(sct, self.cfg["speaker_region"])) if text and self.cfg["speaker_region"] else ""
+                        self.text_ready.emit(spk, text)
             except Exception as ex:
                 self.error.emit(f"Lỗi capture/OCR: {ex}"); traceback.print_exc(); time.sleep(1)
             time.sleep(max(0.02, self.cfg["interval_ms"] / 1000 - (time.time() - t0)))

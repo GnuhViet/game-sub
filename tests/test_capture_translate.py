@@ -29,6 +29,30 @@ def test_capture_waits_for_stable_text():
     assert got == ["Hello width 200"], got        # chỉ OCR 1 lần khi khung đã đủ & ổn định
     assert Eng.calls == 1
 
+def test_capture_skips_same_frame():
+    """Nền nhấp nháy rồi trở lại y như cũ -> không OCR lại; đổi sang khung mới thật -> OCR."""
+    q = QCoreApplication.instance() or QCoreApplication(sys.argv)
+    seq = {"i": 0}
+    A = np.zeros((40, 200, 3), np.uint8); A[:, :100] = 255
+    B = np.zeros((40, 200, 3), np.uint8); B[:, 100:] = 255
+    C = np.zeros((40, 200, 3), np.uint8); C[10:30] = 200
+    def fake_grab(sct, r):                       # A ổn định -> B thoáng qua -> A ổn định lại -> C
+        seq["i"] += 1; i = seq["i"]
+        return A if i < 15 else B if i < 17 else A if i < 32 else C
+    class Eng:
+        name = "fake"; calls = 0
+        def recognize(self, img): Eng.calls += 1; return [f"frame {Eng.calls}"]
+    cap.grab = fake_grab; cap.ocr.create = lambda n, l: Eng()
+    class FakeMss:
+        def close(self): pass
+    cap.open_sct = lambda: FakeMss()
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(region={"x": 0, "y": 0, "w": 200, "h": 40}, interval_ms=20, stable_ms=100)
+    w = cap.CaptureWorker(cfg); w.start()
+    end = time.time() + 1.6
+    while time.time() < end: q.processEvents(); time.sleep(0.01)
+    w.stop()
+    assert Eng.calls == 2, Eng.calls             # A và C; lần A quay lại bị bỏ qua
+
 class FakeResp:
     def __init__(self, lines, status=200, js=None): self.lines, self.status_code, self._js, self.text = lines, status, js, ""
     def iter_lines(self, decode_unicode=True): return iter(self.lines)
@@ -57,4 +81,4 @@ def test_streaming_parsers():
     assert tr.translate("x", engine="ocr_gemini") == ("AI", "gemini")
 
 if __name__ == "__main__":
-    test_capture_waits_for_stable_text(); print("PASS capture"); test_streaming_parsers(); print("PASS translate")
+    test_capture_waits_for_stable_text(); print("PASS capture"); test_capture_skips_same_frame(); print("PASS skip same frame"); test_streaming_parsers(); print("PASS translate")

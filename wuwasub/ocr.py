@@ -43,6 +43,10 @@ class RapidOcr:
         from .engines import has_rapidocr
         try:
             from rapidocr_onnxruntime import RapidOCR; self.new = False
+            # mặc định det phóng cạnh NGẮN lên ≥736px (vùng thoại 941x104 -> ~6600x736) và dùng mọi luồng: ~5.4s CPU/lần.
+            # Không phóng, bỏ cls (chữ game luôn ngang), 2 luồng: ~0.8s CPU/lần, nhanh gấp 4, độ chính xác như cũ.
+            self.eng = RapidOCR(det_limit_type="max", det_limit_side_len=1920, use_cls=False, intra_op_num_threads=2, inter_op_num_threads=1)
+            return
         except ImportError as e:
             if has_rapidocr(): raise RuntimeError(f"RapidOCR đã tải nhưng không nạp được: {e}") from None
             try: from rapidocr import RapidOCR; self.new = True
