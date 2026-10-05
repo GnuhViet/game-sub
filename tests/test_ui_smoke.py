@@ -103,7 +103,16 @@ assert not sd.gem_warn.isHidden() and "chưa có API key" in sd.gem_warn.text() 
 sd.w["gemini_key"][0].setText("k"); assert sd.gem_warn.isHidden()
 import wuwasub.translator as T; T.Translator.gemini = lambda self, *a, **k: (_ for _ in ()).throw(T.ProviderError("API key sai"))
 sd._test_key(); sd._key_job.wait(3000); pump(); assert "API key sai" in sd.key_status.text(), sd.key_status.text()
-T.Translator.gemini = lambda self, *a, **k: "OK"; sd._test_key(); sd._key_job.wait(3000); pump(); assert "dùng được" in sd.key_status.text()
+T.Translator.gemini = lambda self, *a, **k: "OK"; T.Translator.list_models = lambda self, key: ["gemini-3.1-flash-lite", "gemini-3-flash", "gemini-2.5-pro"]
+sd._test_key(); sd._key_job.wait(3000); pump(); assert "dùng được" in sd.key_status.text() and sd.model.count() == 3
+assert sd.w["gemini_model"][1]() == "gemini-3.1-flash-lite" and "không còn" in sd.key_status.text()      # model cũ không có -> tự chọn
+sd.apply(); assert a.cfg["gemini_model"] == "gemini-3.1-flash-lite"; a.cfg["gemini_model"] = "gemini-2.5-flash-lite"
+# toolbar: bỏ ghim nút -> ẩn; ⚙ — ✕ luôn hiện và nằm bên phải
+sd = SettingsDialog(a.cfg); sd.w["toolbar"][0].findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QCheckBox)[0].setChecked(False); sd.apply()
+assert "prev" not in a.cfg["toolbar"]; a.ov.apply_style(); a.ov._set_bar(True); a.ov.show(); pump(0.05)
+assert a.ov.btns["prev"].isHidden() and not a.ov.btns["next"].isHidden() and not a.ov.btns["settings"].isHidden()
+assert a.ov.btns["quit"].mapTo(a.ov, QPoint(0, 0)).x() > a.ov.width() - 80                       # ✕ ở mép phải
+a.cfg["toolbar"].insert(0, "prev"); a.ov.apply_style(); a.ov._set_bar(False)
 # lý do Gemini lỗi chỉ báo 1 lần
 assert a._note("Gemini lỗi: API key sai") == " · Gemini lỗi: API key sai" and a._note("Gemini lỗi: API key sai") == "" and a._note("") == ""
 assert (C.DATA_DIR / "settings.json").exists()

@@ -42,6 +42,7 @@ DEFAULTS = {
     "dict_files": [], "hover_delay_ms": 250,
     # overlay
     "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "locked": False, "show_source": True, "show_speaker": True,
+    "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"],
     "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
     "click_through": False,                           # chuột xuyên qua overlay (bật/tắt bằng hotkey)

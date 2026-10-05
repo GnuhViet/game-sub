@@ -118,6 +118,11 @@ def test_paragraphs():
          "calm will not last.", "Yours,", "Jinhsi"]
     assert paragraphs(L).split("\n") == ["Dear Rover,", "I hope this letter finds you well. The Black Shores have been quiet since the incident, but I fear the calm will not last.", "Yours,", "Jinhsi"]
 
+def test_pick_model():
+    from wuwasub.translator import Translator as T
+    assert T.pick_model(["gemini-3.1-pro", "gemini-3.1-flash-lite-preview", "gemini-3-flash-lite", "gemini-3-flash"]) == "gemini-3-flash-lite"
+    assert T.pick_model(["gemini-2.5-pro", "gemini-2.5-flash"]) == "gemini-2.5-flash" and T.pick_model([]) == ""
+
 if __name__ == "__main__":
     for n, f in list(globals().items()):
         if n.startswith("test_"): f(); print("PASS", n)

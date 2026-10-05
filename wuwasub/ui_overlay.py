@@ -25,6 +25,10 @@ class OutlineEffect(QGraphicsEffect):
         for dx, dy in self.offs: p.drawPixmap(off + QPoint(dx, dy), sh)
         p.drawPixmap(off, pm)
 
+TOOLBAR = [("prev", "◀"), ("next", "▶"), ("pause", "⏸"), ("translate", "🌐"), ("rescan", "⟳"), ("clear", "⌫"), ("scan", "📷"),
+           ("region", "⬚"), ("speaker", "👤"), ("subs", "📂"), ("glossary", "🏷"), ("vocab", "📖"), ("lock", "🔒")]   # chọn hiện/ẩn trong Cài đặt
+RIGHT_BTNS = [("settings", "⚙"), ("hide", "—"), ("quit", "✕")]                                               # luôn hiện, ghim phải
+
 # tooltip toolbar; hotkey (nếu có) được ghép vào lúc apply_style
 TIPS = {"prev": "Câu trước", "next": "Câu sau", "pause": "Tạm dừng / tiếp tục nhận dạng", "translate": "Bật/tắt dịch (tắt = chỉ câu gốc để tra từ)",
         "rescan": "Quét lại vùng thoại", "clear": "Xóa chữ trên overlay", "scan": "Chụp & dịch 1 vùng (thư, bảng…)",
@@ -82,14 +86,15 @@ class Overlay(QWidget):
         self.setWindowTitle("WuWa Sub"); self.setMinimumSize(320, 90)
         v = QVBoxLayout(self); v.setContentsMargins(14, 6, 14, 8); v.setSpacing(3)
         # toolbar
-        self.bar = QWidget(); hb = FlowLayout(self.bar)
+        # toolbar: nút tùy chọn (cfg["toolbar"]) xếp tự xuống dòng bên trái; ⚙ — ✕ luôn ghim bên phải
+        self.bar = QWidget(); hb = QHBoxLayout(self.bar); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(6)
+        left = QWidget(); flow = FlowLayout(left); right = QHBoxLayout(); right.setSpacing(2)
         self.btns = {}
-        for key, txt in [("prev", "◀"), ("next", "▶"), ("pause", "⏸"), ("translate", "🌐"), ("rescan", "⟳"), ("clear", "⌫"),
-                         ("scan", "📷"), ("region", "⬚"), ("speaker", "👤"), ("subs", "📂"), ("glossary", "🏷"), ("vocab", "📖"),
-                         ("lock", "🔒"), ("settings", "⚙"), ("hide", "—"), ("quit", "✕")]:
+        for key, txt in TOOLBAR + RIGHT_BTNS:
             b = QToolButton(); b.setText(txt); b.setAutoRaise(True); b.clicked.connect(lambda _=0, k=key: self.action.emit(k))
-            hb.addWidget(b); self.btns[key] = b
-        self.status = QLabel(""); hb.addWidget(self.status)
+            (right if (key, txt) in RIGHT_BTNS else flow).addWidget(b); self.btns[key] = b
+        self.status = QLabel(""); flow.addWidget(self.status)
+        hb.addWidget(left, 1); hb.addLayout(right); hb.setAlignment(right, Qt.AlignTop)
         v.addWidget(self.bar)
         self.speaker = QLabel(); self.src_lbl = QLabel(); self.vi = QLabel(); self.tag = QLabel(); self.tag.setToolTip("Nguồn bản dịch: Bộ sub / Gemini / OpenAI / Google Translate")
         for l in (self.speaker, self.src_lbl, self.vi): l.setWordWrap(True)
@@ -126,6 +131,7 @@ class Overlay(QWidget):
         for l in (self.speaker, self.src_lbl, self.vi, self.tag): l.setGraphicsEffect(OutlineEffect(w, l) if w > 0 else None)
         self.src_lbl.setVisible(c["show_source"] or not c["translate"]); self.update(); self._render_src()
         self.btns["translate"].setText("🌐" if c["translate"] else "🔤")
+        for k, _ in TOOLBAR: self.btns[k].setVisible(k in c["toolbar"])           # nút ghim trên toolbar (Cài đặt → Giao diện)
         for k, b in self.btns.items():
             tip = TIPS.get(k, ""); hk = c["hotkeys"].get(k) or c["hotkeys"].get({"hide": "toggle"}.get(k, ""), "")
             if k == "translate": tip = "Đang dịch — bấm để tắt (chỉ câu gốc để tra từ)" if c["translate"] else "Đang TẮT dịch — bấm để bật"

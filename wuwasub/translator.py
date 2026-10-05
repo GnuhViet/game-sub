@@ -100,6 +100,26 @@ class Translator:
     def _restore(text, mapping):
         return re.sub(r"⟦\s*(\d+)\s*⟧", lambda m: mapping[int(m.group(1))] if int(m.group(1)) < len(mapping) else m.group(0), text)
 
+    def list_models(self, key):
+        """Model Gemini key dùng được (hỗ trợ generateContent), mới nhất trước."""
+        r = self.s.get("https://generativelanguage.googleapis.com/v1beta/models", params={"pageSize": 1000},
+                       headers={"x-goog-api-key": key}, timeout=self.cfg["timeout_s"])
+        self._check("gemini", r)
+        names = [m["name"].split("/", 1)[-1] for m in r.json().get("models", [])
+                 if "generateContent" in m.get("supportedGenerationMethods", []) and m["name"].split("/")[-1].startswith("gemini")
+                 and not re.search(r"embedding|tts|image|audio|live|robotics|computer", m["name"])]
+        ver = lambda n: [int(x) for x in re.findall(r"\d+", n.split("-")[1] if "-" in n else "0")]
+        return sorted(set(names), key=lambda n: (ver(n), "preview" not in n and "exp" not in n), reverse=True)
+
+    @staticmethod
+    def pick_model(names):
+        """Ưu tiên Flash-Lite (nhanh, quota free rộng) bản ổn định mới nhất, rồi Flash."""
+        stable = [n for n in names if not re.search(r"preview|exp|\d{3,}$", n)] or names
+        for kw in ("flash-lite", "flash"):
+            m = [n for n in stable if kw in n]
+            if m: return m[0]
+        return names[0] if names else ""
+
     def read_image(self, png, on_partial=None):
         """Gemini đọc ảnh vùng chụp: chép nguyên văn + dịch. -> (câu gốc, bản dịch)"""
         user = ("Ảnh là một phần màn hình game (thư, bảng thông tin…). Chép lại NGUYÊN VĂN toàn bộ chữ trong ảnh theo đúng thứ tự đọc, "

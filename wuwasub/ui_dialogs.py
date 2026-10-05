@@ -4,10 +4,10 @@ from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox)
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox, QGridLayout)
 from . import importer, engines
 from .dictionary import LANGS
-from .ui_overlay import outline_offsets
+from .ui_overlay import outline_offsets, TOOLBAR, TIPS
 
 DIALOG_ENGINES = {"google": "Google Translate (nhanh, free)", "gemini_google": "Gemini AI (hiểu ngữ cảnh) — lỗi/hết quota thì Google",
                   "gemini": "Chỉ Gemini AI"}
@@ -50,7 +50,9 @@ class SettingsDialog(QDialog):
         self._combo(f, "scan_engine", "Dịch bằng", SCAN_ENGINES)
         f = self._group(tab, "Gemini AI — chỉ dùng khi chọn Gemini ở trên")
         self.gem_warn = QLabel(); self.gem_warn.setWordWrap(True); self.gem_warn.setStyleSheet("color:#e8a33a"); f.addRow(self.gem_warn)
-        self._line(f, "gemini_key", "API key (free: aistudio.google.com)", password=True); self._line(f, "gemini_model", "Model")
+        self._line(f, "gemini_key", "API key (free: aistudio.google.com)", password=True)
+        self.model = QComboBox(); self.model.setEditable(True); self.model.addItem(cfg["gemini_model"]); self.model.setToolTip("Bấm «Kiểm tra key» để lấy danh sách model key dùng được")
+        f.addRow("Model", self.model); self.w["gemini_model"] = (self.model, lambda: self.model.currentText().strip())
         bt = QPushButton("Kiểm tra key"); self.key_status = QLabel(); self.key_status.setWordWrap(True); bt.clicked.connect(self._test_key)
         hb = QHBoxLayout(); hb.addWidget(bt); hb.addWidget(self.key_status, 1); f.addRow(hb)
         for k in ("dialog_engine", "scan_engine"): self.w[k][0].currentIndexChanged.connect(self._gem_warn)
@@ -92,6 +94,10 @@ class SettingsDialog(QDialog):
         hb = QHBoxLayout(); hb.addWidget(sl, 1); hb.addWidget(pct); f.addRow("Độ trong suốt khung", hb)
         self.w["opacity"] = (sl, lambda: round(1 - sl.value() / 100, 2))
         for k, n in [("bg", "Màu khung"), ("fg", "Màu chữ dịch"), ("src_fg", "Màu câu gốc"), ("accent", "Màu nhấn (tên, viền popup)")]: self._color(f, k, n)
+        g = QGroupBox("Nút trên toolbar (⚙ Cài đặt, — Ẩn, ✕ Thoát luôn ghim bên phải)"); gl = QGridLayout(g); tb = {}
+        for i, (k, icon) in enumerate(TOOLBAR):
+            cb = QCheckBox(f"{icon}  {TIPS[k].split(' (')[0]}".replace("&", "&&")); cb.setChecked(k in cfg["toolbar"]); gl.addWidget(cb, i // 2, i % 2); tb[k] = cb
+        f.addRow(g); self.w["toolbar"] = (g, lambda: [k for k, _ in TOOLBAR if tb[k].isChecked()])
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
         self._combo(f, "show_source", "Hiển thị", {True: "2 ngôn ngữ (câu gốc + bản dịch)", False: "1 ngôn ngữ (chỉ bản dịch)"}); self._check(f, "show_speaker", "Hiện tên nhân vật")
         # --- Hotkey
@@ -160,12 +166,17 @@ class SettingsDialog(QDialog):
         from .translator import Translator
         c = dict(self.cfg); c.update(gemini_key=key, gemini_model=model, stream=False, timeout_s=20)
         res = {}; self.key_status.setText("Đang thử…")
-        def work(_):
-            t0 = time.time(); res["out"] = Translator(c, None).gemini("", "Reply with exactly one word: OK", None); res["t"] = time.time() - t0
+        def work(_):     # 1) lấy danh sách model (cũng là kiểm tra key)  2) model đang chọn không có -> tự chọn  3) gọi thử
+            t = Translator(c, None); res["models"] = t.list_models(key)
+            if res["models"] and model not in res["models"]: c["gemini_model"] = res["picked"] = Translator.pick_model(res["models"])
+            t0 = time.time(); t.gemini("", "Reply with exactly one word: OK", None); res["t"] = time.time() - t0
         job = _Job(work)
         def done(err):
-            if err: self.key_status.setText(f"<span style='color:#e86a6a'>✗ {html.escape(err.split(': ', 1)[-1])}</span>")
-            else: self.key_status.setText(f"<span style='color:#7bd88f'>✓ Key dùng được — {html.escape(model)} trả lời sau {res['t']:.1f}s</span>")
+            if res.get("models"):
+                cur = res.get("picked") or model; self.model.clear(); self.model.addItems(res["models"]); self.model.setCurrentText(cur)
+            note = f"«{html.escape(model)}» không còn → đã chọn «{html.escape(res['picked'])}». " if res.get("picked") else ""
+            if err: self.key_status.setText(f"<span style='color:#e86a6a'>{note}✗ {html.escape(err.split(': ', 1)[-1])}</span>")
+            else: self.key_status.setText(f"<span style='color:#7bd88f'>{note}✓ Key dùng được — {html.escape(c['gemini_model'])} trả lời sau {res['t']:.1f}s. Bấm OK để lưu.</span>")
         job.done.connect(done); self._key_job = job; job.start()
 
     def _remove(self, key):
