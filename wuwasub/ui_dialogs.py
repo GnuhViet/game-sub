@@ -5,7 +5,7 @@ from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox, QGridLayout)
-from . import importer, engines
+from . import importer, engines, __version__
 from .dictionary import LANGS
 from .ui_overlay import outline_offsets, TOOLBAR, TIPS
 
@@ -110,7 +110,9 @@ class SettingsDialog(QDialog):
         f = self._tab(tabs, "Hotkey"); self.hk = {}
         for k, n in [("toggle", "Ẩn/hiện overlay"), ("region", "Chọn vùng"), ("pause", "Tạm dừng"), ("rescan", "Quét lại"), ("clickthrough", "Click-through"), ("clear", "Xóa chữ"), ("translate", "Bật/tắt dịch"), ("scan", "Chụp & dịch 1 vùng"), ("lock", "Khóa/mở overlay")]:
             e = QLineEdit(cfg["hotkeys"].get(k, "")); f.addRow(n, e); self.hk[k] = e
-        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject); v.addWidget(bb)
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
+        ver = QLabel(f"WuWa Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới
+        foot = QHBoxLayout(); foot.addWidget(ver); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
 
     LIVE = ("opacity", "bg", "fg", "src_fg", "accent", "show_frame", "text_outline")
 

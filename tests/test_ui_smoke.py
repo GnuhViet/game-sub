@@ -126,6 +126,8 @@ assert "prev" not in a.cfg["toolbar"]; a.ov.apply_style(); a.ov._set_bar(True); 
 assert a.ov.btns["prev"].isHidden() and not a.ov.btns["next"].isHidden() and not a.ov.btns["settings"].isHidden()
 assert a.ov.btns["quit"].mapTo(a.ov, QPoint(0, 0)).x() > a.ov.width() - 80                       # ✕ ở mép phải
 a.cfg["toolbar"].insert(0, "prev"); a.ov.apply_style(); a.ov._set_bar(False)
+from wuwasub import __version__
+assert any(l.text() == f"WuWa Sub v{__version__}" for l in SettingsDialog(a.cfg).findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QLabel))
 # lý do Gemini lỗi chỉ báo 1 lần
 assert a._note("Gemini lỗi: API key sai") == " · Gemini lỗi: API key sai" and a._note("Gemini lỗi: API key sai") == "" and a._note("") == ""
 assert (C.DATA_DIR / "settings.json").exists()
