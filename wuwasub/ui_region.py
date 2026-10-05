@@ -14,7 +14,9 @@ class RegionSelector(QWidget):
         self.setGeometry(self.scr.geometry()); self.setCursor(Qt.CrossCursor)
         self.p0 = self.p1 = None
 
-    def start(self): self.show(); self.activateWindow(); self.raise_(); self.setFocus()
+    def start(self):
+        self.show(); self.activateWindow(); self.raise_(); self.setFocus()
+        from .winapp import force_foreground; force_foreground(int(self.winId()))    # gọi bằng hotkey khi game đang focus
 
     def paintEvent(self, e):
         p = QPainter(self); p.drawPixmap(self.rect(), self.bg); p.fillRect(self.rect(), QColor(0, 0, 0, 120))

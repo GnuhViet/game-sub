@@ -25,6 +25,18 @@ def foreground():
     if not hwnd: return 0, ""
     pid = _pid(hwnd); return pid, _exe(pid)
 
+def force_foreground(hwnd):
+    """Đưa cửa sổ lên trên cùng + lấy focus kể cả khi game đang giữ tiền cảnh (Windows chặn SetForegroundWindow thường)."""
+    if not WIN or not hwnd: return
+    fg = u32.GetForegroundWindow(); me = k32.GetCurrentThreadId()
+    other = u32.GetWindowThreadProcessId(fg, None) if fg else 0
+    attached = bool(other and other != me and u32.AttachThreadInput(me, other, True))   # mượn quyền nhập của cửa sổ đang focus
+    try:
+        u32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040)               # HWND_TOPMOST, NOSIZE|NOMOVE|SHOWWINDOW
+        u32.BringWindowToTop(hwnd); u32.SetForegroundWindow(hwnd); u32.SetFocus(hwnd)
+    finally:
+        if attached: u32.AttachThreadInput(me, other, False)
+
 def is_target(target):
     """True nếu không lọc, app đích đang focus, hoặc đang thao tác trên chính WuWaSub."""
     if not target or not WIN: return True
