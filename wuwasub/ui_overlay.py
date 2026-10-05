@@ -8,19 +8,29 @@ from .dictionary import LANGS
 
 FLAGS = Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
 
-OUTLINE_OFFSETS = [(dx, dy) for dx in (-2, -1, 0, 1, 2) for dy in (-2, -1, 0, 1, 2) if (dx or dy) and abs(dx) + abs(dy) <= 3]
+def outline_offsets(w):
+    """Các điểm lệch tạo viền dày w px (gần tròn)."""
+    return [(dx, dy) for dx in range(-w, w + 1) for dy in range(-w, w + 1) if (dx or dy) and dx * dx + dy * dy <= w * w + 1]
 
 class OutlineEffect(QGraphicsEffect):
-    """Viền đen quanh chữ kiểu phụ đề: vẽ bóng đen lệch quanh 8 hướng rồi vẽ chữ gốc đè lên."""
-    def boundingRectFor(self, r): return r.adjusted(-2, -2, 2, 2)
+    """Viền đen quanh chữ kiểu phụ đề: vẽ bóng đen lệch quanh mọi hướng rồi vẽ chữ gốc đè lên."""
+    def __init__(self, width, parent=None): super().__init__(parent); self.w = width; self.offs = outline_offsets(width)
+    def boundingRectFor(self, r): return r.adjusted(-self.w, -self.w, self.w, self.w)
     def draw(self, p):
         pm = self.sourcePixmap(Qt.LogicalCoordinates, QPoint(), QGraphicsEffect.PadToEffectiveBoundingRect)
         if pm.isNull(): return
-        off = self.boundingRect().topLeft().toPoint()            # PySide6 không trả offset -> tự tính (đã pad 2px)
+        off = self.boundingRect().topLeft().toPoint()            # PySide6 không trả offset -> tự tính
         sh = pm.copy(); q = QPainter(sh); q.setCompositionMode(QPainter.CompositionMode_SourceIn)
         q.fillRect(QRect(0, 0, sh.width(), sh.height()), QColor(0, 0, 0, 230)); q.end()
-        for dx, dy in OUTLINE_OFFSETS: p.drawPixmap(off + QPoint(dx, dy), sh)
+        for dx, dy in self.offs: p.drawPixmap(off + QPoint(dx, dy), sh)
         p.drawPixmap(off, pm)
+
+# tooltip toolbar; hotkey (nếu có) được ghép vào lúc apply_style
+TIPS = {"prev": "Câu trước", "next": "Câu sau", "pause": "Tạm dừng / tiếp tục nhận dạng", "translate": "Bật/tắt dịch (tắt = chỉ câu gốc để tra từ)",
+        "rescan": "Quét lại vùng thoại", "clear": "Xóa chữ trên overlay", "scan": "Chụp & dịch 1 vùng (thư, bảng…)",
+        "region": "Chọn vùng thoại", "speaker": "Chọn vùng tên nhân vật", "subs": "Bộ sub Việt hóa", "glossary": "Glossary (tên riêng, thuật ngữ)",
+        "vocab": "Sổ từ", "lock": "Khóa overlay (không hiện toolbar, không kéo/đổi cỡ)", "settings": "Cài đặt", "hide": "Ẩn overlay", "quit": "Thoát"}
+BUSY = ("Đang", "Lỗi", "Chưa", "Không khớp", "Không đọc")          # trạng thái luôn hiện ở góc (nguồn dịch chỉ hiện khi rê chuột)
 
 def tokens_html(text, link_color):
     """Text -> HTML với mỗi từ là 1 link w:<start>:<end>."""
@@ -39,18 +49,18 @@ class Overlay(QWidget):
     action = Signal(str)                       # prev/next/pause/region/vocab/glossary/subs/settings/quit/rescan
 
     def __init__(self, cfg):
-        super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""
+        super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._auto = False
         self.setAttribute(Qt.WA_TranslucentBackground); self.setMouseTracking(True)
+        self.setAttribute(Qt.WA_AlwaysShowToolTips)          # cửa sổ Tool không focus: Windows mặc định không hiện tooltip
         self.setWindowTitle("WuWa Sub"); self.setMinimumSize(320, 90)
         v = QVBoxLayout(self); v.setContentsMargins(14, 6, 14, 8); v.setSpacing(3)
         # toolbar
         self.bar = QWidget(); hb = QHBoxLayout(self.bar); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(2)
         self.btns = {}
-        for key, txt, tip in [("prev", "◀", "Câu trước"), ("next", "▶", "Câu sau"), ("pause", "⏸", "Tạm dừng/Tiếp tục"), ("translate", "🌐", ""),
-                              ("rescan", "⟳", "Quét lại"), ("clear", "⌫", "Xóa chữ trên overlay"), ("scan", "📷", "Chụp & dịch 1 vùng (thư, bảng…)"), ("region", "⬚", "Chọn vùng dịch"), ("speaker", "👤", "Chọn vùng tên nhân vật"),
-                              ("subs", "📂", "Bộ sub"), ("glossary", "🏷", "Glossary"), ("vocab", "📖", "Sổ từ"),
-                              ("settings", "⚙", "Cài đặt"), ("hide", "—", "Ẩn (hotkey để hiện lại)"), ("quit", "✕", "Thoát")]:
-            b = QToolButton(); b.setText(txt); b.setToolTip(tip); b.setAutoRaise(True); b.clicked.connect(lambda _=0, k=key: self.action.emit(k))
+        for key, txt in [("prev", "◀"), ("next", "▶"), ("pause", "⏸"), ("translate", "🌐"), ("rescan", "⟳"), ("clear", "⌫"),
+                         ("scan", "📷"), ("region", "⬚"), ("speaker", "👤"), ("subs", "📂"), ("glossary", "🏷"), ("vocab", "📖"),
+                         ("lock", "🔒"), ("settings", "⚙"), ("hide", "—"), ("quit", "✕")]:
+            b = QToolButton(); b.setText(txt); b.setAutoRaise(True); b.clicked.connect(lambda _=0, k=key: self.action.emit(k))
             hb.addWidget(b); self.btns[key] = b
             if key == "clear": hb.addSpacing(8)
         hb.addStretch(1)
@@ -65,16 +75,17 @@ class Overlay(QWidget):
         self.vi.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.vi.setContextMenuPolicy(Qt.CustomContextMenu); self.vi.customContextMenuRequested.connect(self._menu_vi)
         v.addWidget(self.speaker); v.addWidget(self.src_lbl); v.addWidget(self.vi, 1)
-        foot = QHBoxLayout(); foot.addWidget(self.tag); foot.addStretch(1); foot.addWidget(QSizeGrip(self), 0, Qt.AlignBottom | Qt.AlignRight)
+        self.grip = QSizeGrip(self)
+        foot = QHBoxLayout(); foot.addWidget(self.tag); foot.addStretch(1); foot.addWidget(self.grip, 0, Qt.AlignBottom | Qt.AlignRight)
         v.addLayout(foot)
-        self.hide_bar = QTimer(self, singleShot=True, interval=1200, timeout=lambda: (self.bar.setVisible(False), self.update()))
-        self._drag = None; self.apply_style()
+        self.hide_bar = QTimer(self, singleShot=True, interval=1200, timeout=lambda: self._set_bar(False))
+        self._drag = None
         g = cfg.get("overlay_geom")
-        if g: self.setGeometry(QRect(*g))
-        else:
+        if not g:
             sc = QApplication.primaryScreen().availableGeometry()
-            self.setGeometry(sc.x() + sc.width() // 2 - 380, sc.y() + int(sc.height() * 0.70), 760, 150)
-        self.bar.setVisible(False)
+            g = [sc.x() + sc.width() // 2 - 380, sc.y() + int(sc.height() * 0.70), 760, 150]
+        self.base_h = g[3]; self._auto = True; self.setGeometry(QRect(*g)); self._auto = False   # base_h = cỡ người dùng đặt; khung tự giãn khi chữ dài
+        self.bar.setVisible(False); self.apply_style()
 
     def apply_style(self):
         c = self.cfg
@@ -85,15 +96,20 @@ class Overlay(QWidget):
         fs = QFont(); fs.setPointSize(int(c["src_font_size"])); self.src_lbl.setFont(fs); self.speaker.setFont(fs)
         self.speaker.setStyleSheet(f"color:{c['accent']}; font-weight:600")
         self.tag.setStyleSheet(f"color:{c['src_fg']}; font-size:10px"); self.status.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
-        for l in (self.speaker, self.src_lbl, self.vi, self.tag): l.setGraphicsEffect(OutlineEffect(l) if c["text_outline"] else None)
+        w = int(c["text_outline"])
+        for l in (self.speaker, self.src_lbl, self.vi, self.tag): l.setGraphicsEffect(OutlineEffect(w, l) if w > 0 else None)
         self.src_lbl.setVisible(c["show_source"] or not c["translate"]); self.update(); self._render_src()
-        tb = self.btns["translate"]; tb.setText("🌐" if c["translate"] else "🔤")
-        tb.setToolTip("Đang dịch — bấm để tắt (chỉ hiện câu gốc để tra từ)" if c["translate"] else "Đang tắt dịch — bấm để bật dịch")
+        self.btns["translate"].setText("🌐" if c["translate"] else "🔤")
+        for k, b in self.btns.items():
+            tip = TIPS.get(k, ""); hk = c["hotkeys"].get(k) or c["hotkeys"].get({"hide": "toggle"}.get(k, ""), "")
+            if k == "translate": tip = "Đang dịch — bấm để tắt (chỉ câu gốc để tra từ)" if c["translate"] else "Đang TẮT dịch — bấm để bật"
+            b.setToolTip(tip + (f"  [{hk}]" if hk else ""))
+        self.set_locked(c["locked"]); self._fit()
 
     def paintEvent(self, e):
         p = QPainter(self); p.setRenderHint(QPainter.Antialiasing)
         if self.cfg["show_frame"]: a = max(0.05, min(1.0, float(self.cfg["opacity"])))
-        else: a = 0.35 if self.bar.isVisible() else 1 / 255     # không khung: gần trong suốt (alpha 0 thì Windows cho chuột xuyên qua), rê chuột thì hiện mờ để kéo/resize
+        else: a = 0.35 if self.bar.isVisible() else 1 / 255     # không khung: gần trong suốt (alpha 0 thì Windows cho chuột xuyên qua), rê chuột thì hiện mờ để kéo/đổi cỡ
         col = QColor(self.cfg["bg"]); col.setAlphaF(a)
         p.setBrush(col); p.setPen(Qt.NoPen); p.drawRoundedRect(self.rect(), 10, 10)
 
@@ -101,7 +117,21 @@ class Overlay(QWidget):
     def show_line(self, speaker, src, vi, tag):
         self.speaker.setText(speaker or ""); self.speaker.setVisible(bool(speaker) and self.cfg["show_speaker"])
         if src != self.src: self.src = src; self._render_src()
-        self.vi.setText(vi or ""); self.tag.setText(tag or "")
+        self.vi.setText(vi or ""); self._tag = tag or ""; self._tag_vis(); self._fit()
+
+    def _tag_vis(self):
+        """Nguồn dịch (Google/Gemini/Bộ sub…) chỉ hiện khi rê chuột; trạng thái đang dịch / lỗi thì luôn hiện."""
+        self.tag.setText(self._tag if self.bar.isVisible() or self._tag.startswith(BUSY) else "")
+
+    def _fit(self):
+        """Khung tự giãn lên trên (giữ mép dưới) khi chữ dài, co về cỡ người dùng đặt khi chữ ngắn."""
+        lay = self.layout(); need = lay.totalHeightForWidth(self.width())
+        if not self.bar.isVisible(): need += self.bar.sizeHint().height() + lay.spacing()   # chừa chỗ toolbar để rê chuột không làm khung nhảy
+        h = max(self.base_h, need)
+        if h == self.height(): return
+        g = self.geometry(); top = g.bottom() + 1 - h
+        scr = QApplication.screenAt(g.center()) or QApplication.primaryScreen(); top = max(top, scr.availableGeometry().top())
+        self._auto = True; self.setGeometry(g.x(), top, g.width(), h); self._auto = False
 
     def _render_src(self): self.src_lbl.setText(tokens_html(self.src, self.cfg["src_fg"]))
 
@@ -134,15 +164,28 @@ class Overlay(QWidget):
     def set_paused(self, p): self.btns["pause"].setText("▶▶" if p else "⏸"); self.status.setText("Tạm dừng" if p else "")
 
     # ---- kéo thả / hover toolbar
-    def enterEvent(self, e): self.hide_bar.stop(); self.bar.setVisible(True); self.update()
+    def set_locked(self, on):
+        self.grip.setVisible(not on)
+        if on: self._set_bar(False)
+        self.btns["lock"].setText("🔓" if on else "🔒")
+
+    def _set_bar(self, on):
+        self.bar.setVisible(on); self._tag_vis(); self.update()
+
+    def enterEvent(self, e):
+        if self.cfg["locked"]: return                       # khóa: rê chuột không hiện gì (tra từ vẫn được)
+        self.hide_bar.stop(); self._set_bar(True)
     def leaveEvent(self, e): self.hide_bar.start()
     def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton: self._drag = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
+        if e.button() == Qt.LeftButton and not self.cfg["locked"]: self._drag = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
     def mouseMoveEvent(self, e):
         if self._drag is not None and e.buttons() & Qt.LeftButton: self.move(e.globalPosition().toPoint() - self._drag)
     def mouseReleaseEvent(self, e): self._drag = None; self._save_geom()
-    def resizeEvent(self, e): super().resizeEvent(e); self._save_geom()
-    def _save_geom(self): g = self.geometry(); self.cfg["overlay_geom"] = [g.x(), g.y(), g.width(), g.height()]
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        if not self._auto: self.base_h = self.height(); self._save_geom(); self._fit()    # người dùng tự đổi cỡ
+    def _save_geom(self):
+        g = self.geometry(); self.cfg["overlay_geom"] = [g.x(), g.bottom() + 1 - self.base_h, g.width(), self.base_h]
 
 
 class WordPopup(QFrame):
@@ -151,7 +194,7 @@ class WordPopup(QFrame):
 
     def __init__(self, cfg):
         super().__init__(None, FLAGS); self.cfg = cfg; self.word = ""; self.pinned = False
-        self.setAttribute(Qt.WA_ShowWithoutActivating); self.setObjectName("pop"); self.meta = self.raw = ""
+        self.setAttribute(Qt.WA_ShowWithoutActivating); self.setAttribute(Qt.WA_AlwaysShowToolTips); self.setObjectName("pop"); self.meta = self.raw = ""
         v = QVBoxLayout(self); v.setContentsMargins(10, 8, 10, 8)
         self.title = QLabel(); self.anchor = QPoint()
         self.lang = QComboBox(); self.lang.setToolTip("Ngôn ngữ dịch")

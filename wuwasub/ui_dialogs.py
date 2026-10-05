@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxL
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog)
 from . import importer, engines
 from .dictionary import LANGS
-from .ui_overlay import OUTLINE_OFFSETS
+from .ui_overlay import outline_offsets
 
 PROVIDERS = {"gemini": "Gemini", "openai": "OpenAI-compatible (DeepSeek/OpenRouter/Ollama)", "google": "Google Translate (free)"}
 
@@ -69,7 +69,7 @@ class SettingsDialog(QDialog):
         # khung / màu / độ trong suốt: đổi là overlay + ô xem trước cập nhật ngay; Cancel thì trả lại
         self.prev = _Preview(cfg); f.addRow(self.prev)
         c = self._check(f, "show_frame", "Hiện khung nền"); c.toggled.connect(lambda on: self._live("show_frame", on))
-        c = self._check(f, "text_outline", "Viền đen quanh chữ (dễ đọc khi không có khung)"); c.toggled.connect(lambda on: self._live("text_outline", on))
+        s = self._spin(f, "text_outline", "Độ dày viền chữ (px, 0 = tắt)", 0, 4); s.valueChanged.connect(lambda v: self._live("text_outline", v))
         sl = QSlider(Qt.Horizontal); sl.setRange(0, 95); sl.setValue(round((1 - float(cfg["opacity"])) * 100))
         pct = QLabel(f"{sl.value()}%"); pct.setMinimumWidth(44)
         sl.valueChanged.connect(lambda t: (pct.setText(f"{t}%"), self._live("opacity", round(1 - t / 100, 2))))
@@ -77,10 +77,10 @@ class SettingsDialog(QDialog):
         self.w["opacity"] = (sl, lambda: round(1 - sl.value() / 100, 2))
         for k, n in [("bg", "Màu khung"), ("fg", "Màu chữ dịch"), ("src_fg", "Màu câu gốc"), ("accent", "Màu nhấn (tên, viền popup)")]: self._color(f, k, n)
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
-        self._check(f, "show_source", "Hiện câu gốc (hover tra từ)"); self._check(f, "show_speaker", "Hiện tên nhân vật")
+        self._combo(f, "show_source", "Hiển thị", {True: "2 ngôn ngữ (câu gốc + bản dịch)", False: "1 ngôn ngữ (chỉ bản dịch)"}); self._check(f, "show_speaker", "Hiện tên nhân vật")
         # --- Hotkey
         f = self._tab(tabs, "Hotkey"); self.hk = {}
-        for k, n in [("toggle", "Ẩn/hiện overlay"), ("region", "Chọn vùng"), ("pause", "Tạm dừng"), ("rescan", "Quét lại"), ("clickthrough", "Click-through"), ("clear", "Xóa chữ"), ("translate", "Bật/tắt dịch"), ("scan", "Chụp & dịch 1 vùng")]:
+        for k, n in [("toggle", "Ẩn/hiện overlay"), ("region", "Chọn vùng"), ("pause", "Tạm dừng"), ("rescan", "Quét lại"), ("clickthrough", "Click-through"), ("clear", "Xóa chữ"), ("translate", "Bật/tắt dịch"), ("scan", "Chụp & dịch 1 vùng"), ("lock", "Khóa/mở overlay")]:
             e = QLineEdit(cfg["hotkeys"].get(k, "")); f.addRow(n, e); self.hk[k] = e
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject); v.addWidget(bb)
 
@@ -110,7 +110,7 @@ class SettingsDialog(QDialog):
         if password: e.setEchoMode(QLineEdit.PasswordEchoOnEdit)
         f.addRow(label, e); self.w[k] = (e, lambda e=e: e.text().strip()); return e
     def _spin(self, f, k, label, lo, hi):
-        s = QSpinBox(); s.setRange(lo, hi); s.setValue(int(self.cfg[k])); f.addRow(label, s); self.w[k] = (s, s.value)
+        s = QSpinBox(); s.setRange(lo, hi); s.setValue(int(self.cfg[k])); f.addRow(label, s); self.w[k] = (s, s.value); return s
     def _dspin(self, f, k, label, lo, hi, step):
         s = QDoubleSpinBox(); s.setRange(lo, hi); s.setSingleStep(step); s.setValue(float(self.cfg[k])); f.addRow(label, s); self.w[k] = (s, s.value)
     def _check(self, f, k, label):
@@ -161,9 +161,9 @@ class _Preview(QWidget):
         super().__init__(); self.cfg = cfg; self.setMinimumHeight(86)
 
     def _text(self, p, rect, flags, text, color):
-        if self.cfg["text_outline"]:
+        if int(self.cfg["text_outline"]):
             p.setPen(QColor(0, 0, 0, 230))
-            for dx, dy in OUTLINE_OFFSETS: p.drawText(rect.translated(dx, dy), flags, text)
+            for dx, dy in outline_offsets(int(self.cfg["text_outline"])): p.drawText(rect.translated(dx, dy), flags, text)
         p.setPen(QColor(color)); p.drawText(rect, flags, text)
 
     def paintEvent(self, e):

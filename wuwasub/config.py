@@ -41,11 +41,12 @@ DEFAULTS = {
     "target_lang": "vi",                              # ngôn ngữ đích cho Google dịch (popup + câu)
     "dict_files": [], "hover_delay_ms": 250,
     # overlay
-    "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "text_outline": False, "show_source": True, "show_speaker": True,
+    "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "locked": False, "show_source": True, "show_speaker": True,
+    "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
     "click_through": False,                           # chuột xuyên qua overlay (bật/tắt bằng hotkey)
     "overlay_geom": None, "bg": "#101418", "fg": "#f2f2f2", "src_fg": "#9fb3c8", "accent": "#e8c26a",
-    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C", "clear": "Alt+X", "translate": "Alt+D", "scan": "Alt+Q"},
+    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C", "clear": "Alt+X", "translate": "Alt+D", "scan": "Alt+Q", "lock": "Alt+L"},
 }
 
 class Config(dict):

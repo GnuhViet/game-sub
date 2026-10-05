@@ -97,6 +97,8 @@ class App:
             if k == "pause":
                 self.ct_action = a = QAction("Click-through (chuột xuyên qua)", m); a.setCheckable(True); a.setChecked(self.cfg["click_through"])
                 a.triggered.connect(lambda _=0: self.on_action("clickthrough")); m.addAction(a)
+                self.lock_action = a = QAction("Khóa overlay", m); a.setCheckable(True); a.setChecked(self.cfg["locked"])
+                a.triggered.connect(lambda _=0: self.on_action("lock")); m.addAction(a)
         self.tray.setContextMenu(m); self.tray.setToolTip("WuWa Sub"); self.tray_menu = m
         self.tray.activated.connect(lambda r: self.on_action("toggle") if r == QSystemTrayIcon.Trigger else None)
         if QSystemTrayIcon.isSystemTrayAvailable(): self.tray.show()
@@ -143,7 +145,7 @@ class App:
         if self.ov.isVisible() and not self.ov.underMouse() and not self.pop.isVisible():
             self.ov.hide(); self.auto_hidden = True
 
-    def on_error(self, msg): self.ov.tag.setText(msg)
+    def on_error(self, msg): self.ov._tag = msg; self.ov._tag_vis()
 
     # ---------------- tra từ
     def cur_line(self):
@@ -236,6 +238,9 @@ class App:
         elif k == "translate":
             c["translate"] = not c["translate"]; c.save(); self.ov.apply_style(); self._toast("Dịch: " + ("BẬT" if c["translate"] else "TẮT — chỉ câu gốc"))
             if self.history: self.resolve(self.history[self.pos])
+        elif k == "lock":
+            c["locked"] = not c["locked"]; c.save(); self.ov.set_locked(c["locked"]); self.lock_action.setChecked(c["locked"])
+            self._toast("Đã khóa overlay — " + c["hotkeys"].get("lock", "") + " để mở" if c["locked"] else "Đã mở khóa overlay")
         elif k == "clear": self.ov.show_line("", "", "", ""); self.pop.close_pop()
         elif k == "retranslate" and self.history: self.resolve(self.history[self.pos], machine=True)
         elif k in ("region", "speaker", "scan"): self.select_region(k)

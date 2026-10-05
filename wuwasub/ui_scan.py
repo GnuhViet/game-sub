@@ -10,7 +10,7 @@ class ScanWindow(QWidget):
     action = Signal(str)                         # rescan / retranslate
 
     def __init__(self, cfg):
-        super().__init__(None, Qt.Tool | Qt.WindowStaysOnTopHint); self.cfg = cfg; self.src = ""
+        super().__init__(None, Qt.Tool | Qt.WindowStaysOnTopHint); self.cfg = cfg; self.src = ""; self.setAttribute(Qt.WA_AlwaysShowToolTips)
         self.setWindowTitle("Dịch vùng — hover từ để tra nghĩa"); self.resize(620, 560)
         v = QVBoxLayout(self); v.setContentsMargins(8, 8, 8, 8)
         self.src_view = QTextBrowser(); self.src_view.setOpenLinks(False)
