@@ -42,7 +42,7 @@ class Overlay(QWidget):
         hb.addStretch(1)
         self.status = QLabel(""); hb.addWidget(self.status)
         v.addWidget(self.bar)
-        self.speaker = QLabel(); self.src_lbl = QLabel(); self.vi = QLabel(); self.tag = QLabel()
+        self.speaker = QLabel(); self.src_lbl = QLabel(); self.vi = QLabel(); self.tag = QLabel(); self.tag.setToolTip("Nguồn bản dịch: Bộ sub / Gemini / OpenAI / Google Translate")
         for l in (self.speaker, self.src_lbl, self.vi): l.setWordWrap(True)
         self.src_lbl.setTextFormat(Qt.RichText)
         self.src_lbl.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse)
@@ -139,7 +139,9 @@ class WordPopup(QFrame):
         for code, name in LANGS.items(): self.lang.addItem(name, code)
         self.lang.setCurrentIndex(max(0, self.lang.findData(cfg["target_lang"])))
         self.lang.activated.connect(lambda _: self.lang_changed.emit(self.lang.currentData()))
-        th = QHBoxLayout(); th.addWidget(self.title, 1); th.addWidget(self.lang)
+        self.close_btn = QToolButton(); self.close_btn.setText("✕"); self.close_btn.setToolTip("Đóng"); self.close_btn.setAutoRaise(True)
+        self.close_btn.clicked.connect(self.close_pop)
+        th = QHBoxLayout(); th.addWidget(self.title, 1); th.addWidget(self.lang); th.addWidget(self.close_btn)
         self.body = QLabel(); self.body.setWordWrap(True); self.body.setTextFormat(Qt.RichText); self.body.setMaximumWidth(420); self.body.setMinimumWidth(260)
         self.body.setTextInteractionFlags(Qt.TextSelectableByMouse)
         v.addLayout(th); v.addWidget(self.body)
@@ -147,6 +149,7 @@ class WordPopup(QFrame):
         for k, t in [("vocab", "＋ Sổ từ"), ("keep", "Giữ nguyên"), ("translate", "Dịch là…"), ("explain", "AI ngữ cảnh")]:
             b = QPushButton(t); b.clicked.connect(lambda _=0, k=k: self.act.emit(k, self.word)); hb.addWidget(b)
         v.addLayout(hb)
+        self.source = QLabel(); self.source.setAlignment(Qt.AlignRight); v.addWidget(self.source)   # nguồn tra: Google / offline / AI
         self.hide_t = QTimer(self, singleShot=True, interval=450, timeout=self._auto_hide); self.apply_style()
 
     def apply_style(self):
@@ -156,13 +159,15 @@ class WordPopup(QFrame):
             padding:3px 8px; border-radius:4px; font-size:11px; }} QPushButton:hover {{ background:{c['accent']}; color:#111; }}
             QComboBox {{ color:{c['fg']}; background:rgba(255,255,255,0.08); border:none; padding:2px 6px; font-size:11px; }}""")
         self.title.setStyleSheet(f"color:{c['accent']}; font-weight:600; font-size:14px")
+        self.source.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
+        self.close_btn.setStyleSheet(f"QToolButton {{ color:{c['src_fg']}; border:none; padding:0 4px; font-size:13px; }} QToolButton:hover {{ color:{c['accent']}; }}")
 
     def _set(self, meta, body):
         if meta is not None: self.meta = meta
         self.raw = body; self.body.setText(self.meta + f"<div>{body}</div>"); self.adjustSize()
 
-    def show_for(self, word, head, meta, body_html, pos, pinned=False):
-        self.word = word; self.pinned = pinned; self.anchor = pos
+    def show_for(self, word, head, meta, body_html, pos, pinned=False, source=""):
+        self.word = word; self.pinned = pinned; self.anchor = pos; self.source.setText(source)
         self.lang.setCurrentIndex(max(0, self.lang.findData(self.cfg["target_lang"])))
         self.title.setText(html.escape(word) + (f" <span style='opacity:.6;font-weight:400'>→ {html.escape(head)}</span>" if head and head.lower() != word.lower() else ""))
         self._set(meta, body_html)
@@ -182,5 +187,6 @@ class WordPopup(QFrame):
     def enterEvent(self, e): self.hide_t.stop()
     def leaveEvent(self, e):
         if not self.pinned: self.hide_t.start()
+    def close_pop(self): self.pinned = False; self.hide()
     def mousePressEvent(self, e):
-        if e.button() == Qt.RightButton: self.pinned = False; self.hide()
+        if e.button() == Qt.RightButton: self.close_pop()

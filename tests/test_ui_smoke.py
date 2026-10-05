@@ -30,7 +30,7 @@ a.db.add_subs("vh.csv", [("Rover, you finally woke up.", "Rover, cuối cùng an
 
 # 1) sub match
 a.on_text("Yangyang", "Rover, you finaIly woke up."); pump()
-assert a.ov.vi.text() == "Rover, cuối cùng anh cũng tỉnh rồi." and a.ov.tag.text().startswith("Sub"), (a.ov.vi.text(), a.ov.tag.text())
+assert a.ov.vi.text() == "Rover, cuối cùng anh cũng tỉnh rồi." and a.ov.tag.text().startswith("Bộ sub"), (a.ov.vi.text(), a.ov.tag.text())
 assert a.ov.speaker.text() == "Yangyang" and 'href="w:' in a.ov.src_lbl.text()
 # dedupe
 n = len(a.history); a.on_text("", "Rover, you finally woke up"); assert len(a.history) == n
@@ -41,7 +41,7 @@ def fake_tr(src, spk, ctx, partial):
     calls.append(ctx); partial("Đang…"); return "Câu dịch máy.", "gemini"
 a.tr.translate = fake_tr; a.cfg["chain"] = ["gemini"]
 a.on_text("", "Something brand new happens here."); pump()
-assert a.ov.vi.text() == "Câu dịch máy." and a.ov.tag.text() == "Gemini", a.ov.tag.text()
+assert a.ov.vi.text() == "Câu dịch máy." and a.ov.tag.text() == "Gemini · gemini-2.5-flash-lite", a.ov.tag.text()
 assert calls[0] and calls[0][-1][2] == "Rover, cuối cùng anh cũng tỉnh rồi."    # context truyền vào
 # lỗi dịch
 def bad(*_): raise RuntimeError("429 hết quota")
@@ -72,7 +72,9 @@ a.cfg["dict_mode"] = "llm"; a.pop.hide(); a.pop.pinned = False; a.on_hover("woke
 langs = []
 A.google_lookup = lambda w, tl, t=6: (langs.append(tl), (f"{w}-{tl}", f"<b>{w}-{tl}</b>"))[1]
 a.cfg["dict_mode"] = "auto"; a.pop.hide(); a.pop.pinned = False
-a.on_click("woke", QPoint(300, 300)); pump(); assert "woke-vi" in a.pop.raw and langs == ["vi"], a.pop.raw
+a.on_click("woke", QPoint(300, 300)); pump(); assert "woke-vi" in a.pop.raw and langs == ["vi"] and a.pop.source.text() == "Google Translate", a.pop.raw
+a.pop.close_btn.click(); assert not a.pop.isVisible() and not a.pop.pinned
+a.on_click("woke", QPoint(300, 300)); pump()
 a.on_lang("ja"); pump(); assert a.cfg["target_lang"] == "ja" and "woke-ja" in a.pop.raw and a.pop.pinned
 a.on_click("woke", QPoint(300, 300)); pump(); assert langs == ["vi", "ja"]            # lần 2 lấy từ cache
 a.cfg["dict_mode"] = "offline"; a.on_lang("vi"); pump(); assert a.cfg["dict_mode"] == "google"

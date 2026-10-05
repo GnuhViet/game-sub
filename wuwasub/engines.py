@@ -19,6 +19,8 @@ class Cancelled(Exception): pass
 def setup():
     """Gọi lúc khởi động: cho phép import gói đã tải."""
     if PY_DIR.is_dir() and str(PY_DIR) not in sys.path: sys.path.insert(0, str(PY_DIR))
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS") and sys.platform == "win32":
+        import os; os.add_dll_directory(sys._MEIPASS)    # msvcp140/vcruntime140_1 đóng gói trong exe cho onnxruntime/opencv
 
 def has_rapidocr(): return (PY_DIR / "rapidocr_onnxruntime").is_dir()
 def tesseract_exe():

@@ -47,6 +47,11 @@ class Translator:
             except requests.RequestException as e: errs.append(f"{name}: {type(e).__name__}")
         raise ProviderError("; ".join(errs) or "Chưa cấu hình nhà cung cấp dịch")
 
+    def label(self, name):
+        """Tên hiển thị nguồn bản dịch ở góc overlay."""
+        c = self.cfg
+        return {"gemini": f"Gemini · {c['gemini_model']}", "openai": f"OpenAI · {c['openai_model']}", "google": "Google Translate"}.get(name, name)
+
     def explain(self, word, sentence):
         p = self.cfg["explain_prompt"].replace("{word}", word).replace("{sentence}", sentence)
         for name in self.cfg["chain"]:

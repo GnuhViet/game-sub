@@ -60,7 +60,7 @@ class App:
         hint = [] if cfg["region"] else ["Bấm ⬚ (hoặc " + cfg["hotkeys"]["region"] + ") để chọn vùng thoại."]
         if not len(self.index): hint.append("Bấm 📂 để nhập bộ sub.")
         if self.dicts.errors: hint.append("Lỗi từ điển: " + "; ".join(self.dicts.errors))
-        self.ov.show_line("", "Hover vào từng từ trong câu gốc để tra nghĩa.", " ".join(hint) or "Sẵn sàng.", f"{len(self.index):,} câu sub")
+        self.ov.show_line("", "", " ".join(hint) or "Sẵn sàng.", f"{len(self.index):,} câu sub")
 
     # ---------------- setup
     def rebuild_index(self):
@@ -106,13 +106,13 @@ class App:
         c = self.cfg
         if c["use_subs"] and not machine:
             m = self.index.match(line["src"], c["fuzzy_threshold"])
-            if m: line.update(vi=m.vi, tag=f"Sub {m.score:.0f}%"); self.render(line); return
+            if m: line.update(vi=m.vi, tag=f"Bộ sub · khớp {m.score:.0f}%"); self.render(line); return
         if not c["chain"]: line.update(vi="", tag="Không khớp sub"); self.render(line); return
         line["tag"] = "Đang dịch…"; self.render(line)
         i = next((k for k, l in enumerate(self.history) if l is line), len(self.history))
         ctx = [(l["speaker"], l["src"], l["vi"]) for l in self.history[max(0, i - c["context_lines"]):i]] if c["context_lines"] else []
         def partial(t): line["vi"] = t; self.render(line)
-        def done(res): line["vi"], line["tag"] = res[0], res[1].capitalize(); self.render(line)
+        def done(res): line["vi"], line["tag"] = res[0], self.tr.label(res[1]); self.render(line)
         def err(e): line["tag"] = f"Lỗi dịch: {e}"; self.render(line)
         run(lambda p: self.tr.translate(line["src"], line["speaker"], ctx, p), done, err, partial)
 
@@ -153,16 +153,16 @@ class App:
         mode, meta, sent = self.cfg["dict_mode"], self._meta(word), self.cur_line()["src"]
         if mode in ("offline", "auto"):
             r = self.dicts.lookup(word)
-            if r: self.pop.show_for(word, r[0], meta, r[1], pos, pinned); return
+            if r: self.pop.show_for(word, r[0], meta, r[1], pos, pinned, "Từ điển offline"); return
             if mode == "offline":
-                self.pop.show_for(word, "", meta, "<i>Không có trong từ điển offline.</i>" + ("" if self.dicts.dicts else "<br><i>Chưa nạp file từ điển (Cài đặt → Từ điển).</i>"), pos, pinned); return
+                self.pop.show_for(word, "", meta, "<i>Không có trong từ điển offline.</i>" + ("" if self.dicts.dicts else "<br><i>Chưa nạp file từ điển (Cài đặt → Từ điển).</i>"), pos, pinned, "Từ điển offline"); return
         if mode in ("google", "auto", "online"):
             tl = self.cfg["target_lang"]
-            key, fn, wait = (("on:" + word.lower(), lambda _: online_lookup(word), "Đang tra online…") if mode == "online" else
-                             (f"gg:{tl}:{word.lower()}", lambda _: google_lookup(word, tl, self.cfg["timeout_s"]), "Đang dịch…"))
+            key, fn, wait, srcname = (("on:" + word.lower(), lambda _: online_lookup(word), "Đang tra online…", "dictionaryapi.dev (Anh-Anh)") if mode == "online" else
+                             (f"gg:{tl}:{word.lower()}", lambda _: google_lookup(word, tl, self.cfg["timeout_s"]), "Đang dịch…", "Google Translate"))
             cached = self.db.cache_get(key); miss = "<i>Không tìm thấy. Bấm «AI ngữ cảnh».</i>"
-            if cached is not None: self.pop.show_for(word, "", meta, cached or miss, pos, pinned); return
-            self.pop.show_for(word, "", meta, f"<i>{wait}</i>", pos, pinned)
+            if cached is not None: self.pop.show_for(word, "", meta, cached or miss, pos, pinned, srcname); return
+            self.pop.show_for(word, "", meta, f"<i>{wait}</i>", pos, pinned, srcname)
             def done(r): body = r[1] if r else ""; self.db.cache_set(key, body); self.pop.set_body(word, body or miss)
             run(fn, done, lambda e: self.pop.set_body(word, f"<i>Lỗi tra: {html.escape(e)}</i>")); return
         self.explain(word, sent, pos, pinned)
@@ -170,8 +170,8 @@ class App:
     def explain(self, word, sentence, pos=None, pinned=True):
         key = f"ai:{word.lower()}|{norm(sentence)}"; fmt = lambda t: html.escape(t).replace("\n", "<br>")
         wait = "<i>AI đang giải nghĩa…</i>"
-        if pos is not None or not (self.pop.isVisible() and self.pop.word == word): self.pop.show_for(word, "", self._meta(word), wait, pos or QCursor.pos(), pinned)
-        else: self.pop.pinned = True; self.pop.set_body(word, wait)
+        if pos is not None or not (self.pop.isVisible() and self.pop.word == word): self.pop.show_for(word, "", self._meta(word), wait, pos or QCursor.pos(), pinned, "AI ngữ cảnh")
+        else: self.pop.pinned = True; self.pop.source.setText("AI ngữ cảnh"); self.pop.set_body(word, wait)
         cached = self.db.cache_get(key)
         if cached: self.pop.set_body(word, fmt(cached)); return
         def done(t): self.db.cache_set(key, t); self.pop.set_body(word, fmt(t))
