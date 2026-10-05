@@ -104,6 +104,7 @@ class Overlay(QWidget):
             (right if (key, txt) in RIGHT_BTNS else flow).addWidget(b); self.btns[key] = b
         self.status = QLabel(""); flow.addWidget(self.status)
         hb.addWidget(left, 1); hb.addLayout(right); hb.setAlignment(right, Qt.AlignTop)
+        sp = self.bar.sizePolicy(); sp.setRetainSizeWhenHidden(True); self.bar.setSizePolicy(sp)   # ẩn vẫn giữ chỗ: chữ không xê dịch khi rê chuột
         v.addWidget(self.bar)
         self.speaker = QLabel(); self.src_lbl = QLabel(); self.vi = QLabel(); self.tag = QLabel(); self.tag.setToolTip("Nguồn bản dịch: Bộ sub / Gemini / OpenAI / Google Translate")
         for l in (self.speaker, self.src_lbl, self.vi): l.setWordWrap(True)
@@ -166,8 +167,7 @@ class Overlay(QWidget):
 
     def _fit(self):
         """Khung tự giãn lên trên (giữ mép dưới) khi chữ dài, co về cỡ người dùng đặt khi chữ ngắn."""
-        lay = self.layout(); need = lay.totalHeightForWidth(self.width())
-        if not self.bar.isVisible(): need += self.bar.heightForWidth(self.width() - 28) + lay.spacing()   # chừa chỗ toolbar để rê chuột không làm khung nhảy
+        need = self.layout().totalHeightForWidth(self.width())          # toolbar ẩn vẫn giữ chỗ nên đã tính sẵn
         h = max(self.base_h, need)
         if h == self.height(): return
         g = self.geometry(); top = g.bottom() + 1 - h

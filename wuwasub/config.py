@@ -41,6 +41,7 @@ DEFAULTS = {
     "dict_mode": "auto",                              # auto (offline → Google) / offline / google / online / llm
     "target_lang": "vi",                              # ngôn ngữ đích cho Google dịch (popup + câu)
     "dict_files": [], "hover_delay_ms": 250,
+    "popup_trigger": "click",                         # click: bấm vào từ mới hiện nghĩa / hover: rê chuột là hiện
     # overlay
     "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "locked": False, "hide_from_capture": True, "show_source": True, "show_speaker": True,
     "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"],

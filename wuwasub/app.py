@@ -51,6 +51,7 @@ class App:
         self.history, self.pos, self.last, self.seq, self.cleared, self.noted = [], -1, "", 0, False, set()
         self.ov = Overlay(cfg); self.pop = WordPopup(cfg)
         self.lookup_ctx = None                    # câu ngữ cảnh khi tra từ trong cửa sổ Dịch vùng
+        self.inflight = set()                     # tra từ đang chờ kết quả -> không gửi trùng
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(lambda w, p: self._hover_from(None, w, p)); self.ov.word_click.connect(lambda w, p: self._click_from(None, w, p))
         self.scan_win = ScanWindow(cfg); self.scan = {"src": "", "vi": ""}
         self.scan_win.word_hover.connect(lambda w, p: self._hover_from(self.scan, w, p)); self.scan_win.word_click.connect(lambda w, p: self._click_from(self.scan, w, p))
@@ -164,6 +165,7 @@ class App:
     def _click_from(self, ctx, word, pos): self.lookup_ctx = ctx; self.on_click(word, pos)
 
     def on_hover(self, word, pos):
+        if self.cfg["popup_trigger"] != "hover": return          # mặc định: chỉ bấm vào từ mới hiện nghĩa
         if self.pop.pinned and self.pop.isVisible(): return
         if not word: self.hover_t.stop(); self.pop.request_hide(); return
         if self.pop.isVisible() and self.pop.word == word: self.pop.hide_t.stop(); return
@@ -194,8 +196,8 @@ class App:
             cached = self.db.cache_get(key); miss = "<i>Không tìm thấy. Bấm «AI ngữ cảnh».</i>"
             if cached is not None: self.pop.show_for(word, "", meta, cached or miss, pos, pinned, srcname); return
             self.pop.show_for(word, "", meta, f"<i>{wait}</i>", pos, pinned, srcname)
-            def done(r): body = r[1] if r else ""; self.db.cache_set(key, body); self.pop.set_body(word, body or miss)
-            run(fn, done, lambda e: self.pop.set_body(word, f"<i>Lỗi tra: {html.escape(e)}</i>")); return
+            self._fetch(key, fn, lambda r: self.pop.set_body(word, (r[1] if r else "") or miss), lambda r: (r[1] if r else ""),
+                        lambda e: self.pop.set_body(word, f"<i>Lỗi tra: {html.escape(e)}</i>")); return
         self.explain(word, sent, pos, pinned)
 
     def explain(self, word, sentence, pos=None, pinned=True):
@@ -205,8 +207,16 @@ class App:
         else: self.pop.pinned = True; self.pop.source.setText("AI ngữ cảnh"); self.pop.set_body(word, wait)
         cached = self.db.cache_get(key)
         if cached: self.pop.set_body(word, fmt(cached)); return
-        def done(t): self.db.cache_set(key, t); self.pop.set_body(word, fmt(t))
-        run(lambda _: self.tr.explain(word, sentence), done, lambda e: self.pop.set_body(word, f"<i>Lỗi: {html.escape(e)}</i>"))
+        self._fetch(key, lambda _: self.tr.explain(word, sentence), lambda t: self.pop.set_body(word, fmt(t)), lambda t: t,
+                    lambda e: self.pop.set_body(word, f"<i>Lỗi: {html.escape(e)}</i>"))
+
+    def _fetch(self, key, fn, show, to_cache, error):
+        """Gọi mạng 1 lần cho mỗi key: đang chờ thì không gửi trùng (popup tự cập nhật khi kết quả về)."""
+        if key in self.inflight: return
+        self.inflight.add(key)
+        def done(r): self.inflight.discard(key); self.db.cache_set(key, to_cache(r)); show(r)
+        def err(e): self.inflight.discard(key); error(e)
+        run(fn, done, err)
 
     def on_pop_action(self, act, word): self.on_phrase(act, word)
 

@@ -28,14 +28,14 @@ Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-pla
 | 🌐 / `Ctrl+Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
 | ⌫ / `Ctrl+Alt+X` | Xóa chữ trên overlay |
 | 🔒 / `Ctrl+Alt+L` | Khóa overlay: rê chuột không hiện toolbar, không kéo/đổi cỡ (tra từ vẫn được) |
-| 📷 / `Ctrl+Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, hover tra từ được |
+| 📷 / `Ctrl+Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, bấm từ để tra |
 | ◀ ▶ | Xem lại các câu trước |
 
 **Tự ẩn khi hết thoại:** Cài đặt → Giao diện → "Tự ẩn… sau (s)" > 0; có thoại mới tự hiện lại.
 
 Toolbar hiện khi rê chuột vào overlay; kéo phần nền để di chuyển, góc phải dưới để resize.
 
-**Tra từ:** hover từ trong câu gốc → popup nghĩa. Click từ để ghim popup; chuột phải popup để đóng.
+**Tra từ:** bấm vào từ trong câu gốc (hoặc bôi đen cụm/câu) → popup nghĩa; ✕ hoặc chuột phải để đóng. Muốn rê chuột là hiện: Cài đặt → Từ điển → Hiện nghĩa khi.
 Bôi đen cụm từ → chuột phải: tra cụm, lưu sổ từ, thêm glossary, giải nghĩa AI.
 
 ## Luồng dịch

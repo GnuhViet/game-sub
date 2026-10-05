@@ -53,6 +53,11 @@ assert "Lỗi dịch" in a.ov._tag
 # 3) history nav
 a.on_action("prev"); assert "[2/3]" in a.ov._tag; a.on_action("next"); assert "[" not in a.ov._tag
 
+# 3b) mặc định: rê chuột không hiện popup, bấm vào từ mới hiện
+assert a.cfg["popup_trigger"] == "click"; a.pop.hide(); a.on_hover("finally", QPoint(500, 500)); pump(0.5); assert not a.pop.isVisible()
+a.on_click("finally", QPoint(500, 500)); pump(); assert a.pop.isVisible() and a.pop.word == "finally"; a.pop.close_pop()
+a.cfg["popup_trigger"] = "hover"
+
 # 4) hover lookup offline
 a.on_action("prev"); a.on_action("prev")
 a.on_hover("finally", QPoint(500, 500)); pump(0.5)
@@ -81,6 +86,14 @@ a.on_lang("ja"); pump(); assert a.cfg["target_lang"] == "ja" and "woke-ja" in a.
 a.on_click("woke", QPoint(300, 300)); pump(); assert langs == ["vi", "ja"]            # lần 2 lấy từ cache
 a.cfg["dict_mode"] = "offline"; a.on_lang("vi"); pump(); assert a.cfg["dict_mode"] == "google"
 a.cfg["dict_mode"] = "llm"
+
+# 5c) rê ra/vào khi đang chờ kết quả -> chỉ gọi mạng 1 lần
+import threading; gate = threading.Event(); hits = []
+A.google_lookup = lambda w, tl, t=6: (hits.append(w), gate.wait(2), (f"{w}-{tl}", f"<b>{w}-{tl}</b>"))[2]
+a.cfg["dict_mode"] = "google"; a.pop.hide(); a.pop.pinned = False
+for _ in range(4): a.lookup("dawnlight", QPoint(300, 300))
+gate.set(); pump(); assert hits == ["dawnlight"] and "dawnlight-" in a.pop.raw and not a.inflight, hits
+A.google_lookup = lambda w, tl, t=6: (langs.append(tl), (f"{w}-{tl}", f"<b>{w}-{tl}</b>"))[1]; a.cfg["dict_mode"] = "llm"
 
 # 6) dialogs khởi tạo được
 for d in (SettingsDialog(a.cfg), GlossaryDialog(a.db, a.cfg), VocabDialog(a.db), SubsDialog(a.db, a.index, a.cfg, a.rebuild_index)):
