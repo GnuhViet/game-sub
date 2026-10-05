@@ -125,13 +125,12 @@ class App:
         if c["use_subs"] and not machine:
             m = self.index.match(line["src"], c["fuzzy_threshold"])
             if m: line.update(vi=m.vi, tag=f"Bộ sub · khớp {m.score:.0f}%"); self.render(line); return
-        if not c["chain"]: line.update(vi="", tag="Không khớp sub"); self.render(line); return
-        line["tag"] = "Đang dịch…"; self.render(line)
+        line.update(tag="", busy=True); self.render(line)               # không hiện "Đang dịch…"
         i = next((k for k, l in enumerate(self.history) if l is line), len(self.history))
         ctx = [(l["speaker"], l["src"], l["vi"]) for l in self.history[max(0, i - c["context_lines"]):i]] if c["context_lines"] else []
         def partial(t): line["vi"] = t; self.render(line)
-        def done(res): line["vi"], line["tag"] = res[0], self.tr.label(res[1]); self.render(line)
-        def err(e): line["tag"] = f"Lỗi dịch: {e}"; self.render(line)
+        def done(res): line.update(vi=res[0], tag=self.tr.label(res[1]), busy=False); self.render(line)
+        def err(e): line.update(tag=f"Lỗi dịch: {e}", busy=False); self.render(line)
         run(lambda p: self.tr.translate(line["src"], line["speaker"], ctx, p), done, err, partial)
 
     def render(self, line=None):
@@ -139,7 +138,7 @@ class App:
         cur = self.history[self.pos]
         if line is not None and line is not cur: return
         nav = f"  [{self.pos + 1}/{len(self.history)}]" if self.pos != len(self.history) - 1 else ""
-        self.ov.show_line(cur["speaker"], cur["src"], cur["vi"] or ("" if cur["tag"].startswith(("Đang", "Lỗi", "Không")) else cur["src"]), cur["tag"] + nav)
+        self.ov.show_line(cur["speaker"], cur["src"], cur["vi"] or ("" if cur.get("busy") or cur["tag"].startswith(("Lỗi", "Không")) else cur["src"]), cur["tag"] + nav)
 
     def _auto_hide(self):
         if self.ov.isVisible() and not self.ov.underMouse() and not self.pop.isVisible():
@@ -279,7 +278,7 @@ class App:
 
     # ---------------- chụp & dịch 1 vùng
     def scan_capture(self, r):
-        c = self.cfg; use_gem = c["scan_mode"] == "gemini" and c["translate"] and bool(c["gemini_key"])
+        c = self.cfg; use_gem = c["scan_engine"] == "gemini_image" and c["translate"]
         self.scan_win.show_result(self.scan["src"], "", "Gemini đang đọc ảnh…" if use_gem else "Đang OCR…")
         def work(partial):
             with open_sct() as sct: img = grab(sct, r)
@@ -309,11 +308,10 @@ class App:
         if not c["translate"] and not machine: self.scan_win.show_result(src, "", "Không dịch — chỉ câu gốc"); return
         m = self.index.match(src, c["fuzzy_threshold"]) if c["use_subs"] and not machine else None
         if m: sc["vi"] = m.vi; self.scan_win.show_result(src, m.vi, f"Bộ sub · khớp {m.score:.0f}%"); return
-        if not c["chain"]: self.scan_win.show_result(src, "", "Chưa cấu hình dịch máy"); return
         self.scan_win.show_result(src, "", "Đang dịch…")
         def partial(t): self.scan_win.show_result(src, t, "Đang dịch…")
         def done(res): sc["vi"] = res[0]; self.scan_win.show_result(src, res[0], self.tr.label(res[1]))
-        run(lambda p: self.tr.translate(src, "", [], p), done, lambda e: self.scan_win.show_result(src, "", f"Lỗi dịch: {e}"), partial)
+        run(lambda p: self.tr.translate(src, "", [], p, engine=c["scan_engine"]), done, lambda e: self.scan_win.show_result(src, "", f"Lỗi dịch: {e}"), partial)
 
     def open_settings(self):
         c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens", "translate")}

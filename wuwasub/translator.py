@@ -1,8 +1,11 @@
-"""Dịch máy: Gemini / OpenAI-compatible (DeepSeek, OpenRouter, Ollama...) / Google free. Chuỗi fallback + cooldown khi 429."""
+"""Dịch máy: Gemini (AI) / Google free. Mỗi mục đích (thoại, vùng chụp) chọn engine riêng; fallback + cooldown khi 429."""
 import base64, json, re, time
 import requests
 
 SEP = "====="
+# engine -> các nhà cung cấp thử lần lượt (thoại: dialog_engine; vùng chụp: scan_engine)
+CHAINS = {"google": ["google"], "gemini": ["gemini"], "gemini_google": ["gemini", "google"],
+          "ocr_google": ["google"], "ocr_gemini": ["gemini", "google"], "gemini_image": ["google"]}   # gemini_image đọc ảnh lỗi -> OCR + Google
 
 class ProviderError(Exception): pass
 
@@ -37,14 +40,13 @@ class Translator:
         return out + "Câu cần dịch:\n" + (f"{speaker}: " if speaker else "") + text
 
     # ---------- public
-    def translate(self, text, speaker="", context=(), on_partial=None):
+    def translate(self, text, speaker="", context=(), on_partial=None, engine=None):
         errs = []
-        for name in self.cfg["chain"]:
+        for name in CHAINS.get(engine or self.cfg["dialog_engine"], ["google"]):
             if time.time() < self.cool.get(name, 0): errs.append(f"{name}: đang cooldown"); continue
             try:
                 if name == "google": return self.google(text), name
                 if name == "gemini": return self.gemini(self.system_prompt(text), self.user_prompt(text, speaker, context), on_partial), name
-                if name == "openai": return self.openai(self.system_prompt(text), self.user_prompt(text, speaker, context), on_partial), name
             except ProviderError as e: errs.append(f"{name}: {e}")
             except requests.RequestException as e: errs.append(f"{name}: {type(e).__name__}")
         raise ProviderError("; ".join(errs) or "Chưa cấu hình nhà cung cấp dịch")
@@ -52,17 +54,14 @@ class Translator:
     def label(self, name):
         """Tên hiển thị nguồn bản dịch ở góc overlay."""
         c = self.cfg
-        return {"gemini": f"Gemini · {c['gemini_model']}", "openai": f"OpenAI · {c['openai_model']}", "google": "Google Translate"}.get(name, name)
+        return {"gemini": f"Gemini · {c['gemini_model']}", "google": "Google Translate"}.get(name, name)
 
     def explain(self, word, sentence):
         p = self.cfg["explain_prompt"].replace("{word}", word).replace("{sentence}", sentence)
-        for name in self.cfg["chain"]:
-            if name == "google" or time.time() < self.cool.get(name, 0): continue
-            try:
-                if name == "gemini": return self.gemini("", p, None)
-                if name == "openai": return self.openai("", p, None)
-            except (ProviderError, requests.RequestException): continue
-        g = self.google(word); return f"{g} (Google)"
+        if self.cfg["gemini_key"] and time.time() >= self.cool.get("gemini", 0):
+            try: return self.gemini("", p, None)
+            except (ProviderError, requests.RequestException): pass
+        g = self.google(word); return f"{g} (Google — cần Gemini key để giải nghĩa AI)"
 
     # ---------- providers
     def _check(self, name, r):
@@ -132,27 +131,6 @@ class Translator:
                 try: acc += _gem_text(json.loads(line[5:]))
                 except ValueError: continue
                 on_partial(acc)
-        return acc.strip()
-
-    def openai(self, system, user, on_partial):
-        c = self.cfg
-        if not c["openai_base"]: raise ProviderError("chưa cấu hình base URL")
-        msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": user}]
-        stream = bool(c["stream"] and on_partial)
-        r = self.s.post(c["openai_base"].rstrip("/") + "/chat/completions",
-                        headers={"Authorization": f"Bearer {c['openai_key']}"} if c["openai_key"] else {},
-                        json={"model": c["openai_model"], "messages": msgs, "temperature": 0.3, "stream": stream},
-                        timeout=c["timeout_s"], stream=stream)
-        self._check("openai", r)
-        if not stream: return r.json()["choices"][0]["message"]["content"].strip()
-        acc = ""
-        for line in r.iter_lines(decode_unicode=True):
-            if not line or not line.startswith("data:"): continue
-            d = line[5:].strip()
-            if d == "[DONE]": break
-            try: acc += json.loads(d)["choices"][0]["delta"].get("content") or ""
-            except (ValueError, KeyError, IndexError): continue
-            on_partial(acc)
         return acc.strip()
 
 def _gem_text(d):

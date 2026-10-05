@@ -27,11 +27,10 @@ DEFAULTS = {
     "src_lang": "tiếng Anh", "fix_spacing": True,             # tách từ OCR dính liền
     # dịch
     "translate": True,                                # False = không dịch, chỉ hiện câu gốc để tra từ
-    "scan_mode": "ocr",                               # vùng chụp 📷: ocr / gemini (Gemini đọc ảnh + dịch)
+    "dialog_engine": "google",                        # thoại: google / gemini_google / gemini
+    "scan_engine": "ocr_google",                      # vùng chụp 📷: ocr_google / ocr_gemini / gemini_image
     "use_subs": True, "fuzzy_threshold": 86,
-    "chain": ["gemini", "google"],                    # thứ tự fallback: gemini/openai/google
     "gemini_key": "", "gemini_model": "gemini-2.5-flash-lite", "gemini_thinking_budget": 0,
-    "openai_base": "https://api.deepseek.com/v1", "openai_key": "", "openai_model": "deepseek-chat",
     "stream": True, "context_lines": 4, "prompt": DEFAULT_PROMPT, "explain_prompt": EXPLAIN_PROMPT,
     "keep_terms": True,                               # không dịch tên riêng/thuật ngữ
     "timeout_s": 15, "cooldown_s": 30,

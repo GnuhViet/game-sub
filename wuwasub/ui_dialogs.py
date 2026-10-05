@@ -4,12 +4,15 @@ from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog)
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox)
 from . import importer, engines
 from .dictionary import LANGS
 from .ui_overlay import outline_offsets
 
-PROVIDERS = {"gemini": "Gemini", "openai": "OpenAI-compatible (DeepSeek/OpenRouter/Ollama)", "google": "Google Translate (free)"}
+DIALOG_ENGINES = {"google": "Google Translate (nhanh, free)", "gemini_google": "Gemini AI (hiểu ngữ cảnh) — lỗi/hết quota thì Google",
+                  "gemini": "Chỉ Gemini AI"}
+SCAN_ENGINES = {"ocr_google": "OCR + Google Translate", "ocr_gemini": "OCR + Gemini AI (lỗi thì Google)",
+                "gemini_image": "Gemini AI đọc thẳng ảnh (chính xác nhất; lỗi thì OCR + Google)"}
 
 class SettingsDialog(QDialog):
     def __init__(self, cfg, parent=None, on_preview=None):
@@ -33,18 +36,20 @@ class SettingsDialog(QDialog):
         hb = QHBoxLayout(); [hb.addWidget(b) for b in self.eng_btns.values()]; self.eng_status = QLabel(); f.addRow(hb); f.addRow(self.eng_status)
         self._eng_refresh()
         # --- Dịch
-        f = self._tab(tabs, "Dịch")
-        self._combo(f, "scan_mode", "Dịch vùng chụp (📷) bằng", {"ocr": "OCR + dịch như thoại", "gemini": "Gemini đọc ảnh (chính xác hơn với thư/font lạ, cần Gemini key)"})
-        self._check(f, "translate", "Dịch (tắt = chỉ hiện câu gốc để tra từ)"); self._check(f, "use_subs", "Ưu tiên bộ sub Việt hóa")
-        self._spin(f, "fuzzy_threshold", "Ngưỡng khớp sub (%)", 50, 100)
-        self.chain = QLineEdit(", ".join(cfg["chain"])); self.chain.setToolTip("Thứ tự fallback, ví dụ: gemini, google  |  openai, gemini, google")
-        f.addRow("Thứ tự dịch máy", self.chain); f.addRow("", QLabel("gemini, openai, google — để trống = chỉ dùng sub"))
-        self._line(f, "gemini_key", "Gemini API key", password=True); self._line(f, "gemini_model", "Gemini model")
-        self._spin(f, "gemini_thinking_budget", "Thinking budget (-1 = mặc định)", -1, 8192)
-        self._line(f, "openai_base", "OpenAI base URL"); self._line(f, "openai_key", "OpenAI key", password=True); self._line(f, "openai_model", "OpenAI model")
-        self._check(f, "stream", "Streaming (hiện chữ dần)"); self._spin(f, "context_lines", "Số câu ngữ cảnh", 0, 20)
-        self._check(f, "keep_terms", "Không dịch tên riêng / thuật ngữ"); self._src_lang = self._line(f, "src_lang", "Ngôn ngữ gốc (mô tả cho AI)")
-        self._spin(f, "timeout_s", "Timeout (s)", 3, 120); self._spin(f, "cooldown_s", "Nghỉ khi bị 429 (s)", 0, 3600)
+        tab = self._tab(tabs, "Dịch")
+        f = self._group(tab, "Dịch thoại (overlay)")
+        self._check(f, "translate", "Bật dịch (tắt = chỉ hiện câu gốc để tra từ)")
+        self._check(f, "use_subs", "Ưu tiên bộ sub Việt hóa (khớp thì dùng luôn)"); self._spin(f, "fuzzy_threshold", "Ngưỡng khớp sub (%)", 50, 100)
+        self._combo(f, "dialog_engine", "Không khớp sub thì dịch bằng", DIALOG_ENGINES)
+        f = self._group(tab, "Dịch vùng chụp 📷 (thư, bảng…)")
+        self._combo(f, "scan_engine", "Dịch bằng", SCAN_ENGINES)
+        f = self._group(tab, "Gemini AI — chỉ dùng khi chọn Gemini ở trên")
+        self._line(f, "gemini_key", "API key (free: aistudio.google.com)", password=True); self._line(f, "gemini_model", "Model")
+        self._spin(f, "context_lines", "Số câu thoại trước làm ngữ cảnh", 0, 20); self._check(f, "keep_terms", "Không dịch tên riêng / thuật ngữ")
+        self._check(f, "stream", "Hiện chữ dần khi đang dịch (streaming)")
+        self._spin(f, "gemini_thinking_budget", "Thinking budget (0 = nhanh nhất, -1 = mặc định)", -1, 8192)
+        self._spin(f, "timeout_s", "Timeout (s)", 3, 120); self._spin(f, "cooldown_s", "Hết quota (429) thì nghỉ Gemini (s)", 0, 3600)
+        self._src_lang = self._line(f, "src_lang", "Ngôn ngữ gốc (mô tả cho AI)")
         # --- Prompt
         t = QWidget(); tv = QVBoxLayout(t); tabs.addTab(t, "Prompt")
         tv.addWidget(QLabel("Biến: {src_lang} {player} {gender} {keep_rule} {glossary}"))
@@ -106,6 +111,8 @@ class SettingsDialog(QDialog):
 
     def _tab(self, tabs, name):
         w = QWidget(); f = QFormLayout(w); tabs.addTab(w, name); return f
+    def _group(self, f, title):
+        g = QGroupBox(title); gf = QFormLayout(g); f.addRow(g); return gf
     def _line(self, f, k, label, ph="", password=False):
         e = QLineEdit(str(self.cfg[k] or "")); e.setPlaceholderText(ph)
         if password: e.setEchoMode(QLineEdit.PasswordEchoOnEdit)
@@ -148,7 +155,6 @@ class SettingsDialog(QDialog):
     def apply(self):
         c = self.cfg
         for k, (_, get) in self.w.items(): c[k] = get()
-        c["chain"] = [x.strip().lower() for x in self.chain.text().split(",") if x.strip().lower() in PROVIDERS]
         c["prompt"], c["explain_prompt"] = self.prompt.toPlainText(), self.explain.toPlainText()
         c["name_tokens"] = [x.strip() for x in self.tokens.text().split(",") if x.strip()]
         c["dict_files"] = [self.dicts.item(i).text() for i in range(self.dicts.count())]

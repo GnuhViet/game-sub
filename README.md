@@ -40,7 +40,7 @@ Bôi đen cụm từ → chuột phải: tra cụm, lưu sổ từ, thêm glossa
 ## Luồng dịch
 ```
 OCR → khớp bộ sub (exact → fuzzy → tách câu) ─ khớp ─→ bản Việt hóa
-                                                └ không ─→ Gemini → OpenAI-compatible → Google (theo thứ tự cài đặt)
+                                                └ không ─→ engine đã chọn: Google / Gemini / Gemini→Google
 ```
 - Chữ chạy từng ký tự: tool chờ ảnh đứng yên `stable_ms` rồi mới OCR.
 - Gặp 429 (hết quota) thì nhà cung cấp đó nghỉ `cooldown_s` giây, tự chuyển sang cái tiếp theo.
@@ -67,13 +67,14 @@ Lưu từ + nghĩa + câu gốc + câu dịch. Có chế độ ôn tập flashca
 | Google dịch tự động | Google Translate, có từ loại + phiên âm |
 | Chỉ offline | file từ điển bạn nạp |
 | Online | dictionaryapi.dev (Anh-Anh, free) |
-| AI theo ngữ cảnh | Gemini/OpenAI, có cache, tốn quota |
+| AI theo ngữ cảnh | Gemini, có cache, tốn quota |
 
 File offline hỗ trợ: **StarDict** (`.ifo` + `.idx` + `.dict`/`.dict.dz` — dạng phổ biến của từ điển Anh-Việt), TSV/CSV `từ⇥nghĩa`, JSON `{từ: nghĩa}`.
 
 ## API
 - **Gemini**: lấy key free tại aistudio.google.com → model `gemini-2.5-flash-lite` (nhanh, quota rộng). Thinking budget `0` để giảm delay; model không hỗ trợ sẽ tự bỏ.
-- **OpenAI-compatible**: DeepSeek (`https://api.deepseek.com/v1`, `deepseek-chat`), OpenRouter, hoặc LLM local qua Ollama (`http://localhost:11434/v1`).
+- Cài đặt → Dịch chọn riêng: **Dịch thoại** (Google / Gemini / Gemini lỗi thì Google) và **Dịch vùng chụp 📷**
+  (OCR + Google / OCR + Gemini / Gemini đọc thẳng ảnh). Gemini chỉ dùng khi được chọn.
 
 ## OCR
 - **Windows OCR** (mặc định): nhẹ, cần gói ngôn ngữ English trong Windows.

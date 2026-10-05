@@ -10,7 +10,7 @@ Tool overlay dịch thoại game **Wuthering Waves** sang tiếng Việt, chạy
 - Đã cân nhắc Translumo / LunaTranslator. Translumo hay sai chủ ngữ vì dịch từng câu không ngữ cảnh → tự build tool riêng.
 - WuWa là game online có anti-cheat → **chỉ OCR**. Game để text **English**, chế độ Borderless/Windowed, tắt Auto-play thoại.
 - Dịch: **ưu tiên bộ sub Việt hóa có sẵn** (file riêng của user, định dạng chưa biết → importer generic có chọn cột).
-  Không khớp → LLM có ngữ cảnh. Thứ tự fallback: Gemini → OpenAI-compatible → Google.
+  Không khớp → engine chọn riêng cho thoại (`dialog_engine`) và vùng chụp (`scan_engine`): Google / Gemini (fallback Google). Đã bỏ OpenAI/DeepSeek.
 - Gemini free tier (từ 04/2026 chỉ còn Flash/Flash-Lite, khoảng 5–15 RPM): mặc định `gemini-2.5-flash-lite`, thinking budget 0, streaming.
 - Stack: **Python + PySide6**.
 - "Ghi nhớ từ" = **cả hai**: sổ từ để học **và** glossary cố định cách dịch, kèm option **không dịch tên riêng/thuật ngữ**.
@@ -35,7 +35,7 @@ wuwasub/capture.py       QThread: mss chụp → phát hiện thay đổi → ch
 wuwasub/ocr.py           WindowsOcr (winrt/winsdk), RapidOcr, TesseractOcr
 wuwasub/matcher.py       SubIndex
 wuwasub/textnorm.py      resolve placeholder, norm, lemmas, join_lines
-wuwasub/translator.py    Gemini (SSE) / OpenAI-compatible (SSE) / Google gtx; prompt + glossary
+wuwasub/translator.py    Gemini (SSE, đọc ảnh) / Google gtx; CHAINS theo engine; prompt + glossary
 wuwasub/dictionary.py    StarDict, TableDict, online_lookup
 wuwasub/db.py            SQLite: subs, glossary, vocab, cache
 wuwasub/hotkeys.py       RegisterHotKey + QAbstractNativeEventFilter
@@ -56,7 +56,7 @@ Phiên 4: build exe 1 file (`build.bat`, `--diag`). Nút tải OCR engine (`engi
 Popup tra từ: Google dịch tự động (`google_lookup`, dt=bd) + chọn ngôn ngữ đích (`target_lang`). EasyOCR: bỏ qua (PyTorch >1GB, chậm trên CPU).
 
 ## 5. Trạng thái test
-**Pass trên Linux:** core (matcher, importer, db, glossary/prompt, StarDict), capture (logic chờ ổn định), parser streaming Gemini/OpenAI + 429 fallback, UI smoke offscreen.
+**Pass trên Linux:** core (matcher, importer, db, glossary/prompt, StarDict), capture (logic chờ ổn định), parser streaming Gemini + 429 fallback + engine, UI smoke offscreen.
 
 **CHƯA test (cần Windows thật):**
 1. `WindowsOcr`: API pywinrt (`DataWriter.write_bytes`, `SoftwareBitmap.create_copy_from_buffer`, `recognize_async`).

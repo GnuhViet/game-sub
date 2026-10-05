@@ -36,7 +36,7 @@ class FakeResp:
 
 def test_streaming_parsers():
     cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); db = DB(Path(tempfile.mkdtemp()) / "t.db"); tr = Translator(cfg, db)
-    cfg.update(gemini_key="k", openai_key="k", chain=["gemini"])
+    cfg.update(gemini_key="k", dialog_engine="gemini")
     sse = [f"data: {json.dumps({'candidates': [{'content': {'parts': [{'text': t}]}}]})}" for t in ("Xin ", "chào.")]
     sent = {}
     def post(url, **kw): sent["url"], sent["json"] = url, kw["json"]; return FakeResp(sse)
@@ -44,13 +44,17 @@ def test_streaming_parsers():
     out = tr.translate("Hello.", "Yangyang", [], parts.append)
     assert out == ("Xin chào.", "gemini") and parts == ["Xin ", "Xin chào."] and "streamGenerateContent" in sent["url"]
     assert sent["json"]["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0} and "Yangyang: Hello." in sent["json"]["contents"][0]["parts"][0]["text"]
-    oai = [f"data: {json.dumps({'choices': [{'delta': {'content': t}}]})}" for t in ("Tạm ", "biệt")] + ["data: [DONE]"]
-    tr.s.post = lambda url, **kw: FakeResp(oai); cfg["chain"] = ["openai"]
-    assert tr.translate("Bye", "", [], lambda _: None) == ("Tạm biệt", "openai")
-    # 429 -> cooldown -> fallback
-    tr.s.post = lambda url, **kw: FakeResp([], 429); cfg["chain"] = ["gemini", "openai"]
+    # 429 -> cooldown; chỉ Gemini thì báo lỗi
+    tr.s.post = lambda url, **kw: FakeResp([], 429)
     try: tr.translate("x", "", [], None); assert False
     except Exception as e: assert "429" in str(e) and tr.cool["gemini"] > time.time()
+    # Gemini lỗi/cooldown -> Google; engine riêng cho vùng chụp; chọn Google thì không gọi Gemini
+    tr.google = lambda text: "Bản Google"
+    assert tr.translate("x", "", [], None, engine="ocr_gemini") == ("Bản Google", "google")
+    cfg["dialog_engine"] = "gemini_google"; assert tr.translate("x")[1] == "google"
+    tr.cool.clear(); calls = []; tr.gemini = lambda *a, **k: calls.append(1) or "AI"
+    cfg["dialog_engine"] = "google"; assert tr.translate("x") == ("Bản Google", "google") and not calls
+    assert tr.translate("x", engine="ocr_gemini") == ("AI", "gemini")
 
 if __name__ == "__main__":
     test_capture_waits_for_stable_text(); print("PASS capture"); test_streaming_parsers(); print("PASS translate")

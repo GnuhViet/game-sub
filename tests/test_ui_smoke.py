@@ -37,9 +37,11 @@ n = len(a.history); a.on_text("", "Rover, you finally woke up"); assert len(a.hi
 
 # 2) machine translation fallback (mock) + streaming partial
 calls = []
-def fake_tr(src, spk, ctx, partial):
-    calls.append(ctx); partial("Đang…"); return "Câu dịch máy.", "gemini"
-a.tr.translate = fake_tr; a.cfg["chain"] = ["gemini"]
+def fake_tr(src, spk, ctx, partial, engine=None):
+    calls.append(ctx)
+    if engine is None: assert a.ov._tag == "" and a.ov.vi.text() == ""     # thoại: không hiện "Đang dịch…", không hiện tạm câu gốc
+    partial("Đang…"); return "Câu dịch máy.", "gemini"
+a.tr.translate = fake_tr
 a.on_text("", "Something brand new happens here."); pump()
 assert a.ov.vi.text() == "Câu dịch máy." and a.ov._tag == "Gemini · gemini-2.5-flash-lite", a.ov._tag
 assert calls[0] and calls[0][-1][2] == "Rover, cuối cùng anh cũng tỉnh rồi."    # context truyền vào
@@ -95,7 +97,8 @@ a.render(); a.on_action("clear"); assert a.ov.vi.text() == "" and a.ov.src == ""
 n_calls = len(calls); a.on_action("translate"); a.on_text("", "Brand new untranslated line here.")
 assert a.ov.vi.text() == "" and a.ov.src == "Brand new untranslated line here." and a.ov.src_lbl.isVisibleTo(a.ov) and "Không dịch" in a.ov._tag
 a.tr.translate = fake_tr; a.on_action("translate"); pump(); assert a.ov.vi.text() == "Câu dịch máy." and len(calls) == n_calls + 1
-sd = SettingsDialog(a.cfg);sd.chain.setText("google, bogus, gemini"); sd.apply(); assert a.cfg["chain"] == ["google", "gemini"]
+sd = SettingsDialog(a.cfg); cb = sd.w["dialog_engine"][0]; cb.setCurrentIndex(cb.findData("gemini_google")); sd.apply(); assert a.cfg["dialog_engine"] == "gemini_google"
+assert "openai_key" not in a.cfg and sd.w["scan_engine"][0].count() == 3
 assert (C.DATA_DIR / "settings.json").exists()
 sub = SubsDialog(a.db, a.index, a.cfg, a.rebuild_index); sub.test.setText("Rover you finally woke up"); sub._test(); assert "100" in sub.test_out.text() or "%" in sub.test_out.text()
 gd = GlossaryDialog(a.db, a.cfg); gd._row("Resonator", "Cộng Minh Giả", "translate"); gd._save(); assert any(g["term"] == "Resonator" for g in a.db.glossary())
@@ -124,7 +127,7 @@ a.scan_win.word_click.emit("help", QPoint(200, 200)); pump(); assert a.cur_line(
 a.ov.word_hover.emit("woke", QPoint(1, 1)); pump(0.5); assert a.lookup_ctx is None
 a.on_action("scan_retranslate"); pump(); assert a.scan_win.tag.text().startswith("Gemini")
 # 10b) Gemini đọc ảnh vùng chụp; lỗi thì quay về OCR
-a.cfg.update(scan_mode="gemini", gemini_key="k")
+a.cfg.update(scan_engine="gemini_image", gemini_key="k")
 a.tr.read_image = lambda png, p=None: (p and p("Thư"), (png[:4] == b"\x89PNG" and "Dear Rover, the letter.", "Rover thân mến, lá thư."))[1]
 A.grab = lambda sct, r: __import__("numpy").zeros((20, 40, 3), "uint8")
 a.scan_capture({"x": 0, "y": 0, "w": 40, "h": 20}); pump()
@@ -132,7 +135,7 @@ assert a.scan_win.src == "Dear Rover, the letter." and a.scan_win.vi_view.toPlai
 def gem_fail(png, p=None): raise RuntimeError("429")
 a.tr.read_image = gem_fail; a.scan_capture({"x": 0, "y": 0, "w": 40, "h": 20}); pump()
 assert a.scan_win.src.startswith("Dear Rover, thank you") and "Gemini đọc ảnh lỗi" in a.ov.status.text()
-a.cfg.update(scan_mode="ocr", gemini_key="")
+a.cfg.update(scan_engine="ocr_google", gemini_key="")
 # 11) nguồn dịch chỉ hiện khi rê chuột; khóa overlay; khung tự giãn; tooltip có hotkey; 1/2 ngôn ngữ
 a.ov.show_line("", "Hi.", "Xin chào.", "Google Translate"); assert a.ov.tag.text() == ""
 a.ov._set_bar(True); assert a.ov.tag.text() == "Google Translate"; a.ov._set_bar(False)
