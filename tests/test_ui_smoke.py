@@ -123,6 +123,16 @@ a.cfg["dict_mode"] = "auto"; a.pop.hide(); a.pop.pinned = False
 a.scan_win.word_click.emit("help", QPoint(200, 200)); pump(); assert a.cur_line()["src"].startswith("Dear Rover") and a.pop.word == "help"
 a.ov.word_hover.emit("woke", QPoint(1, 1)); pump(0.5); assert a.lookup_ctx is None
 a.on_action("scan_retranslate"); pump(); assert a.scan_win.tag.text().startswith("Gemini")
+# 10b) Gemini đọc ảnh vùng chụp; lỗi thì quay về OCR
+a.cfg.update(scan_mode="gemini", gemini_key="k")
+a.tr.read_image = lambda png, p=None: (p and p("Thư"), (png[:4] == b"\x89PNG" and "Dear Rover, the letter.", "Rover thân mến, lá thư."))[1]
+A.grab = lambda sct, r: __import__("numpy").zeros((20, 40, 3), "uint8")
+a.scan_capture({"x": 0, "y": 0, "w": 40, "h": 20}); pump()
+assert a.scan_win.src == "Dear Rover, the letter." and a.scan_win.vi_view.toPlainText() == "Rover thân mến, lá thư." and a.scan_win.tag.text().startswith("Gemini đọc ảnh")
+def gem_fail(png, p=None): raise RuntimeError("429")
+a.tr.read_image = gem_fail; a.scan_capture({"x": 0, "y": 0, "w": 40, "h": 20}); pump()
+assert a.scan_win.src.startswith("Dear Rover, thank you") and "Gemini đọc ảnh lỗi" in a.ov.status.text()
+a.cfg.update(scan_mode="ocr", gemini_key="")
 # 11) nguồn dịch chỉ hiện khi rê chuột; khóa overlay; khung tự giãn; tooltip có hotkey; 1/2 ngôn ngữ
 a.ov.show_line("", "Hi.", "Xin chào.", "Google Translate"); assert a.ov.tag.text() == ""
 a.ov._set_bar(True); assert a.ov.tag.text() == "Google Translate"; a.ov._set_bar(False)

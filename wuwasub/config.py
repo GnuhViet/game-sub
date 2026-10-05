@@ -26,7 +26,8 @@ DEFAULTS = {
     "interval_ms": 250, "stable_ms": 350, "diff_threshold": 3.0, "dedupe_ratio": 92,
     "src_lang": "tiếng Anh", "fix_spacing": True,             # tách từ OCR dính liền
     # dịch
-    "translate": True,                                 # False = không dịch, chỉ hiện câu gốc để tra từ
+    "translate": True,                                # False = không dịch, chỉ hiện câu gốc để tra từ
+    "scan_mode": "ocr",                               # vùng chụp 📷: ocr / gemini (Gemini đọc ảnh + dịch)
     "use_subs": True, "fuzzy_threshold": 86,
     "chain": ["gemini", "google"],                    # thứ tự fallback: gemini/openai/google
     "gemini_key": "", "gemini_model": "gemini-2.5-flash-lite", "gemini_thinking_budget": 0,

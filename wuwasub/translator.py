@@ -1,6 +1,8 @@
 """Dịch máy: Gemini / OpenAI-compatible (DeepSeek, OpenRouter, Ollama...) / Google free. Chuỗi fallback + cooldown khi 429."""
-import json, re, time
+import base64, json, re, time
 import requests
+
+SEP = "====="
 
 class ProviderError(Exception): pass
 
@@ -92,11 +94,23 @@ class Translator:
     def _restore(text, mapping):
         return re.sub(r"⟦\s*(\d+)\s*⟧", lambda m: mapping[int(m.group(1))] if int(m.group(1)) < len(mapping) else m.group(0), text)
 
-    def gemini(self, system, user, on_partial):
+    def read_image(self, png, on_partial=None):
+        """Gemini đọc ảnh vùng chụp: chép nguyên văn + dịch. -> (câu gốc, bản dịch)"""
+        user = ("Ảnh là một phần màn hình game (thư, bảng thông tin…). Chép lại NGUYÊN VĂN toàn bộ chữ trong ảnh theo đúng thứ tự đọc, "
+                f"rồi một dòng chỉ có {SEP}, rồi bản dịch sang tiếng Việt theo các quy tắc trên. Không thêm gì khác.")
+        split = lambda t: [x.strip() for x in t.split(SEP, 1)] if SEP in t else ["", t.strip()]
+        part = (lambda t: on_partial(split(t)[1] if SEP in t else "")) if on_partial else None
+        src, vi = split(self.gemini(self.system_prompt(""), user, part, image=png, max_tokens=4096))
+        if not src: raise ProviderError("Gemini không trả về chữ đọc được")
+        return src, vi
+
+    def gemini(self, system, user, on_partial, image=None, max_tokens=1024):
         c = self.cfg
         if not c["gemini_key"]: raise ProviderError("chưa có API key")
-        body = {"contents": [{"role": "user", "parts": [{"text": user}]}],
-                "generationConfig": {"temperature": 0.3, "maxOutputTokens": 1024}}
+        parts = [{"text": user}]
+        if image: parts.insert(0, {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(image).decode()}})
+        body = {"contents": [{"role": "user", "parts": parts}],
+                "generationConfig": {"temperature": 0.3, "maxOutputTokens": max_tokens}}
         if system: body["systemInstruction"] = {"parts": [{"text": system}]}
         if c["gemini_thinking_budget"] is not None and c["gemini_thinking_budget"] >= 0:
             body["generationConfig"]["thinkingConfig"] = {"thinkingBudget": int(c["gemini_thinking_budget"])}

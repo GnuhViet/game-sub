@@ -34,6 +34,7 @@ class SettingsDialog(QDialog):
         self._eng_refresh()
         # --- Dịch
         f = self._tab(tabs, "Dịch")
+        self._combo(f, "scan_mode", "Dịch vùng chụp (📷) bằng", {"ocr": "OCR + dịch như thoại", "gemini": "Gemini đọc ảnh (chính xác hơn với thư/font lạ, cần Gemini key)"})
         self._check(f, "translate", "Dịch (tắt = chỉ hiện câu gốc để tra từ)"); self._check(f, "use_subs", "Ưu tiên bộ sub Việt hóa")
         self._spin(f, "fuzzy_threshold", "Ngưỡng khớp sub (%)", 50, 100)
         self.chain = QLineEdit(", ".join(cfg["chain"])); self.chain.setToolTip("Thứ tự fallback, ví dụ: gemini, google  |  openai, gemini, google")

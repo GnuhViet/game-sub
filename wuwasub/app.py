@@ -279,18 +279,30 @@ class App:
 
     # ---------------- chụp & dịch 1 vùng
     def scan_capture(self, r):
-        c = self.cfg; self.scan_win.show_result(self.scan["src"], "", "Đang OCR…")
-        def work(_):
+        c = self.cfg; use_gem = c["scan_mode"] == "gemini" and c["translate"] and bool(c["gemini_key"])
+        self.scan_win.show_result(self.scan["src"], "", "Gemini đang đọc ảnh…" if use_gem else "Đang OCR…")
+        def work(partial):
             with open_sct() as sct: img = grab(sct, r)
+            gem_err = ""
+            if use_gem:                                          # Gemini đọc ảnh: chép nguyên văn + dịch 1 lần
+                try:
+                    import io; from PIL import Image; buf = io.BytesIO(); Image.fromarray(img).save(buf, "PNG")
+                    return ("gemini",) + self.tr.read_image(buf.getvalue(), partial)
+                except Exception as e: gem_err = str(e) or type(e).__name__        # lỗi/hết quota -> quay về OCR
             s = float(c["ocr_scale"] or 1)
             if abs(s - 1) > 0.01: img = ocr._resize(img, s)
-            return join_lines(ocr.create(c["ocr_engine"], c["ocr_lang"]).recognize(img))
-        def done(text):
+            return "ocr", join_lines(ocr.create(c["ocr_engine"], c["ocr_lang"]).recognize(img)), gem_err
+        def done(res):
+            kind, text, extra = res
+            if kind == "gemini":
+                self.scan = {"src": text, "vi": extra}; self.scan_win.show_result(text, extra, f"Gemini đọc ảnh · {c['gemini_model']}"); return
+            if extra: self._toast(f"Gemini đọc ảnh lỗi ({extra}) — dùng OCR")
             if c["fix_spacing"]: text = self.spacer.fix(text)
             self.scan = {"src": text, "vi": ""}
             if not text.strip(): self.scan_win.show_result("", "", "Không đọc được chữ trong vùng này"); return
             self.scan_translate()
-        run(work, done, lambda e: self.scan_win.show_result(self.scan["src"], "", f"Lỗi OCR: {e}"))
+        run(work, done, lambda e: self.scan_win.show_result(self.scan["src"], "", f"Lỗi OCR: {e}"),
+            lambda t: self.scan_win.show_result("", t, "Gemini đang đọc ảnh…"))
 
     def scan_translate(self, machine=False):
         c, sc = self.cfg, self.scan; src = sc["src"]
