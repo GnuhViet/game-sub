@@ -8,14 +8,14 @@ class WindowsOcr:
         try:
             from winrt.windows.media.ocr import OcrEngine
             from winrt.windows.globalization import Language
-            from winrt.windows.graphics.imaging import SoftwareBitmap, BitmapPixelFormat, BitmapAlphaMode
+            from winrt.windows.graphics.imaging import SoftwareBitmap, BitmapPixelFormat
             from winrt.windows.storage.streams import DataWriter
         except ImportError:
             from winsdk.windows.media.ocr import OcrEngine
             from winsdk.windows.globalization import Language
-            from winsdk.windows.graphics.imaging import SoftwareBitmap, BitmapPixelFormat, BitmapAlphaMode
+            from winsdk.windows.graphics.imaging import SoftwareBitmap, BitmapPixelFormat
             from winsdk.windows.storage.streams import DataWriter
-        self.SB, self.PF, self.AM, self.DW = SoftwareBitmap, BitmapPixelFormat, BitmapAlphaMode, DataWriter
+        self.SB, self.PF, self.DW = SoftwareBitmap, BitmapPixelFormat, DataWriter
         self.engine = None
         if lang and OcrEngine.is_language_supported(Language(lang)):
             self.engine = OcrEngine.try_create_from_language(Language(lang))
@@ -31,7 +31,7 @@ class WindowsOcr:
             s = self.max_dim / max(h, w); img = _resize(img, s); h, w = img.shape[:2]
         rgba = np.dstack([img, np.full((h, w), 255, np.uint8)]).tobytes()
         dw = self.DW(); dw.write_bytes(rgba)
-        bmp = self.SB.create_copy_from_buffer(dw.detach_buffer(), self.PF.RGBA8, w, h, self.AM.PREMULTIPLIED)
+        bmp = self.SB.create_copy_from_buffer(dw.detach_buffer(), self.PF.RGBA8, w, h)   # bản có alpha tên là create_copy_with_alpha_from_buffer
         res = self.loop.run_until_complete(self._rec(bmp))
         return [l.text for l in res.lines]
 

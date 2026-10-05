@@ -48,6 +48,9 @@ tests/                   test_core, test_capture_translate, test_ui_smoke (offsc
 Phiên 2: `diag.py`/`diag.bat` (tự kiểm tra các mục chưa test ở §5), tự ẩn khi hết thoại (`auto_hide_s`),
 click-through (`click_through`, Alt+C, menu khay), tương thích mss 10 (`capture.open_sct`). RapidOCR đã kiểm chứng trên Linux.
 
+Phiên 3 (Windows 11, Python 3.12, 1 màn 1920x1080 @100%): diag OK. Sửa `WindowsOcr`: pywinrt không có overload 5 tham số
+của `create_copy_from_buffer` → dùng 4 tham số. Windows OCR: 81ms, khớp 100%, chạy được trong QThread. Đăng ký hotkey OK.
+
 ## 5. Trạng thái test
 **Pass trên Linux:** core (matcher, importer, db, glossary/prompt, StarDict), capture (logic chờ ổn định), parser streaming Gemini/OpenAI + 429 fallback, UI smoke offscreen.
 
