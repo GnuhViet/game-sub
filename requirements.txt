@@ -1,0 +1,17 @@
+PySide6>=6.6
+rapidfuzz>=3.0
+mss>=9.0
+numpy
+pillow
+requests
+openpyxl
+# Windows OCR (khuyên dùng)
+winrt-runtime; sys_platform == "win32"
+winrt-Windows.Foundation; sys_platform == "win32"
+winrt-Windows.Foundation.Collections; sys_platform == "win32"
+winrt-Windows.Media.Ocr; sys_platform == "win32"
+winrt-Windows.Globalization; sys_platform == "win32"
+winrt-Windows.Graphics.Imaging; sys_platform == "win32"
+winrt-Windows.Storage.Streams; sys_platform == "win32"
+# Tùy chọn: RapidOCR (offline, chính xác hơn với font lạ)
+# rapidocr_onnxruntime
