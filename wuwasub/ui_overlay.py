@@ -1,8 +1,8 @@
 import html
-from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent
+from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent, QSize
 from PySide6.QtGui import QColor, QPainter, QCursor, QFont
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
-                               QPushButton, QApplication, QComboBox, QGraphicsEffect)
+                               QPushButton, QApplication, QComboBox, QGraphicsEffect, QLayout)
 from .textnorm import WORD_RE
 from .dictionary import LANGS
 
@@ -32,6 +32,33 @@ TIPS = {"prev": "Câu trước", "next": "Câu sau", "pause": "Tạm dừng / ti
         "vocab": "Sổ từ", "lock": "Khóa overlay (không hiện toolbar, không kéo/đổi cỡ)", "settings": "Cài đặt", "hide": "Ẩn overlay", "quit": "Thoát"}
 BUSY = ("Đang", "Lỗi", "Chưa", "Không khớp", "Không đọc")          # trạng thái luôn hiện ở góc (nguồn dịch chỉ hiện khi rê chuột)
 
+class FlowLayout(QLayout):
+    """Xếp widget theo hàng, hết chỗ thì xuống dòng (toolbar không bị bóp khi overlay hẹp)."""
+    def __init__(self, parent=None, spacing=2):
+        super().__init__(parent); self.items = []; self.setSpacing(spacing); self.setContentsMargins(0, 0, 0, 0)
+    def addItem(self, it): self.items.append(it)
+    def count(self): return len(self.items)
+    def itemAt(self, i): return self.items[i] if 0 <= i < len(self.items) else None
+    def takeAt(self, i): return self.items.pop(i) if 0 <= i < len(self.items) else None
+    def expandingDirections(self): return Qt.Orientation(0)
+    def hasHeightForWidth(self): return True
+    def heightForWidth(self, w): return self._place(QRect(0, 0, w, 0), True)
+    def setGeometry(self, r): super().setGeometry(r); self._place(r, False)
+    def sizeHint(self): return self.minimumSize()
+    def minimumSize(self):
+        s = QSize()
+        for it in self.items: s = s.expandedTo(it.minimumSize())
+        return s
+    def _place(self, r, test):
+        x, y, line_h, sp = r.x(), r.y(), 0, self.spacing()
+        for it in self.items:
+            if it.isEmpty(): continue
+            h = it.sizeHint()
+            if x > r.x() and x + h.width() > r.right() + 1: x, y, line_h = r.x(), y + line_h + sp, 0     # xuống dòng
+            if not test: it.setGeometry(QRect(QPoint(x, y), h))
+            x += h.width() + sp; line_h = max(line_h, h.height())
+        return y + line_h - r.y()
+
 def tokens_html(text, link_color):
     """Text -> HTML với mỗi từ là 1 link w:<start>:<end>."""
     out, i = [], 0
@@ -55,15 +82,13 @@ class Overlay(QWidget):
         self.setWindowTitle("WuWa Sub"); self.setMinimumSize(320, 90)
         v = QVBoxLayout(self); v.setContentsMargins(14, 6, 14, 8); v.setSpacing(3)
         # toolbar
-        self.bar = QWidget(); hb = QHBoxLayout(self.bar); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(2)
+        self.bar = QWidget(); hb = FlowLayout(self.bar)
         self.btns = {}
         for key, txt in [("prev", "◀"), ("next", "▶"), ("pause", "⏸"), ("translate", "🌐"), ("rescan", "⟳"), ("clear", "⌫"),
                          ("scan", "📷"), ("region", "⬚"), ("speaker", "👤"), ("subs", "📂"), ("glossary", "🏷"), ("vocab", "📖"),
                          ("lock", "🔒"), ("settings", "⚙"), ("hide", "—"), ("quit", "✕")]:
             b = QToolButton(); b.setText(txt); b.setAutoRaise(True); b.clicked.connect(lambda _=0, k=key: self.action.emit(k))
             hb.addWidget(b); self.btns[key] = b
-            if key == "clear": hb.addSpacing(8)
-        hb.addStretch(1)
         self.status = QLabel(""); hb.addWidget(self.status)
         v.addWidget(self.bar)
         self.speaker = QLabel(); self.src_lbl = QLabel(); self.vi = QLabel(); self.tag = QLabel(); self.tag.setToolTip("Nguồn bản dịch: Bộ sub / Gemini / OpenAI / Google Translate")
@@ -127,7 +152,7 @@ class Overlay(QWidget):
     def _fit(self):
         """Khung tự giãn lên trên (giữ mép dưới) khi chữ dài, co về cỡ người dùng đặt khi chữ ngắn."""
         lay = self.layout(); need = lay.totalHeightForWidth(self.width())
-        if not self.bar.isVisible(): need += self.bar.sizeHint().height() + lay.spacing()   # chừa chỗ toolbar để rê chuột không làm khung nhảy
+        if not self.bar.isVisible(): need += self.bar.heightForWidth(self.width() - 28) + lay.spacing()   # chừa chỗ toolbar để rê chuột không làm khung nhảy
         h = max(self.base_h, need)
         if h == self.height(): return
         g = self.geometry(); top = g.bottom() + 1 - h

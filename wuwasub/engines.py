@@ -1,7 +1,7 @@
 """Tải OCR engine tùy chọn vào <thư mục exe>/engines (exe không phải đóng gói sẵn).
 RapidOCR: giải nén wheel từ PyPI vào engines/py. Tesseract: chạy bộ cài UB-Mannheim im lặng vào engines/tesseract."""
 import io, re, shutil, sys, zipfile
-import requests
+from . import net
 from .config import app_dir
 
 ENG_DIR = app_dir() / "engines"
@@ -52,7 +52,7 @@ def tesseract_exe():
 
 def _download(url, progress, label):
     """progress(text, percent) -> False để hủy."""
-    r = requests.get(url, stream=True, timeout=30); r.raise_for_status()
+    r = net.session().get(url, stream=True, timeout=30); r.raise_for_status()
     total = int(r.headers.get("content-length") or 0); buf = io.BytesIO(); done = 0
     for chunk in r.iter_content(1 << 16):
         buf.write(chunk); done += len(chunk)
@@ -61,7 +61,7 @@ def _download(url, progress, label):
 
 def _wheel_url(name, ver):
     py = f"cp{sys.version_info.major}{sys.version_info.minor}"
-    files = requests.get(f"https://pypi.org/pypi/{name}/{ver}/json", timeout=20).json()["urls"]
+    files = net.session().get(f"https://pypi.org/pypi/{name}/{ver}/json", timeout=20).json()["urls"]
     def score(f):
         fn = f["filename"]
         if not fn.endswith(".whl"): return -1
@@ -83,7 +83,7 @@ def install_rapidocr(progress):
 
 def install_tesseract(progress):
     if sys.platform != "win32": raise RuntimeError("Chỉ hỗ trợ tự cài trên Windows")
-    rel = requests.get(TESS_API, timeout=20).json()
+    rel = net.session().get(TESS_API, timeout=20).json()
     asset = next((a for a in rel.get("assets", []) if re.search(r"w64-setup.*\.exe$", a["name"])), None)
     if not asset: raise RuntimeError("Không tìm thấy bộ cài Tesseract trên GitHub")
     ENG_DIR.mkdir(parents=True, exist_ok=True); setup_exe = ENG_DIR / asset["name"]

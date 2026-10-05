@@ -1,6 +1,7 @@
 """Dịch máy: Gemini (AI) / Google free. Mỗi mục đích (thoại, vùng chụp) chọn engine riêng; fallback + cooldown khi 429."""
 import base64, json, re, time
 import requests
+from . import net
 
 SEP = "====="
 # engine -> các nhà cung cấp thử lần lượt (thoại: dialog_engine; vùng chụp: scan_engine)
@@ -12,7 +13,7 @@ class ProviderError(Exception): pass
 class Translator:
     def __init__(self, cfg, db):
         self.cfg, self.db, self.cool = cfg, db, {}
-        self.s = requests.Session()
+        self.s = net.session()
 
     # ---------- prompt
     def _glossary_block(self, text):

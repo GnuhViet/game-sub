@@ -2,6 +2,7 @@
 import csv, gzip, html, json, struct, re
 from pathlib import Path
 import requests
+from . import net
 from .textnorm import lemmas
 
 class StarDict:
@@ -84,7 +85,7 @@ LANGS = {"vi": "Tiếng Việt", "en": "English", "ja": "日本語", "zh-CN": "�
 
 def google_lookup(word, tl="vi", timeout=6):
     """Google Translate (gtx, free): nghĩa chính + phiên âm + nghĩa theo từ loại. -> (nghĩa chính, html) | None"""
-    r = requests.get("https://translate.googleapis.com/translate_a/single", timeout=timeout,
+    r = net.session().get("https://translate.googleapis.com/translate_a/single", timeout=timeout,
                      params=[("client", "gtx"), ("sl", "auto"), ("tl", tl), ("dt", "t"), ("dt", "bd"), ("dt", "rm"), ("q", word)])
     r.raise_for_status(); d = r.json()
     main = "".join(s[0] for s in (d[0] or []) if s and s[0]).strip()
@@ -96,7 +97,7 @@ def google_lookup(word, tl="vi", timeout=6):
 
 def online_lookup(word, timeout=6):
     for cand in lemmas(word)[1:3] or [word]:
-        r = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{requests.utils.quote(cand)}", timeout=timeout)
+        r = net.session().get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{requests.utils.quote(cand)}", timeout=timeout)
         if r.status_code != 200: continue
         e = r.json()[0]; ph = e.get("phonetic") or next((p.get("text") for p in e.get("phonetics", []) if p.get("text")), "")
         out = [f"<b>{html.escape(e.get('word', cand))}</b> {html.escape(ph or '')}"]

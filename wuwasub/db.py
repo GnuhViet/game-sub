@@ -14,6 +14,7 @@ class DB:
     def __init__(self, path):
         self.lock = threading.RLock()
         self.c = sqlite3.connect(str(path), check_same_thread=False)
+        self.c.execute("PRAGMA journal_mode=WAL"); self.c.execute("PRAGMA synchronous=NORMAL")   # ít fsync khi lưu cache tra từ
         self.c.executescript(SCHEMA); self.c.commit()
         self._gl_cache = None
 
