@@ -105,7 +105,9 @@ class SettingsDialog(QDialog):
         f.addRow(g); self.w["toolbar"] = (g, lambda: [k for k, _ in TOOLBAR if tb[k].isChecked()])
         self._check(f, "hide_from_capture", "Overlay vô hình với ảnh chụp: đặt đè lên vùng OCR được (quay/stream/chụp màn hình cũng không thấy overlay)")
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
-        self._combo(f, "show_source", "Hiển thị", {True: "2 ngôn ngữ (câu gốc + bản dịch)", False: "1 ngôn ngữ (chỉ bản dịch)"}); self._check(f, "show_speaker", "Hiện tên nhân vật")
+        self._combo(f, "display", "Hiển thị", {"both": "2 ngôn ngữ (câu gốc + bản dịch)", "vi": "Chỉ bản dịch",
+                                                "vi_hover": "Chỉ bản dịch — rê chuột vào hiện câu gốc", "src_hover": "Chỉ câu gốc — rê chuột vào hiện bản dịch"})
+        self._check(f, "alt_unlock", "Khi khóa overlay: giữ Alt để bấm/tra từ trên overlay"); self._check(f, "show_speaker", "Hiện tên nhân vật")
         # --- Hotkey
         f = self._tab(tabs, "Hotkey"); self.hk = {}
         for k, n in [("toggle", "Ẩn/hiện overlay"), ("region", "Chọn vùng"), ("pause", "Tạm dừng"), ("rescan", "Quét lại"), ("clickthrough", "Click-through"), ("clear", "Xóa chữ"), ("translate", "Bật/tắt dịch"), ("scan", "Chụp & dịch 1 vùng"), ("lock", "Khóa/mở overlay")]:

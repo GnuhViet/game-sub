@@ -1,5 +1,5 @@
 """Smoke test UI offscreen: QT_QPA_PLATFORM=offscreen python tests/test_ui_smoke.py"""
-import os, sys, tempfile, time
+import os, sys, tempfile, time, pathlib
 from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -171,14 +171,21 @@ a.cfg.update(scan_engine="ocr_google", gemini_key="")
 a.ov.show_line("", "Hi.", "Xin chào.", "Google Translate"); assert a.ov.tag.text() == ""
 a.ov._set_bar(True); assert a.ov.tag.text() == "Google Translate"; a.ov._set_bar(False)
 a.ov.show_line("", "Hi.", "", "Đang dịch…"); assert a.ov.tag.text() == "Đang dịch…"
-a.on_action("lock"); assert a.cfg["locked"] and not a.ov.grip.isVisible() and a.lock_action.isChecked() and a.ov.windowFlags() & Qt.WindowTransparentForInput
+a.on_action("lock"); assert a.cfg["locked"] and not a.ov.grip.isVisible() and a.lock_action.isChecked() and a.ov.passthrough_wanted()
 a.ov.enterEvent(None); assert not a.ov.bar.isVisible(); a.on_action("lock"); assert not a.cfg["locked"]
 h0 = a.ov.height(); bottom = a.ov.geometry().bottom()
 a.ov.show_line("", "word " * 80, "chữ " * 120, "Gemini"); assert a.ov.height() > h0 and abs(a.ov.geometry().bottom() - bottom) <= 1, (h0, a.ov.height())
 a.ov.show_line("", "Hi.", "Xin chào.", ""); assert a.ov.height() == h0 and a.cfg["overlay_geom"][3] == h0
 assert "[Ctrl+Alt+P]" in a.ov.btns["pause"].toolTip() and "[Ctrl+Alt+T]" in a.ov.btns["hide"].toolTip() and a.ov.btns["lock"].toolTip()
-sd = SettingsDialog(a.cfg); cb = sd.w["show_source"][0]; cb.setCurrentIndex(cb.findData(False)); sd.apply(); assert a.cfg["show_source"] is False
-a.ov.apply_style(); assert not a.ov.src_lbl.isVisibleTo(a.ov); a.cfg["show_source"] = True; a.ov.apply_style()
+sd = SettingsDialog(a.cfg); cb = sd.w["display"][0]; cb.setCurrentIndex(cb.findData("vi")); sd.apply(); assert a.cfg["display"] == "vi"
+a.ov.apply_style(); assert not a.ov.src_lbl.isVisibleTo(a.ov) and a.ov.vi.isVisibleTo(a.ov)
+# chỉ câu gốc, rê chuột hiện bản dịch / chỉ bản dịch, rê chuột hiện câu gốc
+a.cfg["display"] = "src_hover"; a.ov.apply_style(); assert a.ov.src_lbl.isVisibleTo(a.ov) and not a.ov.vi.isVisibleTo(a.ov)
+a.ov._set_bar(True); assert a.ov.vi.isVisibleTo(a.ov); a.ov._set_bar(False); assert not a.ov.vi.isVisibleTo(a.ov)
+a.cfg["display"] = "vi_hover"; a.ov.apply_style(); assert not a.ov.src_lbl.isVisibleTo(a.ov); a.ov._set_bar(True); assert a.ov.src_lbl.isVisibleTo(a.ov); a.ov._set_bar(False)
+a.cfg["display"] = "both"; a.ov.apply_style(); assert a.ov.src_lbl.isVisibleTo(a.ov) and a.ov.vi.isVisibleTo(a.ov)
+# cài đặt cũ show_source=False -> display "vi"
+import json, tempfile as _t; _p = pathlib.Path(_t.mkdtemp()) / "s.json"; _p.write_text(json.dumps({"show_source": False}), "utf-8"); assert C.Config(_p)["display"] == "vi"
 
 # 8) tự ẩn khi hết thoại, hiện lại khi có thoại mới; toggle tay không bị auto-show
 a.cfg["auto_hide_s"] = 0.1; a.ov.show(); a.pop.hide(); a.on_text("", ""); pump(0.3)
@@ -205,6 +212,6 @@ a.pop.close_pop(); a.cfg["dict_mode"] = "llm"
 
 # 9) click-through
 from PySide6.QtCore import Qt
-a.on_action("clickthrough"); assert a.cfg["click_through"] and a.ov.windowFlags() & Qt.WindowTransparentForInput and a.ov.isVisible() and a.ct_action.isChecked()
-a.on_action("clickthrough"); assert not a.ov.windowFlags() & Qt.WindowTransparentForInput and not a.ct_action.isChecked()
+a.on_action("clickthrough"); assert a.cfg["click_through"] and a.ov.passthrough_wanted() and a.ov.isVisible() and a.ct_action.isChecked()
+a.on_action("clickthrough"); assert not a.ov.passthrough_wanted() and not a.ct_action.isChecked()
 a.quit(); print("UI SMOKE OK")

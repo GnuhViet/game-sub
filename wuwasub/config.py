@@ -43,7 +43,9 @@ DEFAULTS = {
     "dict_files": [], "hover_delay_ms": 250,
     "popup_trigger": "click",                         # click: bấm vào từ mới hiện nghĩa / hover: rê chuột là hiện
     # overlay
-    "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "locked": False, "hide_from_capture": True, "show_source": True, "show_speaker": True,
+    "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "locked": False, "hide_from_capture": True, "show_speaker": True,
+    "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
+    "alt_unlock": True,                               # đang khóa: giữ Alt thì overlay nhận chuột
     "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"],
     "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
@@ -66,6 +68,7 @@ class Config(dict):
                     if k == "hotkeys" and isinstance(v, dict):    # hotkey còn để mặc định cũ (Alt+phím) -> lên mặc định mới
                         self[k].update({a: s for a, s in v.items() if s != OLD_HOTKEYS.get(a)})
                     elif k in DEFAULTS: self[k] = v
+                if "display" not in data and data.get("show_source") is False: self["display"] = "vi"     # cài đặt cũ
             except Exception as e: print("settings.json lỗi, dùng mặc định:", e)
 
     def save(self):

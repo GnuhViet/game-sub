@@ -89,7 +89,8 @@ class Overlay(QWidget):
     action = Signal(str)                       # prev/next/pause/region/vocab/glossary/subs/settings/quit/rescan
 
     def __init__(self, cfg):
-        super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._auto = False
+        super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._auto = False; self._alt = False
+        self.alt_t = QTimer(self, interval=60, timeout=self._poll_alt)        # đang khóa: giữ Alt -> overlay nhận chuột
         self.setAttribute(Qt.WA_TranslucentBackground); self.setMouseTracking(True)
         self.setAttribute(Qt.WA_AlwaysShowToolTips)          # cửa sổ Tool không focus: Windows mặc định không hiện tooltip
         self.setWindowTitle("WuWa Sub"); self.setMinimumSize(320, 90)
@@ -139,7 +140,7 @@ class Overlay(QWidget):
         self.tag.setStyleSheet(f"color:{c['src_fg']}; font-size:10px"); self.status.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
         w = int(c["text_outline"])
         for l in (self.speaker, self.src_lbl, self.vi, self.tag): l.setGraphicsEffect(OutlineEffect(w, l) if w > 0 else None)
-        self.src_lbl.setVisible(c["show_source"] or not c["translate"]); self.update(); self._render_src()
+        self._apply_display(); self.update(); self._render_src()
         self.btns["translate"].setText("🌐" if c["translate"] else "🔤")
         for k, _ in TOOLBAR: self.btns[k].setVisible(k in c["toolbar"])           # nút ghim trên toolbar (Cài đặt → Giao diện)
         for k, b in self.btns.items():
@@ -209,33 +210,59 @@ class Overlay(QWidget):
 
     def set_click_through(self, on): self.cfg["click_through"] = on; self._apply_input()
 
+    def passthrough_wanted(self):
+        return bool((self.cfg["locked"] and not self._alt) or self.cfg["click_through"])
+
     def _apply_input(self):
-        """Chuột xuyên qua overlay khi khóa hoặc bật click-through (không chắn chuột game)."""
-        want = bool(self.cfg["locked"] or self.cfg["click_through"])
-        if bool(self.windowFlags() & Qt.WindowTransparentForInput) == want: return
-        vis = self.isVisible(); self.setWindowFlag(Qt.WindowTransparentForInput, want)   # đổi flag làm ẩn cửa sổ
+        """Chuột xuyên qua overlay khi khóa (trừ lúc giữ Alt) hoặc bật click-through (không chắn chuột game)."""
+        want = self.passthrough_wanted()
         if want: self.bar.setVisible(False)
-        if vis: self.show()
+        if sys.platform == "win32": self._passthrough(want); return
+        if bool(self.windowFlags() & Qt.WindowTransparentForInput) != want:           # ngoài Windows: dùng flag Qt
+            vis = self.isVisible(); self.setWindowFlag(Qt.WindowTransparentForInput, want)
+            if vis: self.show()
 
     def set_paused(self, p): self.btns["pause"].setText("▶▶" if p else "⏸"); self.status.setText("Tạm dừng" if p else "")
 
     # ---- kéo thả / hover toolbar
-    def showEvent(self, e): super().showEvent(e); exclude_from_capture(self, self.cfg["hide_from_capture"])
+    def showEvent(self, e): super().showEvent(e); exclude_from_capture(self, self.cfg["hide_from_capture"]); self._apply_input()
 
     def set_locked(self, on):
         self.grip.setVisible(not on)
         if on: self._set_bar(False)
         self.btns["lock"].setText("🔓" if on else "🔒"); self._apply_input()
+        if on and self.cfg["alt_unlock"] and sys.platform == "win32": self.alt_t.start()
+        else: self.alt_t.stop(); self._alt = False
+
+    def _poll_alt(self):
+        down = bool(ctypes.windll.user32.GetAsyncKeyState(0x12) & 0x8000)            # VK_MENU
+        if down == self._alt: return
+        self._alt = down; self._apply_input()
+        if not down: self._set_bar(False)
+
+    def _passthrough(self, on):
+        """Chuột xuyên qua bằng WS_EX_TRANSPARENT (+LAYERED). Không dùng flag Qt: Qt tự bỏ sự kiện chuột của cửa sổ
+        mang flag đó nên giữ Alt cũng không bấm được, và đổi flag còn tạo lại cửa sổ (nháy)."""
+        u32 = ctypes.windll.user32; hwnd = int(self.winId()); ex = u32.GetWindowLongW(hwnd, -20)
+        u32.SetWindowLongW(hwnd, -20, (ex | 0x80020) if on else (ex & ~0x20))
+
+    def _apply_display(self):
+        """2 ngôn ngữ / chỉ bản dịch / chỉ 1 thứ, rê chuột vào overlay hiện thêm thứ còn lại."""
+        c, h = self.cfg, self.bar.isVisible(); d, tr = c["display"], c["translate"]
+        src = (not tr) or d in ("both", "src_hover") or (d == "vi_hover" and h)
+        vi = tr and (d in ("both", "vi", "vi_hover") or (d == "src_hover" and h))
+        if self.src_lbl.isVisibleTo(self) != src or self.vi.isVisibleTo(self) != vi:
+            self.src_lbl.setVisible(src); self.vi.setVisible(vi); self._fit()
 
     def _set_bar(self, on):
-        self.bar.setVisible(on); self._tag_vis(); self.update()
+        self.bar.setVisible(on); self._tag_vis(); self._apply_display(); self.update()
 
     def enterEvent(self, e):
-        if self.cfg["locked"]: return                       # khóa: rê chuột không hiện gì (tra từ vẫn được)
+        if self.cfg["locked"] and not self._alt: return     # khóa: rê chuột không hiện gì (giữ Alt thì được)
         self.hide_bar.stop(); self._set_bar(True)
     def leaveEvent(self, e): self.hide_bar.start()
     def mousePressEvent(self, e):
-        if e.button() == Qt.LeftButton and not self.cfg["locked"]: self._drag = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
+        if e.button() == Qt.LeftButton and (not self.cfg["locked"] or self._alt): self._drag = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
     def mouseMoveEvent(self, e):
         if self._drag is not None and e.buttons() & Qt.LeftButton: self.move(e.globalPosition().toPoint() - self._drag)
     def mouseReleaseEvent(self, e): self._drag = None; self._save_geom()
