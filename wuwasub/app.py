@@ -7,7 +7,7 @@ from .config import Config, DATA_DIR
 from .db import DB
 from .matcher import SubIndex
 from .translator import Translator
-from .dictionary import Dictionaries, online_lookup
+from .dictionary import Dictionaries, online_lookup, google_lookup
 from .textnorm import norm
 from .capture import CaptureWorker
 from .hotkeys import Hotkeys
@@ -47,6 +47,7 @@ class App:
         self.ov = Overlay(cfg); self.pop = WordPopup(cfg)
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(self.on_hover); self.ov.word_click.connect(self.on_click)
         self.ov.phrase_action.connect(self.on_phrase); self.pop.act.connect(self.on_pop_action)
+        self.pop.lang_changed.connect(self.on_lang)
         self.hover_t = QTimer(singleShot=True, timeout=lambda: self.lookup(*self._pending)); self._pending = ("", QPoint())
         self.idle_t = QTimer(singleShot=True, timeout=self._auto_hide); self.auto_hidden = False
         self.ov.set_click_through(cfg["click_through"])
@@ -155,12 +156,15 @@ class App:
             if r: self.pop.show_for(word, r[0], meta, r[1], pos, pinned); return
             if mode == "offline":
                 self.pop.show_for(word, "", meta, "<i>Không có trong từ điển offline.</i>" + ("" if self.dicts.dicts else "<br><i>Chưa nạp file từ điển (Cài đặt → Từ điển).</i>"), pos, pinned); return
-        if mode in ("online", "auto"):
-            key = "on:" + word.lower(); cached = self.db.cache_get(key); miss = "<i>Không tìm thấy. Bấm «AI ngữ cảnh».</i>"
+        if mode in ("google", "auto", "online"):
+            tl = self.cfg["target_lang"]
+            key, fn, wait = (("on:" + word.lower(), lambda _: online_lookup(word), "Đang tra online…") if mode == "online" else
+                             (f"gg:{tl}:{word.lower()}", lambda _: google_lookup(word, tl, self.cfg["timeout_s"]), "Đang dịch…"))
+            cached = self.db.cache_get(key); miss = "<i>Không tìm thấy. Bấm «AI ngữ cảnh».</i>"
             if cached is not None: self.pop.show_for(word, "", meta, cached or miss, pos, pinned); return
-            self.pop.show_for(word, "", meta, "<i>Đang tra online…</i>", pos, pinned)
+            self.pop.show_for(word, "", meta, f"<i>{wait}</i>", pos, pinned)
             def done(r): body = r[1] if r else ""; self.db.cache_set(key, body); self.pop.set_body(word, body or miss)
-            run(lambda _: online_lookup(word), done, lambda e: self.pop.set_body(word, f"<i>Lỗi tra online: {html.escape(e)}</i>")); return
+            run(fn, done, lambda e: self.pop.set_body(word, f"<i>Lỗi tra: {html.escape(e)}</i>")); return
         self.explain(word, sent, pos, pinned)
 
     def explain(self, word, sentence, pos=None, pinned=True):
@@ -174,6 +178,11 @@ class App:
         run(lambda _: self.tr.explain(word, sentence), done, lambda e: self.pop.set_body(word, f"<i>Lỗi: {html.escape(e)}</i>"))
 
     def on_pop_action(self, act, word): self.on_phrase(act, word)
+
+    def on_lang(self, code):
+        self.cfg["target_lang"] = code; self.cfg.save()
+        if self.cfg["dict_mode"] in ("offline", "online", "llm"): self.cfg["dict_mode"] = "google"   # chọn ngôn ngữ = muốn Google dịch
+        if self.pop.word: self.lookup(self.pop.word, self.pop.anchor, pinned=True)
 
     def on_phrase(self, act, phrase):
         line = self.cur_line()
@@ -235,7 +244,7 @@ class App:
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
         if not d.exec(): return
         d.apply()
-        if (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
+        if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:
             self.dicts.load(c["dict_files"])
             if self.dicts.errors: QMessageBox.warning(None, "Từ điển", "\n".join(self.dicts.errors))

@@ -51,6 +51,10 @@ click-through (`click_through`, Alt+C, menu khay), tương thích mss 10 (`captu
 Phiên 3 (Windows 11, Python 3.12, 1 màn 1920x1080 @100%): diag OK. Sửa `WindowsOcr`: pywinrt không có overload 5 tham số
 của `create_copy_from_buffer` → dùng 4 tham số. Windows OCR: 81ms, khớp 100%, chạy được trong QThread. Đăng ký hotkey OK.
 
+Phiên 4: build exe 1 file (`build.bat`, `--diag`). Nút tải OCR engine (`engines.py`): RapidOCR = giải nén wheel PyPI (bản ghim) vào `engines/py`
+(exe cần `--collect-submodules numpy`), Tesseract = bộ cài UB-Mannheim `/S /D=engines/tesseract` (CHƯA test, cần UAC).
+Popup tra từ: Google dịch tự động (`google_lookup`, dt=bd) + chọn ngôn ngữ đích (`target_lang`). EasyOCR: bỏ qua (PyTorch >1GB, chậm trên CPU).
+
 ## 5. Trạng thái test
 **Pass trên Linux:** core (matcher, importer, db, glossary/prompt, StarDict), capture (logic chờ ổn định), parser streaming Gemini/OpenAI + 429 fallback, UI smoke offscreen.
 

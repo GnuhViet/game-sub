@@ -68,6 +68,16 @@ a.on_pop_action("explain", "finally"); pump(); assert "ˈfaɪnəli" in a.pop.raw
 assert any(k[0].startswith("ai:finally|") for k in a.db.q("SELECT k FROM cache"))
 a.cfg["dict_mode"] = "llm"; a.pop.hide(); a.pop.pinned = False; a.on_hover("woke", QPoint(1, 1)); pump(1.0); assert "cuối cùng — woke" in a.pop.raw
 
+# 5b) Google dịch tự động trong popup + đổi ngôn ngữ đích
+langs = []
+A.google_lookup = lambda w, tl, t=6: (langs.append(tl), (f"{w}-{tl}", f"<b>{w}-{tl}</b>"))[1]
+a.cfg["dict_mode"] = "auto"; a.pop.hide(); a.pop.pinned = False
+a.on_click("woke", QPoint(300, 300)); pump(); assert "woke-vi" in a.pop.raw and langs == ["vi"], a.pop.raw
+a.on_lang("ja"); pump(); assert a.cfg["target_lang"] == "ja" and "woke-ja" in a.pop.raw and a.pop.pinned
+a.on_click("woke", QPoint(300, 300)); pump(); assert langs == ["vi", "ja"]            # lần 2 lấy từ cache
+a.cfg["dict_mode"] = "offline"; a.on_lang("vi"); pump(); assert a.cfg["dict_mode"] == "google"
+a.cfg["dict_mode"] = "llm"
+
 # 6) dialogs khởi tạo được
 for d in (SettingsDialog(a.cfg), GlossaryDialog(a.db, a.cfg), VocabDialog(a.db), SubsDialog(a.db, a.index, a.cfg, a.rebuild_index)):
     d.show(); pump(0.05); d.close()

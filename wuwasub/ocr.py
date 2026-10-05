@@ -40,10 +40,13 @@ class WindowsOcr:
 class RapidOcr:
     name = "rapidocr"
     def __init__(self, lang=None):
+        from .engines import has_rapidocr
         try:
             from rapidocr_onnxruntime import RapidOCR; self.new = False
-        except ImportError:
-            from rapidocr import RapidOCR; self.new = True
+        except ImportError as e:
+            if has_rapidocr(): raise RuntimeError(f"RapidOCR đã tải nhưng không nạp được: {e}") from None
+            try: from rapidocr import RapidOCR; self.new = True
+            except ImportError: raise RuntimeError("chưa có RapidOCR — Cài đặt → OCR → «Tải RapidOCR»") from None
         self.eng = RapidOCR()
 
     def recognize(self, img):
@@ -58,8 +61,15 @@ class RapidOcr:
 class TesseractOcr:
     name = "tesseract"
     def __init__(self, lang="eng"):
-        import pytesseract; self.pt = pytesseract; self.lang = {"en-US": "eng", "en": "eng"}.get(lang, lang)
-        self.pt.get_tesseract_version()
+        import os, shutil, pytesseract; from .engines import tesseract_exe
+        self.pt = pytesseract; self.lang = {"en-US": "eng", "en": "eng"}.get(lang, lang)
+        exe = tesseract_exe()                              # engines/tesseract (nút Tải) > PATH > Program Files
+        if not exe and not shutil.which("tesseract"):
+            exe = next((p for d in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)"))
+                        if d and os.path.exists(p := os.path.join(d, "Tesseract-OCR", "tesseract.exe"))), None)
+        if exe: pytesseract.pytesseract.tesseract_cmd = exe
+        try: self.pt.get_tesseract_version()
+        except Exception: raise RuntimeError("chưa có Tesseract — Cài đặt → OCR → «Tải Tesseract»") from None
     def recognize(self, img):
         return [l for l in self.pt.image_to_string(img, lang=self.lang).splitlines() if l.strip()]
 

@@ -36,7 +36,8 @@ DEFAULTS = {
     # nhân vật
     "player_name": "Rover", "gender": "male", "name_tokens": ["{PlayerName}", "{Nickname}", "{PLAYER_NAME}"],
     # từ điển
-    "dict_mode": "auto",                              # offline / online / llm / auto
+    "dict_mode": "auto",                              # auto (offline → Google) / offline / google / online / llm
+    "target_lang": "vi",                              # ngôn ngữ đích cho Google dịch (popup + câu)
     "dict_files": [], "hover_delay_ms": 250,
     # overlay
     "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_source": True, "show_speaker": True,

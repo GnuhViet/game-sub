@@ -2,8 +2,9 @@ import html
 from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect
 from PySide6.QtGui import QColor, QPainter, QCursor, QFont
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
-                               QPushButton, QApplication)
+                               QPushButton, QApplication, QComboBox)
 from .textnorm import WORD_RE
+from .dictionary import LANGS
 
 FLAGS = Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
 
@@ -127,15 +128,21 @@ class Overlay(QWidget):
 
 class WordPopup(QFrame):
     act = Signal(str, str)                     # action, word
+    lang_changed = Signal(str)                 # mã ngôn ngữ đích
 
     def __init__(self, cfg):
         super().__init__(None, FLAGS); self.cfg = cfg; self.word = ""; self.pinned = False
         self.setAttribute(Qt.WA_ShowWithoutActivating); self.setObjectName("pop"); self.meta = self.raw = ""
         v = QVBoxLayout(self); v.setContentsMargins(10, 8, 10, 8)
-        self.title = QLabel()
+        self.title = QLabel(); self.anchor = QPoint()
+        self.lang = QComboBox(); self.lang.setToolTip("Ngôn ngữ dịch")
+        for code, name in LANGS.items(): self.lang.addItem(name, code)
+        self.lang.setCurrentIndex(max(0, self.lang.findData(cfg["target_lang"])))
+        self.lang.activated.connect(lambda _: self.lang_changed.emit(self.lang.currentData()))
+        th = QHBoxLayout(); th.addWidget(self.title, 1); th.addWidget(self.lang)
         self.body = QLabel(); self.body.setWordWrap(True); self.body.setTextFormat(Qt.RichText); self.body.setMaximumWidth(420); self.body.setMinimumWidth(260)
         self.body.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        v.addWidget(self.title); v.addWidget(self.body)
+        v.addLayout(th); v.addWidget(self.body)
         hb = QHBoxLayout(); hb.setSpacing(4)
         for k, t in [("vocab", "＋ Sổ từ"), ("keep", "Giữ nguyên"), ("translate", "Dịch là…"), ("explain", "AI ngữ cảnh")]:
             b = QPushButton(t); b.clicked.connect(lambda _=0, k=k: self.act.emit(k, self.word)); hb.addWidget(b)
@@ -146,7 +153,8 @@ class WordPopup(QFrame):
         c = self.cfg
         self.setStyleSheet(f"""QFrame#pop {{ background:{c['bg']}; border:1px solid {c['accent']}; border-radius:8px; }}
             QLabel {{ color:{c['fg']}; }} QPushButton {{ color:{c['fg']}; background:rgba(255,255,255,0.08); border:none;
-            padding:3px 8px; border-radius:4px; font-size:11px; }} QPushButton:hover {{ background:{c['accent']}; color:#111; }}""")
+            padding:3px 8px; border-radius:4px; font-size:11px; }} QPushButton:hover {{ background:{c['accent']}; color:#111; }}
+            QComboBox {{ color:{c['fg']}; background:rgba(255,255,255,0.08); border:none; padding:2px 6px; font-size:11px; }}""")
         self.title.setStyleSheet(f"color:{c['accent']}; font-weight:600; font-size:14px")
 
     def _set(self, meta, body):
@@ -154,7 +162,8 @@ class WordPopup(QFrame):
         self.raw = body; self.body.setText(self.meta + f"<div>{body}</div>"); self.adjustSize()
 
     def show_for(self, word, head, meta, body_html, pos, pinned=False):
-        self.word = word; self.pinned = pinned
+        self.word = word; self.pinned = pinned; self.anchor = pos
+        self.lang.setCurrentIndex(max(0, self.lang.findData(self.cfg["target_lang"])))
         self.title.setText(html.escape(word) + (f" <span style='opacity:.6;font-weight:400'>→ {html.escape(head)}</span>" if head and head.lower() != word.lower() else ""))
         self._set(meta, body_html)
         scr = QApplication.screenAt(pos) or QApplication.primaryScreen(); a = scr.availableGeometry()
@@ -169,7 +178,7 @@ class WordPopup(QFrame):
     def request_hide(self):
         if not self.pinned: self.hide_t.start()
     def _auto_hide(self):
-        if not self.underMouse() and not self.pinned: self.hide()
+        if not self.underMouse() and not self.pinned and not self.lang.view().isVisible(): self.hide()
     def enterEvent(self, e): self.hide_t.stop()
     def leaveEvent(self, e):
         if not self.pinned: self.hide_t.start()

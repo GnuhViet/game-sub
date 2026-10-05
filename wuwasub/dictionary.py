@@ -79,6 +79,21 @@ class Dictionaries:
                 return cand, body
         return None
 
+LANGS = {"vi": "Tiếng Việt", "en": "English", "ja": "日本語", "zh-CN": "中文 (简)", "zh-TW": "中文 (繁)", "ko": "한국어",
+         "fr": "Français", "de": "Deutsch", "es": "Español", "ru": "Русский", "th": "ไทย", "id": "Indonesia"}
+
+def google_lookup(word, tl="vi", timeout=6):
+    """Google Translate (gtx, free): nghĩa chính + phiên âm + nghĩa theo từ loại. -> (nghĩa chính, html) | None"""
+    r = requests.get("https://translate.googleapis.com/translate_a/single", timeout=timeout,
+                     params=[("client", "gtx"), ("sl", "auto"), ("tl", tl), ("dt", "t"), ("dt", "bd"), ("dt", "rm"), ("q", word)])
+    r.raise_for_status(); d = r.json()
+    main = "".join(s[0] for s in (d[0] or []) if s and s[0]).strip()
+    ph = next((s[3] for s in (d[0] or []) if s and len(s) > 3 and s[3]), "")
+    out = [f"<b style='font-size:15px'>{html.escape(main)}</b>" + (f" &nbsp;<span style='opacity:.65'>/{html.escape(ph)}/</span>" if ph else "")]
+    for pos in (d[1] or [])[:4] if len(d) > 1 else []:
+        out.append(f"<i>{html.escape(pos[0])}</i>: " + ", ".join(html.escape(w) for w in pos[1][:6]))
+    return (main, "<br>".join(out)) if main else None
+
 def online_lookup(word, timeout=6):
     for cand in lemmas(word)[1:3] or [word]:
         r = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{requests.utils.quote(cand)}", timeout=timeout)

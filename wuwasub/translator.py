@@ -69,7 +69,7 @@ class Translator:
     def google(self, text):
         protected, mapping = self._protect(text)
         r = self.s.get("https://translate.googleapis.com/translate_a/single",
-                       params={"client": "gtx", "sl": "auto", "tl": "vi", "dt": "t", "q": protected}, timeout=self.cfg["timeout_s"])
+                       params={"client": "gtx", "sl": "auto", "tl": self.cfg["target_lang"], "dt": "t", "q": protected}, timeout=self.cfg["timeout_s"])
         self._check("google", r)
         out = "".join(seg[0] for seg in r.json()[0] if seg and seg[0])
         return self._restore(out, mapping)

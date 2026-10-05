@@ -59,7 +59,8 @@ Lưu từ + nghĩa + câu gốc + câu dịch. Có chế độ ôn tập flashca
 ## Từ điển (Cài đặt → Từ điển)
 | Chế độ | Nguồn |
 |---|---|
-| Offline → Online → nút AI | mặc định |
+| Offline → Google dịch tự động | mặc định; chọn ngôn ngữ ngay trên popup (vi/ja/zh/ko/…) |
+| Google dịch tự động | Google Translate, có từ loại + phiên âm |
 | Chỉ offline | file từ điển bạn nạp |
 | Online | dictionaryapi.dev (Anh-Anh, free) |
 | AI theo ngữ cảnh | Gemini/OpenAI, có cache, tốn quota |
@@ -72,7 +73,7 @@ File offline hỗ trợ: **StarDict** (`.ifo` + `.idx` + `.dict`/`.dict.dz` — 
 
 ## OCR
 - **Windows OCR** (mặc định): nhẹ, cần gói ngôn ngữ English trong Windows.
-- **RapidOCR**: `pip install rapidocr_onnxruntime`, tốt hơn với font lạ/nền rối.
+- **RapidOCR** / **Tesseract**: Cài đặt → OCR → nút «Tải…», cài vào thư mục `engines\` cạnh exe. RapidOCR tốt hơn với font lạ/nền rối nhưng chậm hơn (~2s/lần).
 - Chữ nhỏ → tăng "Phóng to ảnh trước OCR" lên 1.5–2. Nút "Lưu ảnh vùng hiện tại" để kiểm tra vùng chụp có đúng không.
 
 ## Dữ liệu

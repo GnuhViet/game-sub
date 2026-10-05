@@ -1,10 +1,11 @@
 import random, html
 from pathlib import Path
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView)
-from . import importer
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog)
+from . import importer, engines
+from .dictionary import LANGS
 
 PROVIDERS = {"gemini": "Gemini", "openai": "OpenAI-compatible (DeepSeek/OpenRouter/Ollama)", "google": "Google Translate (free)"}
 
@@ -23,6 +24,11 @@ class SettingsDialog(QDialog):
         self._spin(f, "dedupe_ratio", "Bỏ qua nếu giống câu trước ≥ (%)", 50, 100)
         f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút ⬚ / 👤 trên overlay.</i>"))
         self.btn_snap = QPushButton("Lưu ảnh vùng hiện tại để kiểm tra"); f.addRow(self.btn_snap)
+        self.installed = False; self.eng_btns = {}
+        for key, txt in [("rapidocr", "Tải RapidOCR (~80 MB)"), ("tesseract", "Tải Tesseract (~50 MB)")]:
+            b = QPushButton(txt); b.clicked.connect(lambda _=0, k=key: self._install(k)); self.eng_btns[key] = b
+        hb = QHBoxLayout(); [hb.addWidget(b) for b in self.eng_btns.values()]; self.eng_status = QLabel(); f.addRow(hb); f.addRow(self.eng_status)
+        self._eng_refresh()
         # --- Dịch
         f = self._tab(tabs, "Dịch")
         self._check(f, "use_subs", "Ưu tiên bộ sub Việt hóa")
@@ -47,7 +53,8 @@ class SettingsDialog(QDialog):
         f.addRow(QLabel("<i>Macro giới tính dạng {Male=he;Female=she} được tự xử lý.</i>"))
         # --- Từ điển
         f = self._tab(tabs, "Từ điển")
-        self._combo(f, "dict_mode", "Nguồn nghĩa khi hover", {"auto": "Offline → Online → nút AI", "offline": "Chỉ offline", "online": "Online (Anh-Anh, dictionaryapi.dev)", "llm": "AI theo ngữ cảnh (tốn quota)"})
+        self._combo(f, "dict_mode", "Nguồn nghĩa khi hover", {"auto": "Offline → Google dịch tự động", "google": "Google dịch tự động", "offline": "Chỉ offline", "online": "Online (Anh-Anh, dictionaryapi.dev)", "llm": "AI theo ngữ cảnh (tốn quota)"})
+        self._combo(f, "target_lang", "Ngôn ngữ dịch (Google)", LANGS)
         self._spin(f, "hover_delay_ms", "Độ trễ hover (ms)", 0, 2000)
         self.dicts = QListWidget(); self.dicts.addItems(cfg["dict_files"]); f.addRow("File từ điển", self.dicts)
         hb = QHBoxLayout(); a = QPushButton("Thêm…"); d = QPushButton("Xóa"); hb.addWidget(a); hb.addWidget(d); hb.addStretch(1); f.addRow(hb)
@@ -83,6 +90,26 @@ class SettingsDialog(QDialog):
         for key, txt in opts.items(): c.addItem(txt, key)
         c.setCurrentIndex(max(0, c.findData(self.cfg[k]))); f.addRow(label, c); self.w[k] = (c, c.currentData)
 
+    def _eng_refresh(self):
+        ok = {"rapidocr": engines.has_rapidocr(), "tesseract": bool(engines.tesseract_exe())}
+        for k, b in self.eng_btns.items(): b.setText(b.text().split(" ✓")[0] + (" ✓ (tải lại)" if ok[k] else ""))
+        self.eng_status.setText(f"<i>Engine tải về nằm trong {html.escape(str(engines.ENG_DIR))}</i>")
+
+    def _install(self, key):
+        dlg = QProgressDialog("Đang tải…", "Hủy", 0, 100, self); dlg.setWindowTitle("Tải OCR engine"); dlg.setMinimumWidth(420)
+        dlg.setWindowModality(Qt.WindowModal); dlg.setAutoClose(False); dlg.setAutoReset(False); dlg.show()
+        job = _Job(engines.install_rapidocr if key == "rapidocr" else engines.install_tesseract)
+        job.progress.connect(lambda t, p: (dlg.setLabelText(t), dlg.setValue(p)))
+        dlg.canceled.connect(lambda: setattr(job, "cancel", True))
+        def done(err):
+            dlg.close(); self._eng_refresh()
+            if err == "cancel": return
+            if err: QMessageBox.warning(self, "Tải OCR engine", f"Lỗi: {err}"); return
+            self.installed = True; i = self.w["ocr_engine"][0].findData(key)
+            if i >= 0: self.w["ocr_engine"][0].setCurrentIndex(i)
+            QMessageBox.information(self, "Tải OCR engine", "Đã cài xong. Bấm OK ở Cài đặt để dùng.")
+        job.done.connect(done); self._job = job; job.start()
+
     def _add_dict(self):
         fs, _ = QFileDialog.getOpenFileNames(self, "Chọn từ điển", "", "Từ điển (*.ifo *.tsv *.txt *.csv *.json)")
         for x in fs: self.dicts.addItem(x)
@@ -96,6 +123,15 @@ class SettingsDialog(QDialog):
         c["dict_files"] = [self.dicts.item(i).text() for i in range(self.dicts.count())]
         c["hotkeys"] = {k: e.text().strip() for k, e in self.hk.items()}
         c.save()
+
+
+class _Job(QThread):
+    progress = Signal(str, int); done = Signal(str)        # done("") = OK, "cancel", hoặc thông báo lỗi
+    def __init__(self, fn): super().__init__(); self.fn = fn; self.cancel = False
+    def run(self):
+        try: self.fn(lambda t, p: (self.progress.emit(t, p), not self.cancel)[1]); self.done.emit("")
+        except engines.Cancelled: self.done.emit("cancel")
+        except Exception as e: self.done.emit(f"{type(e).__name__}: {e}")
 
 
 def _table(headers):
