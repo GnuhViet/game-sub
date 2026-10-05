@@ -26,6 +26,7 @@ DEFAULTS = {
     "interval_ms": 250, "stable_ms": 350, "diff_threshold": 3.0, "dedupe_ratio": 92,
     "src_lang": "tiếng Anh", "fix_spacing": True,             # tách từ OCR dính liền
     # dịch
+    "translate": True,                                 # False = không dịch, chỉ hiện câu gốc để tra từ
     "use_subs": True, "fuzzy_threshold": 86,
     "chain": ["gemini", "google"],                    # thứ tự fallback: gemini/openai/google
     "gemini_key": "", "gemini_model": "gemini-2.5-flash-lite", "gemini_thinking_budget": 0,
@@ -40,11 +41,11 @@ DEFAULTS = {
     "target_lang": "vi",                              # ngôn ngữ đích cho Google dịch (popup + câu)
     "dict_files": [], "hover_delay_ms": 250,
     # overlay
-    "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_source": True, "show_speaker": True,
+    "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "text_outline": False, "show_source": True, "show_speaker": True,
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
     "click_through": False,                           # chuột xuyên qua overlay (bật/tắt bằng hotkey)
     "overlay_geom": None, "bg": "#101418", "fg": "#f2f2f2", "src_fg": "#9fb3c8", "accent": "#e8c26a",
-    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C"},
+    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C", "clear": "Alt+X", "translate": "Alt+D"},
 }
 
 class Config(dict):

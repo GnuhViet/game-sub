@@ -2,11 +2,25 @@ import html
 from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect
 from PySide6.QtGui import QColor, QPainter, QCursor, QFont
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
-                               QPushButton, QApplication, QComboBox)
+                               QPushButton, QApplication, QComboBox, QGraphicsEffect)
 from .textnorm import WORD_RE
 from .dictionary import LANGS
 
 FLAGS = Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+
+OUTLINE_OFFSETS = [(dx, dy) for dx in (-2, -1, 0, 1, 2) for dy in (-2, -1, 0, 1, 2) if (dx or dy) and abs(dx) + abs(dy) <= 3]
+
+class OutlineEffect(QGraphicsEffect):
+    """Viền đen quanh chữ kiểu phụ đề: vẽ bóng đen lệch quanh 8 hướng rồi vẽ chữ gốc đè lên."""
+    def boundingRectFor(self, r): return r.adjusted(-2, -2, 2, 2)
+    def draw(self, p):
+        pm = self.sourcePixmap(Qt.LogicalCoordinates, QPoint(), QGraphicsEffect.PadToEffectiveBoundingRect)
+        if pm.isNull(): return
+        off = self.boundingRect().topLeft().toPoint()            # PySide6 không trả offset -> tự tính (đã pad 2px)
+        sh = pm.copy(); q = QPainter(sh); q.setCompositionMode(QPainter.CompositionMode_SourceIn)
+        q.fillRect(QRect(0, 0, sh.width(), sh.height()), QColor(0, 0, 0, 230)); q.end()
+        for dx, dy in OUTLINE_OFFSETS: p.drawPixmap(off + QPoint(dx, dy), sh)
+        p.drawPixmap(off, pm)
 
 def tokens_html(text, link_color):
     """Text -> HTML với mỗi từ là 1 link w:<start>:<end>."""
@@ -32,13 +46,13 @@ class Overlay(QWidget):
         # toolbar
         self.bar = QWidget(); hb = QHBoxLayout(self.bar); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(2)
         self.btns = {}
-        for key, txt, tip in [("prev", "◀", "Câu trước"), ("next", "▶", "Câu sau"), ("pause", "⏸", "Tạm dừng/Tiếp tục"),
-                              ("rescan", "⟳", "Quét lại"), ("region", "⬚", "Chọn vùng dịch"), ("speaker", "👤", "Chọn vùng tên nhân vật"),
+        for key, txt, tip in [("prev", "◀", "Câu trước"), ("next", "▶", "Câu sau"), ("pause", "⏸", "Tạm dừng/Tiếp tục"), ("translate", "🌐", ""),
+                              ("rescan", "⟳", "Quét lại"), ("clear", "⌫", "Xóa chữ trên overlay"), ("region", "⬚", "Chọn vùng dịch"), ("speaker", "👤", "Chọn vùng tên nhân vật"),
                               ("subs", "📂", "Bộ sub"), ("glossary", "🏷", "Glossary"), ("vocab", "📖", "Sổ từ"),
                               ("settings", "⚙", "Cài đặt"), ("hide", "—", "Ẩn (hotkey để hiện lại)"), ("quit", "✕", "Thoát")]:
             b = QToolButton(); b.setText(txt); b.setToolTip(tip); b.setAutoRaise(True); b.clicked.connect(lambda _=0, k=key: self.action.emit(k))
             hb.addWidget(b); self.btns[key] = b
-            if key == "rescan": hb.addSpacing(8)
+            if key == "clear": hb.addSpacing(8)
         hb.addStretch(1)
         self.status = QLabel(""); hb.addWidget(self.status)
         v.addWidget(self.bar)
@@ -53,7 +67,7 @@ class Overlay(QWidget):
         v.addWidget(self.speaker); v.addWidget(self.src_lbl); v.addWidget(self.vi, 1)
         foot = QHBoxLayout(); foot.addWidget(self.tag); foot.addStretch(1); foot.addWidget(QSizeGrip(self), 0, Qt.AlignBottom | Qt.AlignRight)
         v.addLayout(foot)
-        self.hide_bar = QTimer(self, singleShot=True, interval=1200, timeout=lambda: self.bar.setVisible(False))
+        self.hide_bar = QTimer(self, singleShot=True, interval=1200, timeout=lambda: (self.bar.setVisible(False), self.update()))
         self._drag = None; self.apply_style()
         g = cfg.get("overlay_geom")
         if g: self.setGeometry(QRect(*g))
@@ -71,11 +85,16 @@ class Overlay(QWidget):
         fs = QFont(); fs.setPointSize(int(c["src_font_size"])); self.src_lbl.setFont(fs); self.speaker.setFont(fs)
         self.speaker.setStyleSheet(f"color:{c['accent']}; font-weight:600")
         self.tag.setStyleSheet(f"color:{c['src_fg']}; font-size:10px"); self.status.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
-        self.src_lbl.setVisible(c["show_source"]); self.update(); self._render_src()
+        for l in (self.speaker, self.src_lbl, self.vi, self.tag): l.setGraphicsEffect(OutlineEffect(l) if c["text_outline"] else None)
+        self.src_lbl.setVisible(c["show_source"] or not c["translate"]); self.update(); self._render_src()
+        tb = self.btns["translate"]; tb.setText("🌐" if c["translate"] else "🔤")
+        tb.setToolTip("Đang dịch — bấm để tắt (chỉ hiện câu gốc để tra từ)" if c["translate"] else "Đang tắt dịch — bấm để bật dịch")
 
     def paintEvent(self, e):
         p = QPainter(self); p.setRenderHint(QPainter.Antialiasing)
-        col = QColor(self.cfg["bg"]); col.setAlphaF(max(0.05, min(1.0, float(self.cfg["opacity"]))))
+        if self.cfg["show_frame"]: a = max(0.05, min(1.0, float(self.cfg["opacity"])))
+        else: a = 0.35 if self.bar.isVisible() else 1 / 255     # không khung: gần trong suốt (alpha 0 thì Windows cho chuột xuyên qua), rê chuột thì hiện mờ để kéo/resize
+        col = QColor(self.cfg["bg"]); col.setAlphaF(a)
         p.setBrush(col); p.setPen(Qt.NoPen); p.drawRoundedRect(self.rect(), 10, 10)
 
     # ---- nội dung
@@ -115,7 +134,7 @@ class Overlay(QWidget):
     def set_paused(self, p): self.btns["pause"].setText("▶▶" if p else "⏸"); self.status.setText("Tạm dừng" if p else "")
 
     # ---- kéo thả / hover toolbar
-    def enterEvent(self, e): self.hide_bar.stop(); self.bar.setVisible(True)
+    def enterEvent(self, e): self.hide_bar.stop(); self.bar.setVisible(True); self.update()
     def leaveEvent(self, e): self.hide_bar.start()
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton: self._drag = e.globalPosition().toPoint() - self.frameGeometry().topLeft()

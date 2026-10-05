@@ -111,6 +111,7 @@ class App:
 
     def resolve(self, line, machine=False):
         c = self.cfg
+        if not c["translate"] and not machine: line.update(vi="", tag="Không dịch — chỉ câu gốc"); self.render(line); return
         if c["use_subs"] and not machine:
             m = self.index.match(line["src"], c["fuzzy_threshold"])
             if m: line.update(vi=m.vi, tag=f"Bộ sub · khớp {m.score:.0f}%"); self.render(line); return
@@ -216,6 +217,10 @@ class App:
         elif k == "next" and self.pos < len(self.history) - 1: self.pos += 1; self.render()
         elif k == "pause": self.worker.paused = not self.worker.paused; self.ov.set_paused(self.worker.paused)
         elif k == "rescan": self.last = ""; self.worker.force = True
+        elif k == "translate":
+            c["translate"] = not c["translate"]; c.save(); self.ov.apply_style(); self._toast("Dịch: " + ("BẬT" if c["translate"] else "TẮT — chỉ câu gốc"))
+            if self.history: self.resolve(self.history[self.pos])
+        elif k == "clear": self.ov.show_line("", "", "", ""); self.pop.close_pop()
         elif k == "retranslate" and self.history: self.resolve(self.history[self.pos], machine=True)
         elif k in ("region", "speaker"): self.select_region(k)
         elif k == "toggle": self.auto_hidden = False; self.ov.setVisible(not self.ov.isVisible()); self.pop.hide()
@@ -246,12 +251,10 @@ class App:
         QTimer.singleShot(180, go)
 
     def open_settings(self):
-        c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens")}
-        old_op = c["opacity"]
-        def preview(op): c["opacity"] = op; self.ov.update()       # kéo thanh trượt -> overlay đổi ngay
-        d = on_top(SettingsDialog(c, on_preview=preview))
+        c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens", "translate")}
+        d = on_top(SettingsDialog(c, on_preview=lambda: (self.ov.apply_style(), self.pop.apply_style())))   # đổi màu/khung -> overlay đổi ngay
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
-        if not d.exec(): preview(old_op); return
+        if not d.exec(): return
         d.apply()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:
@@ -259,6 +262,7 @@ class App:
             if self.dicts.errors: QMessageBox.warning(None, "Từ điển", "\n".join(self.dicts.errors))
         if any(c[k] != old[k] for k in ("gender", "player_name", "name_tokens")): self.rebuild_index()
         self.ov.apply_style(); self.pop.apply_style(); self._register_hotkeys(); self.render()
+        if c["translate"] != old["translate"] and self.history: self.resolve(self.history[self.pos])
 
     def quit(self):
         self.cfg.save(); self.worker.stop(); self.tray.hide(); self.q.quit()

@@ -83,8 +83,18 @@ a.cfg["dict_mode"] = "llm"
 # 6) dialogs khởi tạo được
 for d in (SettingsDialog(a.cfg), GlossaryDialog(a.db, a.cfg), VocabDialog(a.db), SubsDialog(a.db, a.index, a.cfg, a.rebuild_index)):
     d.show(); pump(0.05); d.close()
-seen = []; sd = SettingsDialog(a.cfg, on_preview=seen.append); sd.show(); pump(0.05)
-sl = sd.w["opacity"][0]; sl.setValue(40); assert abs(seen[-1] - 0.6) < 1e-6; sd.apply(); assert a.cfg["opacity"] == 0.6
+seen = []; sd = SettingsDialog(a.cfg, on_preview=lambda: seen.append(1)); sd.show(); pump(0.05)
+sl = sd.w["opacity"][0]; sl.setValue(40); assert seen and a.cfg["opacity"] == 0.6     # xem trước trực tiếp
+sd.w["show_frame"][0].setChecked(False); sd.w["text_outline"][0].setChecked(True); assert not a.cfg["show_frame"] and a.cfg["text_outline"]
+sd.reject(); assert a.cfg["opacity"] == 0.82 and a.cfg["show_frame"] and not a.cfg["text_outline"]     # Cancel trả lại
+sd = SettingsDialog(a.cfg); sd.w["text_outline"][0].setChecked(True); sd.apply(); a.ov.apply_style()
+assert isinstance(a.ov.vi.graphicsEffect(), __import__("wuwasub.ui_overlay", fromlist=["x"]).OutlineEffect); a.ov.grab()
+a.cfg["show_frame"] = False; a.ov.update(); a.ov.grab(); a.cfg["show_frame"] = True; a.cfg["text_outline"] = False; a.ov.apply_style()
+a.render(); a.on_action("clear"); assert a.ov.vi.text() == "" and a.ov.src == ""
+# tắt dịch: chỉ câu gốc, không gọi máy dịch; bật lại thì dịch câu hiện tại
+n_calls = len(calls); a.on_action("translate"); a.on_text("", "Brand new untranslated line here.")
+assert a.ov.vi.text() == "" and a.ov.src == "Brand new untranslated line here." and a.ov.src_lbl.isVisibleTo(a.ov) and "Không dịch" in a.ov.tag.text()
+a.tr.translate = fake_tr; a.on_action("translate"); pump(); assert a.ov.vi.text() == "Câu dịch máy." and len(calls) == n_calls + 1
 sd = SettingsDialog(a.cfg);sd.chain.setText("google, bogus, gemini"); sd.apply(); assert a.cfg["chain"] == ["google", "gemini"]
 assert (C.DATA_DIR / "settings.json").exists()
 sub = SubsDialog(a.db, a.index, a.cfg, a.rebuild_index); sub.test.setText("Rover you finally woke up"); sub._test(); assert "100" in sub.test_out.text() or "%" in sub.test_out.text()

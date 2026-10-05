@@ -24,6 +24,8 @@ Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-pla
 | ⟳ / `Alt+S` | Quét lại |
 | `Alt+T` | Ẩn/hiện overlay (hoặc click icon khay) |
 | `Alt+C` | Click-through: chuột xuyên qua overlay để bấm game (cũng có ở menu khay) |
+| 🌐 / `Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
+| ⌫ / `Alt+X` | Xóa chữ trên overlay |
 | ◀ ▶ | Xem lại các câu trước |
 
 **Tự ẩn khi hết thoại:** Cài đặt → Giao diện → "Tự ẩn… sau (s)" > 0; có thoại mới tự hiện lại.
