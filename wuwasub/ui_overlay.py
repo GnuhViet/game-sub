@@ -106,6 +106,11 @@ class Overlay(QWidget):
         m = QMenu(self); m.addAction("Copy bản dịch", lambda: QApplication.clipboard().setText(self.vi.text()))
         m.addAction("Dịch lại bằng máy", lambda: self.action.emit("retranslate")); m.exec(self.vi.mapToGlobal(pos))
 
+    def set_click_through(self, on):
+        vis = self.isVisible(); self.setWindowFlag(Qt.WindowTransparentForInput, on)   # đổi flag làm ẩn cửa sổ
+        if on: self.bar.setVisible(False)
+        if vis: self.show()
+
     def set_paused(self, p): self.btns["pause"].setText("▶▶" if p else "⏸"); self.status.setText("Tạm dừng" if p else "")
 
     # ---- kéo thả / hover toolbar

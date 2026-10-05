@@ -20,7 +20,7 @@ def test_capture_waits_for_stable_text():
     cap.grab = fake_grab; cap.ocr.create = lambda n, l: Eng()
     class FakeMss:
         def close(self): pass
-    import mss; mss.mss = lambda: FakeMss()
+    cap.open_sct = lambda: FakeMss()
     cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(region={"x": 0, "y": 0, "w": 200, "h": 40}, interval_ms=20, stable_ms=150)
     w = cap.CaptureWorker(cfg); got = []; w.text_ready.connect(lambda s, t: got.append(t)); w.start()
     end = time.time() + 1.2

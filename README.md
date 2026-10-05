@@ -6,7 +6,9 @@ Overlay dịch thoại cho Wuthering Waves (và game bất kỳ) chỉ bằng **
 ```
 run.bat            # lần đầu tự tạo .venv và cài thư viện
 build.bat          # (tùy chọn) đóng gói thành dist\WuWaSub\WuWaSub.exe
+diag.bat           # tự kiểm tra DPI/đa màn hình, chụp game, OCR, hotkey -> data\diag.txt
 ```
+Gặp lỗi (vùng lệch, ảnh đen, OCR không chạy, hotkey không ăn): chạy `diag.bat` và gửi `data\diag.txt` + `data\diag_region.png`.
 Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-play thoại.
 
 ## Dùng
@@ -17,7 +19,10 @@ Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-pla
 | ⏸ / `Alt+P` | Tạm dừng |
 | ⟳ / `Alt+S` | Quét lại |
 | `Alt+T` | Ẩn/hiện overlay (hoặc click icon khay) |
+| `Alt+C` | Click-through: chuột xuyên qua overlay để bấm game (cũng có ở menu khay) |
 | ◀ ▶ | Xem lại các câu trước |
+
+**Tự ẩn khi hết thoại:** Cài đặt → Giao diện → "Tự ẩn… sau (s)" > 0; có thoại mới tự hiện lại.
 
 Toolbar hiện khi rê chuột vào overlay; kéo phần nền để di chuyển, góc phải dưới để resize.
 

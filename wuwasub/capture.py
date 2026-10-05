@@ -5,6 +5,10 @@ from PySide6.QtCore import QThread, Signal
 from . import ocr
 from .textnorm import join_lines
 
+def open_sct():
+    import mss
+    return mss.MSS() if hasattr(mss, "MSS") else mss.mss()          # mss>=10 đổi tên mss() -> MSS()
+
 def grab(sct, r):
     shot = sct.grab({"left": int(r["x"]), "top": int(r["y"]), "width": max(1, int(r["w"])), "height": max(1, int(r["h"]))})
     return np.frombuffer(shot.bgra, np.uint8).reshape(shot.height, shot.width, 4)[:, :, 2::-1]   # -> RGB
@@ -36,8 +40,7 @@ class CaptureWorker(QThread):
         return join_lines(eng.recognize(img))
 
     def run(self):
-        import mss
-        sct = mss.mss(); eng = self._engine(); prev = None; pending = False; last_change = 0
+        sct = open_sct(); eng = self._engine(); prev = None; pending = False; last_change = 0
         while self.running:
             t0 = time.time()
             try:

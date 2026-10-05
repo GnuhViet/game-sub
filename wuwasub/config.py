@@ -40,8 +40,10 @@ DEFAULTS = {
     "dict_files": [], "hover_delay_ms": 250,
     # overlay
     "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_source": True, "show_speaker": True,
+    "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
+    "click_through": False,                           # chuột xuyên qua overlay (bật/tắt bằng hotkey)
     "overlay_geom": None, "bg": "#101418", "fg": "#f2f2f2", "src_fg": "#9fb3c8", "accent": "#e8c26a",
-    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S"},
+    "hotkeys": {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C"},
 }
 
 class Config(dict):

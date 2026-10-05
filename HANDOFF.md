@@ -45,6 +45,9 @@ wuwasub/ui_dialogs.py    Settings, Glossary, Vocab, Review, Subs
 tests/                   test_core, test_capture_translate, test_ui_smoke (offscreen)
 ```
 
+Phiên 2: `diag.py`/`diag.bat` (tự kiểm tra các mục chưa test ở §5), tự ẩn khi hết thoại (`auto_hide_s`),
+click-through (`click_through`, Alt+C, menu khay), tương thích mss 10 (`capture.open_sct`). RapidOCR đã kiểm chứng trên Linux.
+
 ## 5. Trạng thái test
 **Pass trên Linux:** core (matcher, importer, db, glossary/prompt, StarDict), capture (logic chờ ổn định), parser streaming Gemini/OpenAI + 429 fallback, UI smoke offscreen.
 
@@ -56,13 +59,14 @@ tests/                   test_core, test_capture_translate, test_ui_smoke (offsc
 5. `build.bat` (PyInstaller + winrt).
 
 ## 6. Việc tiếp theo
-1. Chạy `run.bat` trên Windows, sửa lỗi phát sinh ở các mục chưa test.
+1. User chạy `diag.bat` + `run.bat` trên Windows, gửi `data/diag.txt` → sửa lỗi theo báo cáo.
 2. User gửi 1–2 dòng mẫu của **file sub riêng** → chỉnh `importer.guess_cols` và placeholder (`name_tokens`, regex giới tính) cho đúng định dạng.
 3. Tinh chỉnh `stable_ms`, `diff_threshold`, `fuzzy_threshold` với thoại WuWa thật.
-4. Ý tưởng chưa làm: click-through overlay, nhiều vùng OCR, tự ẩn khi hết thoại, gợi ý tự thêm tên riêng vào glossary.
+4. Ý tưởng chưa làm: nhiều vùng OCR, gợi ý tự thêm tên riêng vào glossary, lọc OCR rác khi không có hộp thoại (ảnh cảnh nền).
 
 ## 7. Lệnh hữu ích
 ```
 python tests/test_core.py && python tests/test_capture_translate.py && python tests/test_ui_smoke.py
-python -m pyflakes wuwasub tests main.py
+python -m pyflakes wuwasub tests main.py diag.py
+QT_QPA_PLATFORM=offscreen python diag.py        # trên Linux chỉ kiểm được RapidOCR
 ```

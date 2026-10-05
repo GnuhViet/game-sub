@@ -48,6 +48,8 @@ class App:
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(self.on_hover); self.ov.word_click.connect(self.on_click)
         self.ov.phrase_action.connect(self.on_phrase); self.pop.act.connect(self.on_pop_action)
         self.hover_t = QTimer(singleShot=True, timeout=lambda: self.lookup(*self._pending)); self._pending = ("", QPoint())
+        self.idle_t = QTimer(singleShot=True, timeout=self._auto_hide); self.auto_hidden = False
+        self.ov.set_click_through(cfg["click_through"])
         self.worker = CaptureWorker(cfg)
         self.worker.text_ready.connect(self.on_text); self.worker.error.connect(self.on_error); self.worker.status.connect(self.ov.status.setText)
         self.worker.start()
@@ -77,13 +79,21 @@ class App:
                        ("Glossary", "glossary"), ("Sổ từ", "vocab"), ("Cài đặt", "settings"), (None, None), ("Thoát", "quit")]:
             if txt is None: m.addSeparator(); continue
             a = QAction(txt, m); a.triggered.connect(lambda _=0, k=k: self.on_action(k)); m.addAction(a)
+            if k == "pause":
+                self.ct_action = a = QAction("Click-through (chuột xuyên qua)", m); a.setCheckable(True); a.setChecked(self.cfg["click_through"])
+                a.triggered.connect(lambda _=0: self.on_action("clickthrough")); m.addAction(a)
         self.tray.setContextMenu(m); self.tray.setToolTip("WuWa Sub"); self.tray_menu = m
         self.tray.activated.connect(lambda r: self.on_action("toggle") if r == QSystemTrayIcon.Trigger else None)
         if QSystemTrayIcon.isSystemTrayAvailable(): self.tray.show()
 
     # ---------------- pipeline
     def on_text(self, speaker, text):
-        if not text.strip(): self.last = ""; return
+        if not text.strip():
+            self.last = ""
+            if self.cfg["auto_hide_s"] > 0 and self.ov.isVisible(): self.idle_t.start(int(self.cfg["auto_hide_s"] * 1000))
+            return
+        self.idle_t.stop()
+        if self.auto_hidden: self.auto_hidden = False; self.ov.show()
         n = norm(text)
         if self.last and fuzz.ratio(n, self.last) >= self.cfg["dedupe_ratio"]: return
         self.last = n; self.seq += 1
@@ -111,6 +121,10 @@ class App:
         if line is not None and line is not cur: return
         nav = f"  [{self.pos + 1}/{len(self.history)}]" if self.pos != len(self.history) - 1 else ""
         self.ov.show_line(cur["speaker"], cur["src"], cur["vi"] or ("" if cur["tag"].startswith(("Đang", "Lỗi", "Không")) else cur["src"]), cur["tag"] + nav)
+
+    def _auto_hide(self):
+        if self.ov.isVisible() and not self.ov.underMouse() and not self.pop.isVisible():
+            self.ov.hide(); self.auto_hidden = True
 
     def on_error(self, msg): self.ov.tag.setText(msg)
 
@@ -188,8 +202,11 @@ class App:
         elif k == "rescan": self.last = ""; self.worker.force = True
         elif k == "retranslate" and self.history: self.resolve(self.history[self.pos], machine=True)
         elif k in ("region", "speaker"): self.select_region(k)
-        elif k == "toggle": self.ov.setVisible(not self.ov.isVisible()); self.pop.hide()
-        elif k == "hide": self.ov.hide(); self.pop.hide(); self._toast("")
+        elif k == "toggle": self.auto_hidden = False; self.ov.setVisible(not self.ov.isVisible()); self.pop.hide()
+        elif k == "clickthrough":
+            c["click_through"] = not c["click_through"]; self.ov.set_click_through(c["click_through"]); self.ct_action.setChecked(c["click_through"])
+            self._toast("Click-through: " + ("BẬT — " + c["hotkeys"].get("clickthrough", "") + " để tắt" if c["click_through"] else "TẮT"))
+        elif k == "hide": self.auto_hidden = False; self.ov.hide(); self.pop.hide(); self._toast("")
         elif k == "subs": on_top(SubsDialog(self.db, self.index, c, self.rebuild_index)).exec(); self.render()
         elif k == "glossary": on_top(GlossaryDialog(self.db, c)).exec()
         elif k == "vocab": on_top(VocabDialog(self.db)).exec()

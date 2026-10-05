@@ -57,11 +57,12 @@ class SettingsDialog(QDialog):
         f = self._tab(tabs, "Giao diện")
         self._spin(f, "font_size", "Cỡ chữ bản dịch", 8, 48); self._spin(f, "src_font_size", "Cỡ chữ câu gốc", 8, 40)
         self._dspin(f, "opacity", "Độ đậm nền", 0.05, 1, 0.05)
+        self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
         self._check(f, "show_source", "Hiện câu gốc (hover tra từ)"); self._check(f, "show_speaker", "Hiện tên nhân vật")
         for k, n in [("bg", "Màu nền"), ("fg", "Màu chữ"), ("src_fg", "Màu câu gốc"), ("accent", "Màu nhấn")]: self._line(f, k, n)
         # --- Hotkey
         f = self._tab(tabs, "Hotkey"); self.hk = {}
-        for k, n in [("toggle", "Ẩn/hiện overlay"), ("region", "Chọn vùng"), ("pause", "Tạm dừng"), ("rescan", "Quét lại")]:
+        for k, n in [("toggle", "Ẩn/hiện overlay"), ("region", "Chọn vùng"), ("pause", "Tạm dừng"), ("rescan", "Quét lại"), ("clickthrough", "Click-through")]:
             e = QLineEdit(cfg["hotkeys"].get(k, "")); f.addRow(n, e); self.hk[k] = e
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject); v.addWidget(bb)
 

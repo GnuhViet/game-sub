@@ -85,4 +85,16 @@ class S:
 assert to_physical(S(), QRect(100, 200, 300, 40)) == {"x": 2070, "y": 300, "w": 450, "h": 60}
 
 a.on_action("pause"); assert a.worker.paused; a.on_action("pause")
+
+# 8) tự ẩn khi hết thoại, hiện lại khi có thoại mới; toggle tay không bị auto-show
+a.cfg["auto_hide_s"] = 0.1; a.ov.show(); a.pop.hide(); a.on_text("", ""); pump(0.3)
+assert not a.ov.isVisible() and a.auto_hidden
+a.on_text("", "A completely new line appears."); assert a.ov.isVisible() and not a.auto_hidden
+a.on_text("", "Some other line again."); a.on_action("toggle"); assert not a.ov.isVisible() and not a.auto_hidden
+a.on_action("toggle"); a.cfg["auto_hide_s"] = 0
+
+# 9) click-through
+from PySide6.QtCore import Qt
+a.on_action("clickthrough"); assert a.cfg["click_through"] and a.ov.windowFlags() & Qt.WindowTransparentForInput and a.ov.isVisible() and a.ct_action.isChecked()
+a.on_action("clickthrough"); assert not a.ov.windowFlags() & Qt.WindowTransparentForInput and not a.ct_action.isChecked()
 a.quit(); print("UI SMOKE OK")
