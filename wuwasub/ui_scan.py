@@ -1,5 +1,5 @@
 """Cửa sổ "Chụp & dịch 1 vùng": OCR một lần vùng tùy ý (thư, bảng thông tin…), hiện câu gốc (hover tra từ) + bản dịch."""
-from PySide6.QtCore import Qt, Signal, QPoint, QUrl
+from PySide6.QtCore import Qt, Signal, QPoint, QUrl, QEvent, QTimer
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTextBrowser, QSplitter, QPushButton, QLabel, QApplication
 from .ui_overlay import tokens_html
@@ -16,12 +16,22 @@ class ScanWindow(QWidget):
         self.src_view = QTextBrowser(); self.src_view.setOpenLinks(False)
         self.src_view.highlighted.connect(lambda u: self.word_hover.emit(self._word(u), QCursor.pos()))
         self.src_view.anchorClicked.connect(lambda u: self.word_click.emit(self._word(u), QCursor.pos()))
+        self.src_view.viewport().installEventFilter(self)      # bôi đen xong -> dịch đoạn bôi đen
         self.vi_view = QTextBrowser()
         sp = QSplitter(Qt.Vertical); sp.addWidget(self.src_view); sp.addWidget(self.vi_view); v.addWidget(sp, 1)
         hb = QHBoxLayout(); self.tag = QLabel(); hb.addWidget(self.tag, 1)
         for k, t in [("scan", "📷 Chụp lại"), ("scan_retranslate", "Dịch lại"), ("copy", "Copy"), ("close", "Đóng")]:
             b = QPushButton(t); b.clicked.connect(lambda _=0, k=k: self._btn(k)); hb.addWidget(b)
         v.addLayout(hb); self.apply_style()
+
+    def eventFilter(self, obj, e):
+        if obj is self.src_view.viewport() and e.type() == QEvent.MouseButtonRelease and e.button() == Qt.LeftButton:
+            QTimer.singleShot(0, self._selected)
+        return super().eventFilter(obj, e)
+
+    def _selected(self):
+        sel = " ".join(self.src_view.textCursor().selectedText().split())     # split() bỏ cả U+2029 xuống đoạn
+        if len(sel) >= 2: self.word_click.emit(sel, QCursor.pos())
 
     def apply_style(self):
         c = self.cfg

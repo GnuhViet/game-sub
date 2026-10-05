@@ -1,5 +1,5 @@
 import html
-from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect
+from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent
 from PySide6.QtGui import QColor, QPainter, QCursor, QFont
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
                                QPushButton, QApplication, QComboBox, QGraphicsEffect)
@@ -71,6 +71,7 @@ class Overlay(QWidget):
         self.src_lbl.setTextFormat(Qt.RichText)
         self.src_lbl.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse)
         self.src_lbl.linkHovered.connect(self._hover); self.src_lbl.linkActivated.connect(self._click)
+        self.src_lbl.installEventFilter(self)                 # bôi đen xong (thả chuột) -> dịch đoạn bôi đen
         self.src_lbl.setContextMenuPolicy(Qt.CustomContextMenu); self.src_lbl.customContextMenuRequested.connect(self._menu)
         self.vi.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.vi.setContextMenuPolicy(Qt.CustomContextMenu); self.vi.customContextMenuRequested.connect(self._menu_vi)
@@ -139,6 +140,15 @@ class Overlay(QWidget):
     def _word(self, href):
         try: _, a, b = href.split(":"); return self.src[int(a):int(b)]
         except ValueError: return ""
+
+    def eventFilter(self, obj, e):
+        if obj is self.src_lbl and e.type() == QEvent.MouseButtonRelease and e.button() == Qt.LeftButton:
+            QTimer.singleShot(0, self._selected)
+        return super().eventFilter(obj, e)
+
+    def _selected(self):
+        sel = " ".join(self.src_lbl.selectedText().split())
+        if len(sel) >= 2: self.phrase_action.emit("lookup", sel)
 
     def _hover(self, href): self.word_hover.emit(self._word(href) if href else "", QCursor.pos())
     def _click(self, href): self.word_click.emit(self._word(href), QCursor.pos())
@@ -232,7 +242,7 @@ class WordPopup(QFrame):
     def show_for(self, word, head, meta, body_html, pos, pinned=False, source=""):
         self.word = word; self.pinned = pinned; self.anchor = pos; self.source.setText(source)
         self.lang.setCurrentIndex(max(0, self.lang.findData(self.cfg["target_lang"])))
-        self.title.setText(html.escape(word) + (f" <span style='opacity:.6;font-weight:400'>→ {html.escape(head)}</span>" if head and head.lower() != word.lower() else ""))
+        self.title.setText(html.escape(word if len(word) <= 48 else word[:46] + "…") + (f" <span style='opacity:.6;font-weight:400'>→ {html.escape(head)}</span>" if head and head.lower() != word.lower() else ""))
         self._set(meta, body_html)
         scr = QApplication.screenAt(pos) or QApplication.primaryScreen(); a = scr.availableGeometry()
         x = min(max(a.x(), pos.x() - self.width() // 2), a.right() - self.width())

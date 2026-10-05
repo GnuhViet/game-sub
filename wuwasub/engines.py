@@ -16,8 +16,32 @@ TESS_API = "https://api.github.com/repos/UB-Mannheim/tesseract/releases/latest"
 
 class Cancelled(Exception): pass
 
+PENDING = ENG_DIR / "pending_remove.txt"          # engine đang chạy (DLL bị khóa) -> xóa ở lần khởi động sau
+
+def size_mb(key):
+    d = PY_DIR if key == "rapidocr" else TESS_DIR
+    return sum(f.stat().st_size for f in d.rglob("*") if f.is_file()) / 1e6 if d.is_dir() else 0
+
+def remove(key):
+    """Xóa engine đã tải. -> True nếu xóa ngay, False nếu đang dùng (hẹn xóa khi khởi động lại)."""
+    d = PY_DIR if key == "rapidocr" else TESS_DIR
+    if key == "tesseract" and sys.platform == "win32":
+        un = next(iter(TESS_DIR.glob("unins*.exe")), None) or next(iter(TESS_DIR.glob("uninstall*.exe")), None)
+        if un:                                              # gỡ bằng bộ gỡ của Tesseract để dọn cả registry
+            try: _run_wait(str(un), "/S")
+            except RuntimeError: pass
+    shutil.rmtree(d, ignore_errors=True)
+    if not d.exists(): return True
+    ENG_DIR.mkdir(parents=True, exist_ok=True)
+    PENDING.write_text("\n".join(pending() | {d.name}), "utf-8"); return False
+
+def pending(): return set(PENDING.read_text("utf-8").split()) if PENDING.exists() else set()
+
 def setup():
-    """Gọi lúc khởi động: cho phép import gói đã tải."""
+    """Gọi lúc khởi động: xóa engine đã hẹn xóa, cho phép import gói đã tải."""
+    if PENDING.exists():
+        for name in PENDING.read_text("utf-8").split(): shutil.rmtree(ENG_DIR / name, ignore_errors=True)
+        PENDING.unlink(missing_ok=True)
     if PY_DIR.is_dir() and str(PY_DIR) not in sys.path: sys.path.insert(0, str(PY_DIR))
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS") and sys.platform == "win32":
         import os; os.add_dll_directory(sys._MEIPASS)    # msvcp140/vcruntime140_1 đóng gói trong exe cho onnxruntime/opencv

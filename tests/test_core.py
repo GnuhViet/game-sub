@@ -99,6 +99,19 @@ def test_hotkey_migration():
     hk = Config(p)["hotkeys"]
     assert hk["toggle"] == "Ctrl+Alt+T" and hk["scan"] == "Ctrl+Alt+Q" and hk["pause"] == "F8", hk    # mặc định cũ -> mới, tự đặt giữ nguyên
 
+def test_engine_remove():
+    import tempfile, shutil
+    from wuwasub import engines as E
+    root = Path(tempfile.mkdtemp()); E.ENG_DIR, E.PY_DIR, E.TESS_DIR, E.PENDING = root, root / "py", root / "tesseract", root / "pending_remove.txt"
+    (E.PY_DIR / "rapidocr_onnxruntime").mkdir(parents=True); (E.PY_DIR / "rapidocr_onnxruntime" / "m.onnx").write_bytes(b"x" * 2_000_000)
+    assert E.has_rapidocr() and 1.9 < E.size_mb("rapidocr") < 2.1
+    assert E.remove("rapidocr") is True and not E.has_rapidocr()
+    (E.TESS_DIR).mkdir(); (E.TESS_DIR / "tesseract.exe").write_bytes(b"x")
+    real = shutil.rmtree; E.shutil.rmtree = lambda *a, **k: None          # giả lập file đang bị khóa
+    try: assert E.remove("tesseract") is False and E.pending() == {"tesseract"}
+    finally: E.shutil.rmtree = real
+    E.setup(); assert not E.TESS_DIR.exists() and not E.PENDING.exists()   # khởi động lại -> xóa hẳn
+
 if __name__ == "__main__":
     for n, f in list(globals().items()):
         if n.startswith("test_"): f(); print("PASS", n)

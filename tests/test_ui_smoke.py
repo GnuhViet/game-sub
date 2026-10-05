@@ -163,6 +163,12 @@ a.render(a.history[a.pos]); assert a.ov.vi.text() == ""
 a.on_text("", "Yet another fresh line."); pump(); assert a.ov.src == "Yet another fresh line." and not a.cleared
 a.on_action("prev"); assert a.ov.src and not a.cleared; a.on_action("next")
 
+# 8c) bôi đen câu gốc -> popup dịch đoạn bôi đen
+a.cfg["dict_mode"] = "auto"; a.pop.hide(); a.pop.pinned = False
+a.ov.show_line("", "Rover, you finally woke up after all this time.", "", ""); a.ov.src_lbl.setSelection(7, 22)
+a.ov._selected(); pump(); assert a.pop.word.startswith("you finally") and a.pop.pinned and a.pop.word + "-vi" in a.pop.raw, a.pop.word
+a.pop.close_pop(); a.cfg["dict_mode"] = "llm"
+
 # 9) click-through
 from PySide6.QtCore import Qt
 a.on_action("clickthrough"); assert a.cfg["click_through"] and a.ov.windowFlags() & Qt.WindowTransparentForInput and a.ov.isVisible() and a.ct_action.isChecked()

@@ -55,7 +55,7 @@ class App:
         self.scan_win = ScanWindow(cfg); self.scan = {"src": "", "vi": ""}
         self.scan_win.word_hover.connect(lambda w, p: self._hover_from(self.scan, w, p)); self.scan_win.word_click.connect(lambda w, p: self._click_from(self.scan, w, p))
         self.scan_win.action.connect(self.on_action)
-        self.ov.phrase_action.connect(self.on_phrase); self.pop.act.connect(self.on_pop_action)
+        self.ov.phrase_action.connect(lambda act, ph: (setattr(self, "lookup_ctx", None), self.on_phrase(act, ph))); self.pop.act.connect(self.on_pop_action)
         self.pop.lang_changed.connect(self.on_lang)
         self.hover_t = QTimer(singleShot=True, timeout=lambda: self.lookup(*self._pending)); self._pending = ("", QPoint())
         self.idle_t = QTimer(singleShot=True, timeout=self._auto_hide); self.auto_hidden = False

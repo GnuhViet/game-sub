@@ -31,10 +31,14 @@ class SettingsDialog(QDialog):
         self._check(f, "fix_spacing", "Tự tách từ bị dính (youfinallywoke → you finally woke)")
         f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút ⬚ / 👤 trên overlay.</i>"))
         self.btn_snap = QPushButton("Lưu ảnh vùng hiện tại để kiểm tra"); f.addRow(self.btn_snap)
-        self.installed = False; self.eng_btns = {}
-        for key, txt in [("rapidocr", "Tải RapidOCR (~80 MB)"), ("tesseract", "Tải Tesseract (~50 MB)")]:
-            b = QPushButton(txt); b.clicked.connect(lambda _=0, k=key: self._install(k)); self.eng_btns[key] = b
-        hb = QHBoxLayout(); [hb.addWidget(b) for b in self.eng_btns.values()]; self.eng_status = QLabel(); f.addRow(hb); f.addRow(self.eng_status)
+        # quản lý OCR engine tải thêm: trạng thái + dung lượng, Tải / Xóa
+        self.installed = False; self.eng_rows = {}
+        g = self._group(f, "OCR engine tải thêm (Windows OCR có sẵn, không cần tải)")
+        for key, name, dl in [("rapidocr", "RapidOCR", "~80 MB"), ("tesseract", "Tesseract", "~50 MB")]:
+            st = QLabel(); bi = QPushButton(); bd = QPushButton("Xóa")
+            bi.clicked.connect(lambda _=0, k=key: self._install(k)); bd.clicked.connect(lambda _=0, k=key: self._remove(k))
+            hb = QHBoxLayout(); hb.addWidget(st, 1); hb.addWidget(bi); hb.addWidget(bd); g.addRow(name, hb); self.eng_rows[key] = (st, bi, bd, dl)
+        self.eng_status = QLabel(); self.eng_status.setWordWrap(True); g.addRow(self.eng_status)
         self._eng_refresh()
         # --- Dịch
         tab = self._tab(tabs, "Dịch")
@@ -131,8 +135,21 @@ class SettingsDialog(QDialog):
 
     def _eng_refresh(self):
         ok = {"rapidocr": engines.has_rapidocr(), "tesseract": bool(engines.tesseract_exe())}
-        for k, b in self.eng_btns.items(): b.setText(b.text().split(" ✓")[0] + (" ✓ (tải lại)" if ok[k] else ""))
-        self.eng_status.setText(f"<i>Engine tải về nằm trong {html.escape(str(engines.ENG_DIR))}</i>")
+        pend = engines.pending()
+        for k, (st, bi, bd, dl) in self.eng_rows.items():
+            if {"rapidocr": "py", "tesseract": "tesseract"}[k] in pend:
+                st.setText("sẽ xóa khi khởi động lại app"); bi.setEnabled(False); bd.setEnabled(False); continue
+            st.setText(f"✓ đã cài — {engines.size_mb(k):.0f} MB trên đĩa" if ok[k] else "chưa cài")
+            bi.setText("Tải lại" if ok[k] else f"Tải ({dl})"); bd.setEnabled(ok[k])
+        self.eng_status.setText(f"<i>Nằm trong {html.escape(str(engines.ENG_DIR))}</i>")
+
+    def _remove(self, key):
+        name = {"rapidocr": "RapidOCR", "tesseract": "Tesseract"}[key]
+        if QMessageBox.question(self, "Xóa OCR engine", f"Xóa {name} ({engines.size_mb(key):.0f} MB)?") != QMessageBox.Yes: return
+        now = engines.remove(key); combo = self.w["ocr_engine"][0]
+        if combo.currentData() == key: combo.setCurrentIndex(combo.findData("windows"))     # đang chọn engine bị xóa -> về Windows OCR
+        self.installed = True; self._eng_refresh()
+        if not now: QMessageBox.information(self, "Xóa OCR engine", f"{name} đang được dùng — sẽ xóa hẳn khi khởi động lại app.")
 
     def _install(self, key):
         dlg = QProgressDialog("Đang tải…", "Hủy", 0, 100, self); dlg.setWindowTitle("Tải OCR engine"); dlg.setMinimumWidth(420)
