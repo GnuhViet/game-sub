@@ -70,14 +70,16 @@ class FlowLayout(QLayout):
             x += h.width() + sp; line_h = max(line_h, h.height())
         return y + line_h - r.y()
 
+def esc(s): return html.escape(s, quote=False)      # không mã hóa ' " (Qt không hiểu &#x27; -> bôi đen ra chuỗi lạ)
+
 def tokens_html(text, link_color):
     """Text -> HTML với mỗi từ là 1 link w:<start>:<end>."""
     out, i = [], 0
     for m in WORD_RE.finditer(text):
-        out.append(html.escape(text[i:m.start()]))
-        out.append(f'<a href="w:{m.start()}:{m.end()}" style="color:{link_color};text-decoration:none">{html.escape(m.group())}</a>')
+        out.append(esc(text[i:m.start()]))
+        out.append(f'<a href="w:{m.start()}:{m.end()}" style="color:{link_color};text-decoration:none">{esc(m.group())}</a>')
         i = m.end()
-    out.append(html.escape(text[i:]))
+    out.append(esc(text[i:]))
     return "".join(out)
 
 class Overlay(QWidget):
@@ -252,7 +254,7 @@ class WordPopup(QFrame):
         super().__init__(None, FLAGS); self.cfg = cfg; self.word = ""; self.pinned = False
         self.setAttribute(Qt.WA_ShowWithoutActivating); self.setAttribute(Qt.WA_AlwaysShowToolTips); self.setObjectName("pop"); self.meta = self.raw = ""
         v = QVBoxLayout(self); v.setContentsMargins(10, 8, 10, 8)
-        self.title = QLabel(); self.anchor = QPoint()
+        self.title = QLabel(); self.title.setTextFormat(Qt.RichText); self.anchor = QPoint()   # AutoText đoán sai -> hiện nguyên &#x27;
         self.lang = QComboBox(); self.lang.setToolTip("Ngôn ngữ dịch")
         for code, name in LANGS.items(): self.lang.addItem(name, code)
         self.lang.setCurrentIndex(max(0, self.lang.findData(cfg["target_lang"])))
@@ -287,7 +289,7 @@ class WordPopup(QFrame):
     def show_for(self, word, head, meta, body_html, pos, pinned=False, source=""):
         self.word = word; self.pinned = pinned; self.anchor = pos; self.source.setText(source)
         self.lang.setCurrentIndex(max(0, self.lang.findData(self.cfg["target_lang"])))
-        self.title.setText(html.escape(word if len(word) <= 48 else word[:46] + "…") + (f" <span style='opacity:.6;font-weight:400'>→ {html.escape(head)}</span>" if head and head.lower() != word.lower() else ""))
+        self.title.setText(esc(word if len(word) <= 48 else word[:46] + "…") + (f" <span style='opacity:.6;font-weight:400'>→ {esc(head)}</span>" if head and head.lower() != word.lower() else ""))
         self._set(meta, body_html)
         scr = QApplication.screenAt(pos) or QApplication.primaryScreen(); a = scr.availableGeometry()
         x = min(max(a.x(), pos.x() - self.width() // 2), a.right() - self.width())

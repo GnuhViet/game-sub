@@ -180,6 +180,9 @@ a.on_text("", "Yet another fresh line."); pump(); assert a.ov.src == "Yet anothe
 a.on_action("prev"); assert a.ov.src and not a.cleared; a.on_action("next")
 
 # 8c) bôi đen câu gốc -> popup dịch đoạn bôi đen
+a.ov.show_line("", "Rover's \"friend\" isn't here.", "", ""); a.ov.src_lbl.setSelection(0, 28); a.ov._selected(); pump()
+assert a.pop.title.grab() and "&#" not in a.pop.title.text() and a.pop.title.textFormat() == Qt.RichText      # dấu nháy không thành &#x27;
+a.pop.close_pop()
 a.cfg["dict_mode"] = "auto"; a.pop.hide(); a.pop.pinned = False
 a.ov.show_line("", "Rover, you finally woke up after all this time.", "", ""); a.ov.src_lbl.setSelection(7, 22)
 a.ov._selected(); pump(); assert a.pop.word.startswith("you finally") and a.pop.pinned and a.pop.word + "-vi" in a.pop.raw, a.pop.word
