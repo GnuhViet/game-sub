@@ -1,0 +1,43 @@
+2026-10-06 22:38:31,161 - aqt.main - INFO - installer 7800 aqtinstall(aqt) v3.3.0 on Python 3.12.10 [CPython MSC v.1943 64 bit (AMD64)]
+2026-10-06 22:38:38,824 - aqt.helper - DEBUG - helper 13932 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6113/qt6_6113/Updates.xml.sha256
+2026-10-06 22:38:40,477 - aqt.helper - DEBUG - helper 13932 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6113/qt6_6113/Updates.xml.sha256
+2026-10-06 22:38:42,034 - aqt.helper - DEBUG - helper 13932 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6113/qt6_6113/Updates.xml.sha256
+2026-10-06 22:38:43,555 - aqt.helper - DEBUG - helper 13932 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6113/qt6_6113/Updates.xml.sha256
+2026-10-06 22:38:45,153 - aqt.helper - DEBUG - helper 13932 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6113/qt6_6113/Updates.xml.sha256
+2026-10-06 22:38:46,751 - aqt.main - ERROR - installer 13932 Failed to download checksum for the file 'Updates.xml' from mirrors '['https://download.qt.io']
+==============================Suggested follow-up:==============================
+* Check your internet connection
+* Consider modifying `requests.max_retries_to_retrieve_hash` in settings.ini
+* Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
+* Please use 'aqt list-qt windows desktop' to show versions of Qt available.
+2026-10-06 22:38:47,620 - aqt.helper - DEBUG - helper 10568 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6103/qt6_6103/Updates.xml.sha256
+2026-10-06 22:43:44,058 - aqt.main - INFO - installer 1788 aqtinstall(aqt) v3.3.0 on Python 3.12.10 [CPython MSC v.1943 64 bit (AMD64)]
+2026-10-06 22:43:44,058 - aqt.helper - DEBUG - helper 1788 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_llvm_mingw1706/Updates.xml.sha256
+2026-10-06 22:43:48,675 - aqt.helper - DEBUG - helper 2756 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_llvm_mingw1706/qt.tools.win64_llvm_mingw1706/17.0.6-202409091150llvm_mingw1706.7z.sha256
+2026-10-06 22:43:50,245 - aqt.helper - INFO - helper 2756 Downloading qt.tools.win64_llvm_mingw1706...
+2026-10-06 22:43:50,245 - aqt.installer - DEBUG - installer 2756 Download URL: https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_llvm_mingw1706/qt.tools.win64_llvm_mingw1706/17.0.6-202409091150llvm_mingw1706.7z
+2026-10-06 22:43:51,984 - aqt.helper - DEBUG - helper 2756 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_llvm_mingw1706/qt.tools.win64_llvm_mingw1706/17.0.6-202409091150llvm_mingw1706.7z
+2026-10-06 22:43:51,984 - aqt.helper - INFO - helper 2756 Redirected: ftp.jaist.ac.jp
+2026-10-06 22:45:01,738 - aqt.installer - INFO - installer 2756 Finished installation of llvm_mingw1706.7z in 73.06627200
+2026-10-06 22:45:01,906 - aqt.main - INFO - installer 1788 Finished installation
+2026-10-06 22:45:01,906 - aqt.main - INFO - installer 1788 Time elapsed: 77.84858700 second
+2026-10-06 22:45:02,790 - aqt.main - INFO - installer 4052 aqtinstall(aqt) v3.3.0 on Python 3.12.10 [CPython MSC v.1943 64 bit (AMD64)]
+2026-10-06 22:45:02,790 - aqt.helper - DEBUG - helper 4052 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_cmake/Updates.xml.sha256
+2026-10-06 22:45:07,230 - aqt.helper - DEBUG - helper 5468 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_cmake/qt.tools.cmake/3.30.5-202502251255windows64_x64_cmake_tools.7z.sha256
+2026-10-06 22:45:09,340 - aqt.helper - INFO - helper 5468 Downloading qt.tools.cmake...
+2026-10-06 22:45:09,340 - aqt.installer - DEBUG - installer 5468 Download URL: https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_cmake/qt.tools.cmake/3.30.5-202502251255windows64_x64_cmake_tools.7z
+2026-10-06 22:45:11,171 - aqt.helper - DEBUG - helper 5468 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_cmake/qt.tools.cmake/3.30.5-202502251255windows64_x64_cmake_tools.7z
+2026-10-06 22:45:11,171 - aqt.helper - INFO - helper 5468 Redirected: ftp.jaist.ac.jp
+2026-10-06 22:45:42,077 - aqt.installer - INFO - installer 5468 Finished installation of windows64_x64_cmake_tools.7z in 34.85122630
+2026-10-06 22:45:42,253 - aqt.main - INFO - installer 4052 Finished installation
+2026-10-06 22:45:42,253 - aqt.main - INFO - installer 4052 Time elapsed: 39.45677310 second
+2026-10-06 22:45:43,266 - aqt.main - INFO - installer 15072 aqtinstall(aqt) v3.3.0 on Python 3.12.10 [CPython MSC v.1943 64 bit (AMD64)]
+2026-10-06 22:45:43,266 - aqt.helper - DEBUG - helper 15072 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_ninja/Updates.xml.sha256
+2026-10-06 22:45:47,648 - aqt.helper - DEBUG - helper 8436 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_ninja/qt.tools.ninja/1.12.1-202502251256ninja_win64.7z.sha256
+2026-10-06 22:45:49,208 - aqt.helper - INFO - helper 8436 Downloading qt.tools.ninja...
+2026-10-06 22:45:49,208 - aqt.installer - DEBUG - installer 8436 Download URL: https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/tools_ninja/qt.tools.ninja/1.12.1-202502251256ninja_win64.7z
+2026-10-06 22:45:50,890 - aqt.helper - DEBUG - helper 8436 Asked to redirect(302) to: https://ftp.jaist.ac.jp/pub/qtproject/online/qtsdkrepository/windows_x86/desktop/tools_ninja/qt.tools.ninja/1.12.1-202502251256ninja_win64.7z
+2026-10-06 22:45:50,890 - aqt.helper - INFO - helper 8436 Redirected: ftp.jaist.ac.jp
+2026-10-06 22:45:52,879 - aqt.installer - INFO - installer 8436 Finished installation of ninja_win64.7z in 5.23432890
+2026-10-06 22:45:53,032 - aqt.main - INFO - installer 15072 Finished installation
+2026-10-06 22:45:53,032 - aqt.main - INFO - installer 15072 Time elapsed: 9.76197550 second

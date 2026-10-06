@@ -1,0 +1,262 @@
+{
+ "norm": {
+  "Rover, you finally woke up. Let's head to Jinzhou.": "rover you finally woke up let s head to jinzhou",
+  "  Đây là “quote” — và… ‘thử’ ｜ ok  ": "đây là quote và thử ok",
+  "Hello<color=#ff0>World</color>\\nNext": "hello color ff0 world color nnext",
+  "{Male=he;Female=she} went to {PlayerName}'s house": "male he female she went to playername s house",
+  "%s has %d items {0}": "s has d items 0",
+  "ROVER!!! You're    late": "rover you re late",
+  "Ｆｕｌｌｗｉｄｔｈ ＡＢＣ": "fullwidth abc"
+ },
+ "resolve": {
+  "Rover, you finally woke up. Let's head to Jinzhou.": [
+   "Rover, you finally woke up. Let's head to Jinzhou.",
+   "Rover, you finally woke up. Let's head to Jinzhou."
+  ],
+  "  Đây là “quote” — và… ‘thử’ ｜ ok  ": [
+   "  Đây là “quote” — và… ‘thử’ ｜ ok  ",
+   "  Đây là “quote” — và… ‘thử’ ｜ ok  "
+  ],
+  "Hello<color=#ff0>World</color>\\nNext": [
+   "HelloWorld Next",
+   "HelloWorld Next"
+  ],
+  "{Male=he;Female=she} went to {PlayerName}'s house": [
+   "he went to Rover's house",
+   "she went to §'s house"
+  ],
+  "%s has %d items {0}": [
+   "%s has %d items {0}",
+   "§ has § items §"
+  ],
+  "ROVER!!! You're    late": [
+   "ROVER!!! You're    late",
+   "ROVER!!! You're    late"
+  ],
+  "Ｆｕｌｌｗｉｄｔｈ ＡＢＣ": [
+   "Ｆｕｌｌｗｉｄｔｈ ＡＢＣ",
+   "Ｆｕｌｌｗｉｄｔｈ ＡＢＣ"
+  ]
+ },
+ "ocr_for_match": {
+  "Rover, you finally woke up. Let's head to Jinzhou.": "§ you finally woke up let s head to jinzhou",
+  "  Đây là “quote” — và… ‘thử’ ｜ ok  ": "đây là quote và thử ok",
+  "Hello<color=#ff0>World</color>\\nNext": "hello color ff0 world color nnext",
+  "{Male=he;Female=she} went to {PlayerName}'s house": "male he female she went to playername s house",
+  "%s has %d items {0}": "s has d items 0",
+  "ROVER!!! You're    late": "§ you re late",
+  "Ｆｕｌｌｗｉｄｔｈ ＡＢＣ": "fullwidth abc"
+ },
+ "lemmas": {
+  "woke": [
+   "woke"
+  ],
+  "running": [
+   "running",
+   "runn",
+   "runne",
+   "run"
+  ],
+  "studies": [
+   "studies",
+   "study",
+   "studi",
+   "studie"
+  ],
+  "tried": [
+   "tried",
+   "try",
+   "tri",
+   "trie"
+  ],
+  "happiest": [
+   "happiest",
+   "happi"
+  ],
+  "quickly": [
+   "quickly",
+   "quick"
+  ],
+  "Rover's": [
+   "Rover's",
+   "rover's",
+   "rover",
+   "rover'"
+  ],
+  "stopped": [
+   "stopped",
+   "stopp",
+   "stoppe",
+   "stop"
+  ],
+  "makes": [
+   "makes",
+   "mak",
+   "make"
+  ],
+  "glasses": [
+   "glasses",
+   "glass",
+   "glasse"
+  ],
+  "'quoted'": [
+   "'quoted'",
+   "quoted",
+   "quot",
+   "quote"
+  ],
+  "-dash-": [
+   "-dash-",
+   "dash"
+  ]
+ },
+ "spacing": {
+  "youfinallywoke": "you finally woke",
+  "Rover,you are here.Thanks": "Rover, you are here. Thanks",
+  "Theyarecomingtowardsus": "They are coming towards us",
+  "Jinzhouisbeautifultoday": "Jinzhouisbeautifultoday",
+  "Rovernaut": "Rovernaut",
+  "abcdefghxyz": "abcdefghxyz",
+  "Iwanttogohomenow!": "I want togo home now!",
+  "thisisatest of thesystem": "this is a test of the system",
+  "Bigredballoon": "Big red balloon"
+ },
+ "join_lines": [
+  [
+   [
+    "Dear Rover,",
+    "Thank you for your help in the last",
+    "battle. We could not have won",
+    "without you.",
+    "Sincerely,",
+    "Jiyan"
+   ],
+   "Dear Rover, Thank you for your help in the last battle. We could not have won without you. Sincerely, Jiyan"
+  ],
+  [
+   [
+    "The quick brown fox jumps over the",
+    "lazy dog and runs away into the",
+    "forest."
+   ],
+   "The quick brown fox jumps over the lazy dog and runs away into the forest."
+  ],
+  [
+   [
+    "hyphen-",
+    "ated word",
+    "next line"
+   ],
+   "hyphenated word next line"
+  ]
+ ],
+ "paragraphs": [
+  [
+   [
+    "Dear Rover,",
+    "Thank you for your help in the last",
+    "battle. We could not have won",
+    "without you.",
+    "Sincerely,",
+    "Jiyan"
+   ],
+   "Dear Rover,\nThank you for your help in the last battle. We could not have won without you.\nSincerely,\nJiyan"
+  ],
+  [
+   [
+    "The quick brown fox jumps over the",
+    "lazy dog and runs away into the",
+    "forest."
+   ],
+   "The quick brown fox jumps over the lazy dog and runs away into the forest."
+  ],
+  [
+   [
+    "hyphen-",
+    "ated word",
+    "next line"
+   ],
+   "hyphenated word next line"
+  ]
+ ],
+ "sentences": {
+  "Rover, you finally woke up. Let's head to Jinzhou.": [
+   "Rover, you finally woke up.",
+   "Let's head to Jinzhou."
+  ],
+  "  Đây là “quote” — và… ‘thử’ ｜ ok  ": [
+   "  Đây là “quote” — và… ‘thử’ ｜ ok  "
+  ],
+  "Hello<color=#ff0>World</color>\\nNext": [
+   "Hello<color=#ff0>World</color>\\nNext"
+  ],
+  "{Male=he;Female=she} went to {PlayerName}'s house": [
+   "{Male=he;Female=she} went to {PlayerName}'s house"
+  ],
+  "%s has %d items {0}": [
+   "%s has %d items {0}"
+  ],
+  "ROVER!!! You're    late": [
+   "ROVER!!!",
+   "You're    late"
+  ],
+  "Ｆｕｌｌｗｉｄｔｈ ＡＢＣ": [
+   "Ｆｕｌｌｗｉｄｔｈ ＡＢＣ"
+  ]
+ },
+ "subs": [
+  [
+   "Rover, you finally woke up.",
+   "Rover, cuối cùng anh cũng tỉnh rồi."
+  ],
+  [
+   "{PlayerName}, are you okay?",
+   "{PlayerName}, cậu ổn chứ?"
+  ],
+  [
+   "{Male=He;Female=She} is waiting.",
+   "{Male=Anh ấy;Female=Cô ấy} đang đợi."
+  ],
+  [
+   "Let's head to Jinzhou.",
+   "Đi Jinzhou thôi."
+  ],
+  [
+   "<color=red>Danger</color> ahead!",
+   "Nguy hiểm phía trước!"
+  ]
+ ],
+ "match": {
+  "Rover, you finaIly woke up.": [
+   "Rover, cuối cùng anh cũng tỉnh rồi.",
+   96.0,
+   "Rover, you finally woke up."
+  ],
+  "Rover, are you okay?": [
+   "Rover, cậu ổn chứ?",
+   100.0,
+   "{PlayerName}, are you okay?"
+  ],
+  "He is waiting": [
+   "Anh ấy đang đợi.",
+   100.0,
+   "{Male=He;Female=She} is waiting."
+  ],
+  "Rover, you finally woke up. Let's head to Jinzhou.": [
+   "Rover, cuối cùng anh cũng tỉnh rồi. Đi Jinzhou thôi.",
+   100.0,
+   "Rover, you finally woke up. Let's head to Jinzhou."
+  ],
+  "Danger ahead": [
+   "Nguy hiểm phía trước!",
+   100.0,
+   "<color=red>Danger</color> ahead!"
+  ],
+  "Totally unrelated sentence here": null,
+  "Let's head to Jinzhou": [
+   "Đi Jinzhou thôi.",
+   100.0,
+   "Let's head to Jinzhou."
+  ]
+ }
+}

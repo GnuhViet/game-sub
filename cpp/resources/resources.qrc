@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="icon.png">../../gamesub/assets/icon.png</file>
+        <file alias="mdi6.ttf">../../gamesub/assets/mdi6.ttf</file>
+        <file alias="mdi6.json">../../gamesub/assets/mdi6.json</file>
+        <file alias="words.qz">words.qz</file>
+    </qresource>
+</RCC>

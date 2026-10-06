@@ -6,3 +6,6 @@ build/
 dist/
 *.spec
 engines/
+cpp/build/
+cpp/dist/
+cpp/spike/*.exe
