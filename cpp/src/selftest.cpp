@@ -71,6 +71,14 @@ int App::selfTest() {
         const auto pairs = importer::extractPairs(t.rows, cols.first, cols.second);
         check("import csv", pairs.size() == 2 && pairs[0].first == "Hello, world" && pairs[0].second == QString::fromUtf8("Xin chào, thế giới"));
     } catch (const std::exception& e) { check("import csv", false, e.what()); }
+    if (QFile::exists(dataDir() + "/subs.xlsx")) {       // tests: sinh bằng openpyxl (chuỗi dùng chung + chuỗi trong ô + số)
+        try {
+            const auto t = importer::readTable(dataDir() + "/subs.xlsx"); const auto cols = importer::guessCols(t.hdr, t.rows);
+            const auto pairs = importer::extractPairs(t.rows, cols.first, cols.second);
+            check("import xlsx", pairs.size() == 3 && pairs[1].first == "Good night" && pairs[1].second == QString::fromUtf8("Chúc ngủ ngon") && pairs[2].first == "42",
+                  QString("%1 dòng, cột %2/%3, hdr %4").arg(pairs.size()).arg(cols.first).arg(cols.second).arg(t.hdr.join("|")));
+        } catch (const std::exception& e) { check("import xlsx", false, e.what()); }
+    }
     // 9) mở Cài đặt -> OK không đổi gì
     cfg_.set("dict_mode", "auto");
     const QJsonObject before = cfg_.raw();

@@ -50,7 +50,7 @@ cài đặt được chép sang luồng chụp qua `CaptureWorker::setSettings` 
 ```
 .venv\Scripts\python cpp\tests\make_expected.py      -> đáp án từ bản Python
 cpp\build\core_test.exe cpp\tests\expected.json      -> so phần lõi C++ với Python (69/69)
-set GAMESUB_DATA=%TEMP%\gs_test & cpp\dist\GameSub\GameSub.exe --selftest   -> 23 luồng chính, kết quả: %GAMESUB_DATA%\selftest.txt
+set GAMESUB_DATA=%TEMP%\gs_test & cpp\dist\GameSub\GameSub.exe --selftest   -> 24 luồng chính (thêm subs.xlsx vào thư mục để thử nhập Excel), kết quả: %GAMESUB_DATA%\selftest.txt
 cpp\dist\GameSub\GameSub.exe --shot <thư mục>        -> chụp overlay, popup, Cài đặt (7 tab), Glossary… ra PNG
 python tools\i18n_check.py                           -> key dùng ở cả hai bản đều có trong locales
 ```
