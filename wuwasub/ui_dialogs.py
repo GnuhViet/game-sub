@@ -155,7 +155,7 @@ class SettingsDialog(QDialog):
         bv = QVBoxLayout()
         for ic, d, tip in (("mdi6.arrow-up", -1, "Lên (sang trái trên toolbar)"), ("mdi6.arrow-down", 1, "Xuống (sang phải trên toolbar)")):
             b = QPushButton(qta.icon(ic, color=col), ""); b.setToolTip(tip); b.clicked.connect(lambda _=0, d=d: move(d)); bv.addWidget(b)
-        bv.addStretch(1); bv.addWidget(QLabel("<i>Cài đặt / Ẩn / Thoát\nluôn ghim bên phải</i>".replace("\n", "<br>")))
+        bv.addStretch(1)
         gl.addWidget(lst, 1); gl.addLayout(bv)
         tab.addRow(g); self.w["toolbar"] = (lst, lambda: [lst.item(i).data(Qt.UserRole) for i in range(lst.count()) if lst.item(i).checkState() == Qt.Checked])
         f = self._group(tab, "Hành vi")
