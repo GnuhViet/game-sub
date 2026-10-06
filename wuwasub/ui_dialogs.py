@@ -1,12 +1,12 @@
 import random, html, time
 from pathlib import Path
 from PySide6.QtCore import Qt, QThread, Signal
-from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient
+from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient, QKeySequence
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox, QGridLayout)
 import qtawesome as qta
-from . import importer, engines, __version__
+from . import importer, engines, hotkeys, __version__
 from .dictionary import LANGS
 from .ui_overlay import outline_offsets, TOOLBAR, TIPS
 
@@ -108,12 +108,13 @@ class SettingsDialog(QDialog):
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
         self._combo(f, "display", "Hiển thị", {"both": "2 ngôn ngữ (câu gốc + bản dịch)", "vi": "Chỉ bản dịch",
                                                 "vi_hover": "Chỉ bản dịch — rê chuột vào hiện câu gốc", "src_hover": "Chỉ câu gốc — rê chuột vào hiện bản dịch"})
-        self._check(f, "alt_unlock", "Khi khóa overlay: giữ Alt để bấm/tra từ trên overlay"); self._check(f, "show_speaker", "Hiện tên nhân vật")
+        uk = KeyCapture(cfg["unlock_key"]); f.addRow("Khi khóa overlay, giữ phím này để bấm/tra từ", uk); self.w["unlock_key"] = (uk, uk.text)
+        self._check(f, "show_speaker", "Hiện tên nhân vật")
         # --- Hotkey
         f = self._tab(tabs, "Hotkey"); self.hk = {}
         for k, n in [("toggle", "Ẩn/hiện overlay"), ("region", "Chọn vùng"), ("pause", "Tạm dừng"), ("rescan", "Quét lại"), ("clickthrough", "Click-through"), ("clear", "Xóa chữ"), ("translate", "Bật/tắt dịch"), ("scan", "Chụp & dịch 1 vùng"), ("lock", "Khóa/mở overlay")]:
             e = QLineEdit(cfg["hotkeys"].get(k, "")); f.addRow(n, e); self.hk[k] = e
-        self._check(f, "run_as_admin", "Luôn chạy WuWaSub với quyền admin (cần khi game chạy quyền admin, nếu không hotkey / giữ Alt không tới)")
+        self._check(f, "run_as_admin", "Luôn chạy WuWaSub với quyền admin (cần khi game chạy quyền admin, nếu không hotkey / giữ phím mở khóa không tới)")
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
         ver = QLabel(f"WuWa Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới
         foot = QHBoxLayout(); foot.addWidget(ver); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
@@ -241,6 +242,28 @@ class SettingsDialog(QDialog):
         c["dict_files"] = [self.dicts.item(i).text() for i in range(self.dicts.count())]
         c["hotkeys"] = {k: e.text().strip() for k, e in self.hk.items()}
         c.save()
+
+
+class KeyCapture(QLineEdit):
+    """Bấm vào ô rồi nhấn phím / tổ hợp / nút chuột giữa-bên để gán; Backspace hoặc Delete = tắt."""
+    NAMES = {Qt.Key_Control: "Ctrl", Qt.Key_Alt: "Alt", Qt.Key_Shift: "Shift", Qt.Key_Meta: "Win"}
+    MOUSE = {Qt.MiddleButton: "Mouse3", Qt.BackButton: "Mouse4", Qt.ForwardButton: "Mouse5"}
+    def __init__(self, seq):
+        super().__init__(seq); self.setReadOnly(True); self.setPlaceholderText("Tắt")
+        self.setToolTip("Bấm vào ô rồi nhấn phím, tổ hợp phím hoặc nút chuột giữa/bên. Backspace = tắt")
+    def focusInEvent(self, e): super().focusInEvent(e); self.setPlaceholderText("Nhấn phím / nút chuột… (Backspace = tắt)")
+    def focusOutEvent(self, e): super().focusOutEvent(e); self.setPlaceholderText("Tắt")
+    def _set(self, key, mods):
+        names = [n for m, n in ((Qt.ControlModifier, "Ctrl"), (Qt.AltModifier, "Alt"), (Qt.ShiftModifier, "Shift"), (Qt.MetaModifier, "Win")) if mods & m and n != key]
+        seq = "+".join(names + [key])
+        if hotkeys.held_vks(seq): self.setText(seq)
+    def keyPressEvent(self, e):
+        if e.key() in (Qt.Key_Backspace, Qt.Key_Delete): self.clear()
+        elif e.key() == Qt.Key_Escape: self.clearFocus()
+        else: self._set(self.NAMES.get(e.key()) or QKeySequence(e.key()).toString(), e.modifiers())
+    def mousePressEvent(self, e):
+        if e.button() in self.MOUSE: self.setFocus(); self._set(self.MOUSE[e.button()], e.modifiers())
+        else: super().mousePressEvent(e)
 
 
 class _Preview(QWidget):

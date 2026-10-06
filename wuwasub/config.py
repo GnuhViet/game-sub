@@ -45,8 +45,8 @@ DEFAULTS = {
     # overlay
     "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "locked": False, "hide_from_capture": True, "show_speaker": True,
     "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
-    "alt_unlock": True,
-    "run_as_admin": False,                            # game chạy quyền admin -> WuWaSub cũng phải admin thì hotkey/giữ Alt mới tới                               # đang khóa: giữ Alt thì overlay nhận chuột
+    "unlock_key": "Alt",                              # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
+    "run_as_admin": False,                            # game chạy quyền admin -> WuWaSub cũng phải admin thì hotkey/giữ phím mới tới
     "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"],
     "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
@@ -70,6 +70,7 @@ class Config(dict):
                         self[k].update({a: s for a, s in v.items() if s != OLD_HOTKEYS.get(a)})
                     elif k in DEFAULTS: self[k] = v
                 if "display" not in data and data.get("show_source") is False: self["display"] = "vi"     # cài đặt cũ
+                if "unlock_key" not in data and data.get("alt_unlock") is False: self["unlock_key"] = ""
             except Exception as e: print("settings.json lỗi, dùng mặc định:", e)
 
     def save(self):

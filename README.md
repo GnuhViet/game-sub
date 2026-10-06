@@ -27,7 +27,7 @@ Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-pla
 | `Ctrl+Alt+C` | Click-through: chuột xuyên qua overlay để bấm game (cũng có ở menu khay) |
 | Dịch / `Ctrl+Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
 | Xóa / `Ctrl+Alt+X` | Xóa chữ trên overlay |
-| Khóa / `Ctrl+Alt+L` | Khóa overlay: rê chuột không hiện toolbar, không kéo/đổi cỡ (tra từ vẫn được) |
+| Khóa / `Ctrl+Alt+L` | Khóa overlay: rê chuột không hiện toolbar, không kéo/đổi cỡ (tra từ vẫn được). Giữ **Alt** để bấm trên overlay — đổi phím trong Cài đặt → Giao diện (phím, tổ hợp hoặc nút chuột giữa/bên) |
 | Chụp / `Ctrl+Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, bấm từ để tra |
 | Câu trước / sau | Xem lại các câu trước |
 

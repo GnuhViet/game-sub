@@ -150,12 +150,12 @@ class App:
         self.ov.show_line(cur["speaker"], cur["src"], cur["vi"] or ("" if cur.get("busy") or cur["tag"].startswith(("Lỗi", "Không")) else cur["src"]), cur["tag"] + nav)
 
     def _check_elevation(self):
-        """Game chạy quyền admin mà WuWaSub thì không -> Windows (UIPI) chặn hotkey/giữ Alt/focus: báo 1 lần."""
+        """Game chạy quyền admin mà WuWaSub thì không -> Windows (UIPI) chặn hotkey/giữ phím mở khóa/focus: báo 1 lần."""
         if sys.platform != "win32" or winapp.self_elevated(): self.elev_t.stop(); return
         pid, exe = winapp.foreground(); tgt = self.cfg["target_app"]
         if not exe or exe in self.elev_warned or (tgt and exe != tgt) or not winapp.elevated(pid): return
         self.elev_warned.add(exe)
-        msg = f"{exe} chạy quyền admin nên hotkey / giữ Alt không tới được WuWaSub. Menu khay → «Chạy lại với quyền admin»."
+        msg = f"{exe} chạy quyền admin nên hotkey / giữ phím mở khóa không tới được WuWaSub. Menu khay → «Chạy lại với quyền admin»."
         self.ov.status.setText("⚠ Game chạy quyền admin — xem menu khay"); self.tray.showMessage("WuWa Sub", msg, QSystemTrayIcon.Warning, 8000)
 
     def _auto_hide(self):

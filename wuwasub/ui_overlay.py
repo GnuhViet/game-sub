@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolB
 import qtawesome as qta
 from .textnorm import WORD_RE
 from .dictionary import LANGS
+from .hotkeys import held_vks
 
 FLAGS = Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
 
@@ -99,7 +100,7 @@ class Overlay(QWidget):
 
     def __init__(self, cfg):
         super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._auto = False; self._alt = False
-        self.alt_t = QTimer(self, interval=60, timeout=self._poll_alt)        # đang khóa: giữ Alt -> overlay nhận chuột
+        self.alt_t = QTimer(self, interval=60, timeout=self._poll_alt)        # đang khóa: giữ phím mở khóa (mặc định Alt) -> overlay nhận chuột
         self.setAttribute(Qt.WA_TranslucentBackground); self.setMouseTracking(True)
         self.setAttribute(Qt.WA_AlwaysShowToolTips)          # cửa sổ Tool không focus: Windows mặc định không hiện tooltip
         self.setWindowTitle("WuWa Sub"); self.setMinimumSize(320, 90)
@@ -229,7 +230,7 @@ class Overlay(QWidget):
         return bool((self.cfg["locked"] and not self._alt) or self.cfg["click_through"])
 
     def _apply_input(self):
-        """Chuột xuyên qua overlay khi khóa (trừ lúc giữ Alt) hoặc bật click-through (không chắn chuột game)."""
+        """Chuột xuyên qua overlay khi khóa (trừ lúc giữ phím mở khóa) hoặc bật click-through (không chắn chuột game)."""
         want = self.passthrough_wanted()
         if want: self.bar.setVisible(False); self.status.setVisible(False)
         if sys.platform == "win32": self._passthrough(want); return
@@ -253,18 +254,19 @@ class Overlay(QWidget):
         self.grip.setVisible(not on)
         if on: self._set_bar(False)
         self._icons(); self._apply_input()
-        if on and self.cfg["alt_unlock"] and sys.platform == "win32": self.alt_t.start()
+        self._unlock_vks = held_vks(self.cfg["unlock_key"] or "") or []
+        if on and self._unlock_vks and sys.platform == "win32": self.alt_t.start()
         else: self.alt_t.stop(); self._alt = False
 
     def _poll_alt(self):
-        down = bool(ctypes.windll.user32.GetAsyncKeyState(0x12) & 0x8000)            # VK_MENU
+        down = all(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in self._unlock_vks)
         if down == self._alt: return
         self._alt = down; self._apply_input()
         if not down: self._set_bar(False)
 
     def _passthrough(self, on):
         """Chuột xuyên qua bằng WS_EX_TRANSPARENT (+LAYERED). Không dùng flag Qt: Qt tự bỏ sự kiện chuột của cửa sổ
-        mang flag đó nên giữ Alt cũng không bấm được, và đổi flag còn tạo lại cửa sổ (nháy)."""
+        mang flag đó nên giữ phím mở khóa cũng không bấm được, và đổi flag còn tạo lại cửa sổ (nháy)."""
         u32 = ctypes.windll.user32; hwnd = int(self.winId()); ex = u32.GetWindowLongW(hwnd, -20)
         u32.SetWindowLongW(hwnd, -20, (ex | 0x80020) if on else (ex & ~0x20))
 
@@ -280,7 +282,7 @@ class Overlay(QWidget):
         self.bar.setVisible(on); self.status.setVisible(on); self._tag_vis(); self._apply_display(); self.update()
 
     def enterEvent(self, e):
-        if self.cfg["locked"] and not self._alt: return     # khóa: rê chuột không hiện gì (giữ Alt thì được)
+        if self.cfg["locked"] and not self._alt: return     # khóa: rê chuột không hiện gì (giữ phím mở khóa thì được)
         self.hide_bar.stop(); self._set_bar(True)
     def leaveEvent(self, e): self.hide_bar.start()
     def mousePressEvent(self, e):
@@ -308,7 +310,9 @@ class WordPopup(QFrame):
         for code, name in LANGS.items(): self.lang.addItem(name, code)
         self.lang.setCurrentIndex(max(0, self.lang.findData(cfg["target_lang"])))
         self.lang.activated.connect(lambda _: self.lang_changed.emit(self.lang.currentData()))
-        self.close_btn = QToolButton(); self.close_btn.setText("✕"); self.close_btn.setToolTip("Đóng"); self.close_btn.setAutoRaise(True)
+        self.close_btn = QToolButton(); self.close_btn.setToolTip("Đóng"); self.close_btn.setAutoRaise(True); self.close_btn.setFixedSize(26, 22)
+        self.cap_font = caption_font()
+        if self.cap_font: self.close_btn.setText(CAPTION["quit"]); f = QFont(self.cap_font); f.setPixelSize(10); self.close_btn.setFont(f)
         self.close_btn.clicked.connect(self.close_pop)
         th = QHBoxLayout(); th.addWidget(self.title, 1); th.addWidget(self.lang); th.addWidget(self.close_btn)
         self.body = QLabel(); self.body.setWordWrap(True); self.body.setTextFormat(Qt.RichText); self.body.setMaximumWidth(420); self.body.setMinimumWidth(260)
@@ -329,7 +333,8 @@ class WordPopup(QFrame):
             QComboBox {{ color:{c['fg']}; background:rgba(255,255,255,0.08); border:none; padding:2px 6px; font-size:11px; }}""")
         self.title.setStyleSheet(f"color:{c['accent']}; font-weight:600; font-size:14px")
         self.source.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
-        self.close_btn.setStyleSheet(f"QToolButton {{ color:{c['src_fg']}; border:none; padding:0 4px; font-size:13px; }} QToolButton:hover {{ color:{c['accent']}; }}")
+        self.close_btn.setStyleSheet(f"QToolButton {{ color:{c['src_fg']}; border:none; padding:0; border-radius:4px; }} QToolButton:hover {{ color:white; background:#c42b1c; }}")
+        if not self.cap_font: self.close_btn.setIcon(qta.icon("mdi6.close", color=c["src_fg"], color_active="white"))
 
     def _set(self, meta, body):
         if meta is not None: self.meta = meta
