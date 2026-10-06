@@ -1,121 +1,111 @@
-# Game Sub — OCR dịch thoại game
+# Game Sub
 
-Overlay dịch thoại cho game bất kỳ chỉ bằng **OCR màn hình**: không hook, không đọc bộ nhớ, không sửa file game —
-an toàn với game online có anti-cheat. Mã nguồn mở, giấy phép [MIT](LICENSE).
+**English** · [Tiếng Việt](README.vi.md)
 
-**Ngôn ngữ giao diện / UI language:** Tiếng Việt, English — Cài đặt → Giao diện → *Ngôn ngữ / Language* (mặc định theo ngôn ngữ Windows; đổi xong app hỏi mở lại).
+[![Release](https://img.shields.io/github/v/release/GnuhViet/game-sub?include_prereleases&label=release)](https://github.com/GnuhViet/game-sub/releases)
+[![Downloads](https://img.shields.io/github/downloads/GnuhViet/game-sub/total)](https://github.com/GnuhViet/game-sub/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![Windows 10/11](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d4)
 
-## Tải về (Windows 10/11, không cần Python)
-Tải `GameSub.zip` ở trang [Releases](https://github.com/GnuhViet/game-sub/releases) → **giải nén hết** → chạy `GameSub\GameSub.exe`
-(đừng chạy thẳng trong zip). Để thư mục ở chỗ ghi được (vd. `D:\GameSub`), không để trong Program Files.
-Bản exe chỉ có Windows OCR (cần gói ngôn ngữ English trong Windows, thường có sẵn); OCR khác tải trong app.
+A live subtitle overlay that translates game dialogue as it appears on screen, for any game, using **screen OCR only**.
+No hooking, no memory reading, no game file changes, so it's safe to use with online games that run anti-cheat.
 
-Dữ liệu nằm trong `data\` (và `engines\` nếu tải OCR) cạnh exe — copy cả thư mục là mang sang máy khác được.
+Made with Vietnamese players in mind: it prefers your own fan-translation subtitle pack, falls back to Google Translate or Gemini,
+and lets you click any word to look it up and save it for review.
 
-## Cập nhật
-App tự kiểm tra bản mới khi mở (tắt ở Cài đặt → Giao diện) và báo ở khay; hoặc bấm **Kiểm tra cập nhật** ở góc dưới Cài đặt / menu khay.
-Bấm **Cập nhật**: app tải bản mới (kiểm tra SHA256), tự tắt, thay file rồi mở lại. `data\` và `engines\` giữ nguyên — không phải tải zip, copy dữ liệu bằng tay nữa.
-File ngôn ngữ tự thêm vào `_internal\gamesub\locales\` sẽ bị thay khi cập nhật — giữ bản sao, hoặc gửi pull request để có sẵn trong bản sau.
+![Overlay with a word lookup popup](docs/screenshots/en/overlay.png)
 
-## Chạy từ mã nguồn (Python 3.10+)
-```
-run.bat            # lần đầu tự tạo .venv và cài thư viện
-build.bat          # (tùy chọn) đóng gói thành dist\GameSub\GameSub.exe + dist\GameSub.zip
-diag.bat           # tự kiểm tra DPI/đa màn hình, chụp game, OCR, hotkey -> data\diag.txt
-```
-Ra bản mới: tăng `__version__` trong `gamesub/__init__.py` → `build.bat` → tạo release tag `vX.Y.Z` đính kèm `dist\GameSub.zip`
-(tên file phải đúng `GameSub.zip`, app tìm file này để tự cập nhật).
+## Features
+- **Live dialogue translation**: select the dialogue box once; new lines are OCR'd and translated automatically. Typewriter text is read only after it stops changing.
+- **Your subtitle pack first**: import CSV / TSV / TXT / XLSX / JSON and pick the source and translation columns. Exact → fuzzy → per-sentence matching, with player-name placeholders and gendered macros.
+- **Machine translation fallback**: Google Translate (free) or Gemini (free API key), with previous lines as context, streaming output and automatic fallback on quota errors.
+- **Glossary**: keep names and terms as-is or force a translation; terms are protected with Google Translate too.
+- **Click-to-look-up**: click or select any word in the source line. Offline StarDict / TSV dictionaries, Google, dictionaryapi.dev, or an AI explanation in context.
+- **Vocabulary book**: save words with their sentence, review them as flashcards, export to CSV / Anki.
+- **Capture & translate** any area once (letters, menus, item descriptions) in a separate window.
+- **Overlay that stays out of the way**: click-through, lock, auto-hide when dialogue ends, hidden from screenshots, restylable.
+- **Self-updating**: one click downloads the new release and keeps all your data.
+- UI in **English** and **Tiếng Việt**; adding a language is a single JSON file.
 
-Gặp lỗi (vùng lệch, ảnh đen, OCR không chạy, hotkey không ăn): chạy `diag.bat` (bản exe: `GameSub.exe --diag`) và gửi `data\diag.txt` + `data\diag_region.png`.
-Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-play thoại.
+## Download & quick start
+1. Download `GameSub.zip` from [Releases](https://github.com/GnuhViet/game-sub/releases) and **extract everything** to a writable folder (e.g. `D:\GameSub`, not Program Files).
+2. Run `GameSub\GameSub.exe`. It lives in the system tray.
+3. Set the game to **Borderless / Windowed** and turn off dialogue auto-play.
+4. Press `Ctrl+Alt+R` (or the region button) and drag a box around the dialogue text.
+5. Optional: import a subtitle pack (📂) and add a Gemini key in Settings → Translation.
 
-## Dùng
-| Nút / Hotkey | Chức năng |
+The exe ships with **Windows OCR** (needs the English language pack, usually already installed). RapidOCR and Tesseract can be downloaded in Settings → OCR.
+
+## Updating
+Game Sub checks for a new version on startup and shows a tray notification (turn this off in Settings → Appearance).
+You can also click **Check for updates** at the bottom of Settings or in the tray menu.
+**Update** downloads the release, verifies its SHA256, closes the app, replaces the program files and reopens it.
+`data\` (settings, subtitle packs, glossary, vocabulary) and `engines\` (downloaded OCR) are never touched.
+
+## Hotkeys
+| Hotkey | Action |
 |---|---|
-| Chọn vùng / `Ctrl+Alt+R` | Chọn vùng thoại (màn hình dưới con trỏ) |
-| Chọn vùng tên | Chọn vùng tên nhân vật (Esc để bỏ) |
-| Xem vùng | Hiện viền quanh vùng thoại + vùng tên nhân vật đang chọn trong 3 giây (cũng có ở Cài đặt → OCR) |
-| Tạm dừng / `Ctrl+Alt+P` | Tạm dừng |
-| Quét lại / `Ctrl+Alt+S` | Quét lại |
-| `Ctrl+Alt+T` | Ẩn/hiện overlay (hoặc click icon khay) |
-| `Ctrl+Alt+C` | Click-through: chuột xuyên qua overlay để bấm game (cũng có ở menu khay) |
-| Dịch / `Ctrl+Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
-| Xóa / `Ctrl+Alt+X` | Xóa chữ trên overlay |
-| Khóa / `Ctrl+Alt+L` | Khóa overlay: rê chuột không hiện toolbar, không kéo/đổi cỡ (tra từ vẫn được). Giữ **Alt** để bấm trên overlay — đổi phím trong Cài đặt → Giao diện (phím, tổ hợp hoặc nút chuột giữa/bên) |
-| Chụp / `Ctrl+Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, bấm từ để tra |
-| Câu trước / sau | Xem lại các câu trước |
+| `Ctrl+Alt+R` | Select the dialogue area |
+| `Ctrl+Alt+Q` | Capture & translate any area once |
+| `Ctrl+Alt+T` | Show / hide the overlay (or click the tray icon) |
+| `Ctrl+Alt+P` | Pause |
+| `Ctrl+Alt+S` | Rescan |
+| `Ctrl+Alt+D` | Translation on / off (off = source text only, for word lookup) |
+| `Ctrl+Alt+C` | Click-through: the mouse goes through the overlay to the game |
+| `Ctrl+Alt+L` | Lock the overlay; hold **Alt** to use it while locked |
+| `Ctrl+Alt+X` | Clear the overlay |
 
-**Tự ẩn khi hết thoại:** Cài đặt → Giao diện → "Tự ẩn… sau (s)" > 0; có thoại mới tự hiện lại.
+Hotkeys can be changed in Settings → Hotkeys. The toolbar appears when you hover the overlay: drag the background to move it,
+drag the bottom-right corner to resize it, and use ◀ ▶ to go back through previous lines. You can also select a **speaker name area**.
 
-Toolbar hiện khi rê chuột vào overlay; kéo phần nền để di chuyển, góc phải dưới để resize.
-
-**Tra từ:** bấm vào từ trong câu gốc (hoặc bôi đen cụm/câu) → popup nghĩa; ✕ hoặc chuột phải để đóng. Muốn rê chuột là hiện: Cài đặt → Từ điển → Hiện nghĩa khi.
-Bôi đen cụm từ → chuột phải: tra cụm, lưu sổ từ, thêm glossary, giải nghĩa AI.
-
-## Luồng dịch
+## How translation works
 ```
-OCR → khớp bộ sub (exact → fuzzy → tách câu) ─ khớp ─→ bản Việt hóa
-                                                └ không ─→ engine đã chọn: Google / Gemini / Gemini→Google
+OCR → subtitle pack (exact → fuzzy → per sentence) ── match ──→ your translation
+                                                    └ no match ─→ Google / Gemini / Gemini → Google
 ```
-- Chữ chạy từng ký tự: tool chờ ảnh đứng yên `stable_ms` rồi mới OCR.
-- Gặp 429 (hết quota) thì nhà cung cấp đó nghỉ `cooldown_s` giây, tự chuyển sang cái tiếp theo.
+- **Subtitle packs:** placeholders like `{PlayerName}` are replaced with your character name (Settings → Characters),
+  `{Male=..;Female=..}` is resolved by gender and `<color=..>` tags are stripped. Files imported later win on duplicate lines.
+- **Gemini:** get a free key at [aistudio.google.com](https://aistudio.google.com). The default model is `gemini-2.5-flash-lite` with thinking budget 0 for low latency.
+  On a 429 (quota) error the provider rests for `cooldown_s` seconds and the next one takes over. The translation prompt is editable in Settings → Prompt.
+- **Dialogue** and **captured areas** each have their own engine setting; captured areas can also be read by Gemini straight from the image.
 
-## Bộ sub (📂)
-Nhận CSV / TSV / TXT / XLSX / JSON. Chọn file → xem trước → chọn cột EN và cột VI → Nhập. Ô "Thử khớp" để test.
-- Placeholder tên người chơi (`{PlayerName}`, `{Nickname}`… chỉnh trong Cài đặt → Nhân vật) được thay bằng tên Rover của bạn.
-- Macro `{Male=..;Female=..}` chọn theo giới tính Rover; tag `<color=..>` tự bỏ.
-- File nhập sau ưu tiên khi trùng câu.
+## Word lookup
+Click a word in the source line (or select a phrase) to see its meaning; ✕ or right-click closes the popup. Right-click a selection to
+look it up, save it to the vocabulary book, add it to the glossary or ask the AI to explain it in context.
 
-## Glossary & tùy chọn không dịch tên riêng
-- Mỗi mục: **Giữ nguyên** hoặc **Dịch theo cột "Dịch là"**.
-- Tick **"Không dịch tên riêng / thuật ngữ"** → mọi mục đều giữ nguyên và AI được yêu cầu giữ tên riêng.
-- Chỉ áp dụng cho dịch máy; câu lấy từ bộ sub giữ nguyên bản của người dịch.
-- Google Translate cũng được bảo vệ thuật ngữ (thay token trước khi gửi, khôi phục sau).
-
-## Sổ từ (📖)
-Lưu từ + nghĩa + câu gốc + câu dịch. Có chế độ ôn tập flashcard, export CSV (nhập được vào Anki).
-
-## Từ điển (Cài đặt → Từ điển)
-| Chế độ | Nguồn |
+| Dictionary mode | Source |
 |---|---|
-| Offline → Google dịch tự động | mặc định; chọn ngôn ngữ ngay trên popup (vi/ja/zh/ko/…) |
-| Google dịch tự động | Google Translate, có từ loại + phiên âm |
-| Chỉ offline | file từ điển bạn nạp |
-| Online | dictionaryapi.dev (Anh-Anh, free) |
-| AI theo ngữ cảnh | Gemini, có cache, tốn quota |
+| Offline → Google (default) | your dictionary files, then Google Translate; pick the target language in the popup |
+| Google | Google Translate, with part of speech and phonetics |
+| Offline only | your dictionary files: **StarDict** (`.ifo` + `.idx` + `.dict`/`.dict.dz`), TSV/CSV `word⇥meaning`, JSON `{word: meaning}` |
+| Online | dictionaryapi.dev (English–English) |
+| AI in context | Gemini, cached |
 
-File offline hỗ trợ: **StarDict** (`.ifo` + `.idx` + `.dict`/`.dict.dz` — dạng phổ biến của từ điển Anh-Việt), TSV/CSV `từ⇥nghĩa`, JSON `{từ: nghĩa}`.
+## Troubleshooting
+- **Wrong area, black image, OCR not working, hotkeys ignored:** run `GameSub.exe --diag` and attach `data\diag.txt` + `data\diag_region.png` to an issue.
+- **Small text:** raise "Upscale image before OCR" to 1.5–2 in Settings → OCR. "Save current region image for checking" shows exactly what is being read.
+- **Hotkeys don't work in game:** if the game runs as administrator, Game Sub has to as well (tray menu → Restart as administrator).
 
-## API
-- **Gemini**: lấy key free tại aistudio.google.com → model `gemini-2.5-flash-lite` (nhanh, quota rộng). Thinking budget `0` để giảm delay; model không hỗ trợ sẽ tự bỏ.
-- Cài đặt → Dịch chọn riêng: **Dịch thoại** (Google / Gemini / Gemini lỗi thì Google) và **Dịch vùng chụp 📷**
-  (OCR + Google / OCR + Gemini / Gemini đọc thẳng ảnh). Gemini chỉ dùng khi được chọn.
-
-## OCR
-- **Windows OCR** (mặc định): nhẹ, cần gói ngôn ngữ English trong Windows.
-- **RapidOCR** / **Tesseract**: Cài đặt → OCR → nút «Tải…», cài vào thư mục `engines\` cạnh exe. RapidOCR tốt hơn với font lạ/nền rối nhưng chậm hơn (~2s/lần).
-- Chữ nhỏ → tăng "Phóng to ảnh trước OCR" lên 1.5–2. Nút "Lưu ảnh vùng hiện tại" để kiểm tra vùng chụp có đúng không.
-
-## Đa ngôn ngữ
-Mỗi ngôn ngữ là 1 file `gamesub/locales/<mã>.json`: `{"_name": "English", "settings.title": "Settings", …}` (bản exe: `_internal\gamesub\locales\`).
-- **Thêm ngôn ngữ:** copy `en.json` thành `<mã>.json` (vd `ja.json`), đổi `"_name"` và dịch phần giá trị — app tự nhận, không cần sửa code.
-  Key nào chưa dịch thì app hiện chữ tiếng Việt. Giữ nguyên các biến `{n}`, `{w}`… trong chữ.
-- **Sửa chữ:** sửa thẳng trong file JSON. `vi.json` là ngôn ngữ gốc, có đủ mọi key.
-- **Cho người sửa code:** giao diện gọi `tr("key")` / `tr("key", n=5)`; bảng hằng (tooltip, menu) đánh dấu `N_("key")` rồi `tr()` lúc dùng.
-  Thêm chữ mới: thêm key vào `vi.json` + các file khác. `python tools/i18n_check.py` báo key thiếu / thừa / sai biến giữa các file,
-  `--todo` liệt kê chuỗi tiếng Việt còn viết thẳng trong code (dòng là dữ liệu / prompt AI thì ghi chú `# no-i18n`).
-
-## Dữ liệu
-Tất cả nằm trong `data/`: `settings.json`, `gamesub.db` (sub, glossary, sổ từ, cache tra từ).
-
-## Test
+## Building from source
+Requires Windows 10/11 and Python 3.10+.
 ```
-python tests/test_core.py
-python tests/test_capture_translate.py
-python tests/test_ui_smoke.py
-python tests/test_i18n.py         # mọi chuỗi giao diện đã có bản dịch
+run.bat      # first run creates .venv and installs dependencies
+build.bat    # packages dist\GameSub\GameSub.exe and dist\GameSub.zip
+diag.bat     # self-check: DPI / multi-monitor, capture, OCR, hotkeys -> data\diag.txt
 ```
+Tests:
+```
+python tests/test_core.py && python tests/test_capture_translate.py && python tests/test_ui_smoke.py && python tests/test_i18n.py
+```
+To release: bump `__version__` in `gamesub/__init__.py`, run `build.bat`, create a `vX.Y.Z` release and attach `dist\GameSub.zip`
+(the file name must be exactly `GameSub.zip`, the updater looks for it). Screenshots: `python tools/screenshots.py en|vi`.
 
-## Giấy phép
-[MIT](LICENSE) © 2026 Nguyễn Việt Hưng. Bản exe đóng gói kèm thư viện bên thứ ba theo giấy phép riêng của chúng
-(PySide6/Qt: LGPLv3, Material Design Icons: Apache 2.0 — xem `gamesub/assets/mdi6-NOTICE.txt`, …).
+### Translating the UI
+Each language is one file, `gamesub/locales/<code>.json`. Copy `en.json` to e.g. `ja.json`, change `"_name"` and translate the values;
+the app picks it up automatically. Missing keys fall back to Vietnamese (`vi.json` has every key). Keep placeholders like `{n}` as they are.
+`python tools/i18n_check.py` reports missing or extra keys and placeholder mismatches. Pull requests with new languages are welcome;
+language files added by hand to an installed copy are replaced on update.
+
+## License
+[MIT](LICENSE) © 2026 Nguyễn Việt Hưng. The packaged exe bundles third-party libraries under their own licenses
+(PySide6 / Qt: LGPLv3; Material Design Icons: Apache 2.0, see `gamesub/assets/mdi6-NOTICE.txt`; …).
