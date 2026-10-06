@@ -19,17 +19,17 @@ Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-pla
 ## Dùng
 | Nút / Hotkey | Chức năng |
 |---|---|
-| ⬚ / `Ctrl+Alt+R` | Chọn vùng thoại (màn hình dưới con trỏ) |
-| 👤 | Chọn vùng tên nhân vật (Esc để bỏ) |
-| ⏸ / `Ctrl+Alt+P` | Tạm dừng |
-| ⟳ / `Ctrl+Alt+S` | Quét lại |
+| Chọn vùng / `Ctrl+Alt+R` | Chọn vùng thoại (màn hình dưới con trỏ) |
+| Chọn vùng tên | Chọn vùng tên nhân vật (Esc để bỏ) |
+| Tạm dừng / `Ctrl+Alt+P` | Tạm dừng |
+| Quét lại / `Ctrl+Alt+S` | Quét lại |
 | `Ctrl+Alt+T` | Ẩn/hiện overlay (hoặc click icon khay) |
 | `Ctrl+Alt+C` | Click-through: chuột xuyên qua overlay để bấm game (cũng có ở menu khay) |
-| 🌐 / `Ctrl+Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
-| ⌫ / `Ctrl+Alt+X` | Xóa chữ trên overlay |
-| 🔒 / `Ctrl+Alt+L` | Khóa overlay: rê chuột không hiện toolbar, không kéo/đổi cỡ (tra từ vẫn được) |
-| 📷 / `Ctrl+Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, bấm từ để tra |
-| ◀ ▶ | Xem lại các câu trước |
+| Dịch / `Ctrl+Alt+D` | Bật/tắt dịch (tắt = chỉ hiện câu gốc để tra từ, không tốn quota) |
+| Xóa / `Ctrl+Alt+X` | Xóa chữ trên overlay |
+| Khóa / `Ctrl+Alt+L` | Khóa overlay: rê chuột không hiện toolbar, không kéo/đổi cỡ (tra từ vẫn được) |
+| Chụp / `Ctrl+Alt+Q` | Chụp & dịch 1 vùng bất kỳ (thư, bảng…) → cửa sổ riêng, bấm từ để tra |
+| Câu trước / sau | Xem lại các câu trước |
 
 **Tự ẩn khi hết thoại:** Cài đặt → Giao diện → "Tự ẩn… sau (s)" > 0; có thoại mới tự hiện lại.
 
@@ -52,7 +52,7 @@ Nhận CSV / TSV / TXT / XLSX / JSON. Chọn file → xem trước → chọn c�
 - Macro `{Male=..;Female=..}` chọn theo giới tính Rover; tag `<color=..>` tự bỏ.
 - File nhập sau ưu tiên khi trùng câu.
 
-## Glossary (🏷) & tùy chọn không dịch tên riêng
+## Glossary & tùy chọn không dịch tên riêng
 - Mỗi mục: **Giữ nguyên** hoặc **Dịch theo cột "Dịch là"**.
 - Tick **"Không dịch tên riêng / thuật ngữ"** → mọi mục đều giữ nguyên và AI được yêu cầu giữ tên riêng.
 - Chỉ áp dụng cho dịch máy; câu lấy từ bộ sub giữ nguyên bản của người dịch.

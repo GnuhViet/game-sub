@@ -69,8 +69,8 @@ class App:
         self._tray()
         self.elev_warned = set(); self.elev_t = QTimer(interval=2000, timeout=self._check_elevation); self.elev_t.start()
         self.ov.show()
-        hint = [] if cfg["region"] else ["Bấm ⬚ (hoặc " + cfg["hotkeys"]["region"] + ") để chọn vùng thoại."]
-        if not len(self.index): hint.append("Bấm 📂 để nhập bộ sub.")
+        hint = [] if cfg["region"] else ["Bấm nút chọn vùng (hoặc " + cfg["hotkeys"]["region"] + ") để chọn vùng thoại."]
+        if not len(self.index): hint.append("Bấm nút thư mục (Bộ sub) để nhập bộ sub.")
         if self.dicts.errors: hint.append("Lỗi từ điển: " + "; ".join(self.dicts.errors))
         self.ov.show_line("", "", " ".join(hint) or "Sẵn sàng.", f"{len(self.index):,} câu sub")
 

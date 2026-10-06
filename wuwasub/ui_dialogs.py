@@ -5,6 +5,7 @@ from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox, QGridLayout)
+import qtawesome as qta
 from . import importer, engines, __version__
 from .dictionary import LANGS
 from .ui_overlay import outline_offsets, TOOLBAR, TIPS
@@ -33,7 +34,7 @@ class SettingsDialog(QDialog):
         self.w["target_app"] = (self.app_combo, self._app_value)
         self._check(f, "clear_on_empty", "Tự xóa chữ khi vùng thoại không còn chữ")
         self._check(f, "fix_spacing", "Tự tách từ bị dính (youfinallywoke → you finally woke)")
-        f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút ⬚ / 👤 trên overlay.</i>"))
+        f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút Chọn vùng thoại / Chọn vùng tên nhân vật trên overlay.</i>"))
         self.btn_snap = QPushButton("Lưu ảnh vùng hiện tại để kiểm tra"); f.addRow(self.btn_snap)
         # quản lý OCR engine tải thêm: trạng thái + dung lượng, Tải / Xóa
         self.installed = False; self.eng_rows = {}
@@ -99,9 +100,9 @@ class SettingsDialog(QDialog):
         hb = QHBoxLayout(); hb.addWidget(sl, 1); hb.addWidget(pct); f.addRow("Độ trong suốt khung", hb)
         self.w["opacity"] = (sl, lambda: round(1 - sl.value() / 100, 2))
         for k, n in [("bg", "Màu khung"), ("fg", "Màu chữ dịch"), ("src_fg", "Màu câu gốc"), ("accent", "Màu nhấn (tên, viền popup)")]: self._color(f, k, n)
-        g = QGroupBox("Nút trên toolbar (⚙ Cài đặt, — Ẩn, ✕ Thoát luôn ghim bên phải)"); gl = QGridLayout(g); tb = {}
+        g = QGroupBox("Nút trên toolbar (Cài đặt, Ẩn, Thoát luôn ghim bên phải)"); gl = QGridLayout(g); tb = {}
         for i, (k, icon) in enumerate(TOOLBAR):
-            cb = QCheckBox(f"{icon}  {TIPS[k].split(' (')[0]}".replace("&", "&&")); cb.setChecked(k in cfg["toolbar"]); gl.addWidget(cb, i // 2, i % 2); tb[k] = cb
+            cb = QCheckBox(TIPS[k].split(' (')[0].replace("&", "&&")); cb.setIcon(qta.icon(icon, color=cb.palette().windowText().color())); cb.setChecked(k in cfg["toolbar"]); gl.addWidget(cb, i // 2, i % 2); tb[k] = cb
         f.addRow(g); self.w["toolbar"] = (g, lambda: [k for k, _ in TOOLBAR if tb[k].isChecked()])
         self._check(f, "hide_from_capture", "Overlay vô hình với ảnh chụp: đặt đè lên vùng OCR được (quay/stream/chụp màn hình cũng không thấy overlay)")
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)

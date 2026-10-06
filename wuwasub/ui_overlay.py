@@ -1,8 +1,9 @@
 import ctypes, html, sys
 from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent, QSize
-from PySide6.QtGui import QColor, QPainter, QCursor, QFont
+from PySide6.QtGui import QColor, QPainter, QCursor, QFont, QFontDatabase
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
                                QPushButton, QApplication, QComboBox, QGraphicsEffect, QLayout)
+import qtawesome as qta
 from .textnorm import WORD_RE
 from .dictionary import LANGS
 
@@ -32,9 +33,17 @@ class OutlineEffect(QGraphicsEffect):
         for dx, dy in self.offs: p.drawPixmap(off + QPoint(dx, dy), sh)
         p.drawPixmap(off, pm)
 
-TOOLBAR = [("prev", "◀"), ("next", "▶"), ("pause", "⏸"), ("translate", "🌐"), ("rescan", "⟳"), ("clear", "⌫"), ("scan", "📷"),
-           ("region", "⬚"), ("speaker", "👤"), ("subs", "📂"), ("glossary", "🏷"), ("vocab", "📖"), ("lock", "🔒")]   # chọn hiện/ẩn trong Cài đặt
-RIGHT_BTNS = [("settings", "⚙"), ("hide", "—"), ("quit", "✕")]                                               # luôn hiện, ghim phải
+# (nút, icon qtawesome — Material Design Icons); chọn hiện/ẩn trong Cài đặt
+TOOLBAR = [("prev", "mdi6.skip-previous"), ("next", "mdi6.skip-next"), ("pause", "mdi6.pause"), ("translate", "mdi6.translate"),
+           ("rescan", "mdi6.refresh"), ("clear", "mdi6.eraser"), ("scan", "mdi6.camera"), ("region", "mdi6.selection-drag"),
+           ("speaker", "mdi6.account"), ("subs", "mdi6.folder-open"), ("glossary", "mdi6.tag"), ("vocab", "mdi6.book-open-variant"), ("lock", "mdi6.lock")]
+ICON_ON = {"pause": "mdi6.play", "translate": "mdi6.translate-off", "lock": "mdi6.lock-open-variant"}   # icon khi đang dừng / tắt dịch / đang khóa
+RIGHT_BTNS = [("settings", "mdi6.cog"), ("hide", "mdi6.window-minimize"), ("quit", "mdi6.close")]     # luôn hiện, ghim phải
+CAPTION = {"hide": "", "quit": ""}       # ChromeMinimize / ChromeClose: nét giống nút cửa sổ Windows (máy thiếu font -> icon mdi)
+
+def caption_font():
+    fams = QFontDatabase.families()
+    return next((f for f in ("Segoe Fluent Icons", "Segoe MDL2 Assets") if f in fams), None)
 
 # tooltip toolbar; hotkey (nếu có) được ghép vào lúc apply_style
 TIPS = {"prev": "Câu trước", "next": "Câu sau", "pause": "Tạm dừng / tiếp tục nhận dạng", "translate": "Bật/tắt dịch (tắt = chỉ câu gốc để tra từ)",
@@ -96,14 +105,18 @@ class Overlay(QWidget):
         self.setWindowTitle("WuWa Sub"); self.setMinimumSize(320, 90)
         v = QVBoxLayout(self); v.setContentsMargins(14, 6, 14, 8); v.setSpacing(3)
         # toolbar
-        # toolbar: nút tùy chọn (cfg["toolbar"]) xếp tự xuống dòng bên trái; ⚙ — ✕ luôn ghim bên phải
+        # toolbar: nút tùy chọn (cfg["toolbar"]) xếp tự xuống dòng bên trái; Cài đặt / Ẩn / Thoát luôn ghim bên phải
         self.bar = QWidget(); hb = QHBoxLayout(self.bar); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(6)
         left = QWidget(); flow = FlowLayout(left); right = QHBoxLayout(); right.setSpacing(2)
         self.btns = {}
-        for key, txt in TOOLBAR + RIGHT_BTNS:
-            b = QToolButton(); b.setText(txt); b.setAutoRaise(True); b.clicked.connect(lambda _=0, k=key: self.action.emit(k))
-            (right if (key, txt) in RIGHT_BTNS else flow).addWidget(b); self.btns[key] = b
-        self.status = QLabel(""); flow.addWidget(self.status)
+        for key, _ in TOOLBAR + RIGHT_BTNS:
+            b = QToolButton(); b.setAutoRaise(True); b.setFixedSize(28, 26); b.setIconSize(QSize(18, 18))
+            b.clicked.connect(lambda _=0, k=key: self.action.emit(k))
+            (right if key in dict(RIGHT_BTNS) else flow).addWidget(b); self.btns[key] = b
+        self._paused = False; self.cap_font = caption_font()
+        if self.cap_font:
+            for k, g in CAPTION.items():
+                b = self.btns[k]; b.setText(g); b.setObjectName("cap_" + k); f = QFont(self.cap_font); f.setPixelSize(10); b.setFont(f)
         hb.addWidget(left, 1); hb.addLayout(right); hb.setAlignment(right, Qt.AlignTop)
         sp = self.bar.sizePolicy(); sp.setRetainSizeWhenHidden(True); self.bar.setSizePolicy(sp)   # ẩn vẫn giữ chỗ: chữ không xê dịch khi rê chuột
         v.addWidget(self.bar)
@@ -118,7 +131,8 @@ class Overlay(QWidget):
         self.vi.setContextMenuPolicy(Qt.CustomContextMenu); self.vi.customContextMenuRequested.connect(self._menu_vi)
         v.addWidget(self.speaker); v.addWidget(self.src_lbl); v.addWidget(self.vi, 1)
         self.grip = QSizeGrip(self)
-        foot = QHBoxLayout(); foot.addWidget(self.tag); foot.addStretch(1); foot.addWidget(self.grip, 0, Qt.AlignBottom | Qt.AlignRight)
+        self.status = QLabel("")                               # trạng thái (OCR đang dùng, tạm dừng…) ở góc trái dưới, hiện khi rê chuột
+        foot = QHBoxLayout(); foot.setSpacing(10); foot.addWidget(self.status); foot.addWidget(self.tag); foot.addStretch(1); foot.addWidget(self.grip, 0, Qt.AlignBottom | Qt.AlignRight)
         v.addLayout(foot)
         self.hide_bar = QTimer(self, singleShot=True, interval=1200, timeout=lambda: self._set_bar(False))
         self._drag = None
@@ -127,21 +141,22 @@ class Overlay(QWidget):
             sc = QApplication.primaryScreen().availableGeometry()
             g = [sc.x() + sc.width() // 2 - 380, sc.y() + int(sc.height() * 0.70), 760, 150]
         self.base_h = g[3]; self._auto = True; self.setGeometry(QRect(*g)); self._auto = False   # base_h = cỡ người dùng đặt; khung tự giãn khi chữ dài
-        self.bar.setVisible(False); self.apply_style()
+        self.bar.setVisible(False); self.status.setVisible(False); self.apply_style()
 
     def apply_style(self):
         c = self.cfg
         self.setStyleSheet(f"""
-            QLabel {{ color:{c['fg']}; }} QToolButton {{ color:{c['src_fg']}; border:none; padding:2px 5px; font-size:13px; }}
-            QToolButton:hover {{ color:{c['accent']}; background:rgba(255,255,255,0.08); border-radius:4px; }}""")
+            QLabel {{ color:{c['fg']}; }} QToolButton {{ color:{c['src_fg']}; border:none; padding:0; }}
+            QToolButton:hover {{ color:{c['accent']}; background:rgba(255,255,255,0.08); border-radius:4px; }}
+            QToolButton#cap_hide:hover {{ color:{c['src_fg']}; }} QToolButton#cap_quit:hover {{ color:white; background:#c42b1c; }}""")
         f = QFont(); f.setPointSize(int(c["font_size"])); self.vi.setFont(f)
         fs = QFont(); fs.setPointSize(int(c["src_font_size"])); self.src_lbl.setFont(fs); self.speaker.setFont(fs)
         self.speaker.setStyleSheet(f"color:{c['accent']}; font-weight:600")
         self.tag.setStyleSheet(f"color:{c['src_fg']}; font-size:10px"); self.status.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
         w = int(c["text_outline"])
-        for l in (self.speaker, self.src_lbl, self.vi, self.tag): l.setGraphicsEffect(OutlineEffect(w, l) if w > 0 else None)
+        for l in (self.speaker, self.src_lbl, self.vi, self.tag, self.status): l.setGraphicsEffect(OutlineEffect(w, l) if w > 0 else None)
         self._apply_display(); self.update(); self._render_src()
-        self.btns["translate"].setText("🌐" if c["translate"] else "🔤")
+        self._icons()
         for k, _ in TOOLBAR: self.btns[k].setVisible(k in c["toolbar"])           # nút ghim trên toolbar (Cài đặt → Giao diện)
         for k, b in self.btns.items():
             tip = TIPS.get(k, ""); hk = c["hotkeys"].get(k) or c["hotkeys"].get({"hide": "toggle"}.get(k, ""), "")
@@ -216,13 +231,20 @@ class Overlay(QWidget):
     def _apply_input(self):
         """Chuột xuyên qua overlay khi khóa (trừ lúc giữ Alt) hoặc bật click-through (không chắn chuột game)."""
         want = self.passthrough_wanted()
-        if want: self.bar.setVisible(False)
+        if want: self.bar.setVisible(False); self.status.setVisible(False)
         if sys.platform == "win32": self._passthrough(want); return
         if bool(self.windowFlags() & Qt.WindowTransparentForInput) != want:           # ngoài Windows: dùng flag Qt
             vis = self.isVisible(); self.setWindowFlag(Qt.WindowTransparentForInput, want)
             if vis: self.show()
 
-    def set_paused(self, p): self.btns["pause"].setText("▶▶" if p else "⏸"); self.status.setText("Tạm dừng" if p else "")
+    def _icons(self):
+        """Icon tô theo màu câu gốc, rê chuột -> màu nhấn; nút bật/tắt đổi icon theo trạng thái."""
+        c = self.cfg; on = {"pause": self._paused, "translate": not c["translate"], "lock": c["locked"]}
+        for k, name in TOOLBAR + RIGHT_BTNS:
+            if k in CAPTION and self.cap_font: continue
+            self.btns[k].setIcon(qta.icon(ICON_ON[k] if on.get(k) else name, color=c["src_fg"], color_active=c["accent"]))
+
+    def set_paused(self, p): self._paused = p; self._icons(); self.status.setText("Tạm dừng" if p else "")
 
     # ---- kéo thả / hover toolbar
     def showEvent(self, e): super().showEvent(e); exclude_from_capture(self, self.cfg["hide_from_capture"]); self._apply_input()
@@ -230,7 +252,7 @@ class Overlay(QWidget):
     def set_locked(self, on):
         self.grip.setVisible(not on)
         if on: self._set_bar(False)
-        self.btns["lock"].setText("🔓" if on else "🔒"); self._apply_input()
+        self._icons(); self._apply_input()
         if on and self.cfg["alt_unlock"] and sys.platform == "win32": self.alt_t.start()
         else: self.alt_t.stop(); self._alt = False
 
@@ -255,7 +277,7 @@ class Overlay(QWidget):
             self.src_lbl.setVisible(src); self.vi.setVisible(vi); self._fit()
 
     def _set_bar(self, on):
-        self.bar.setVisible(on); self._tag_vis(); self._apply_display(); self.update()
+        self.bar.setVisible(on); self.status.setVisible(on); self._tag_vis(); self._apply_display(); self.update()
 
     def enterEvent(self, e):
         if self.cfg["locked"] and not self._alt: return     # khóa: rê chuột không hiện gì (giữ Alt thì được)
