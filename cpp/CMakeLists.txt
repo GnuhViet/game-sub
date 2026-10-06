@@ -17,7 +17,7 @@ target_include_directories(GameSub PRIVATE src third_party)
 target_include_directories(GameSub SYSTEM PRIVATE ${CPPWINRT_INCLUDE})
 target_compile_definitions(GameSub PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN GAMESUB_VERSION="${PROJECT_VERSION}")
 target_link_libraries(GameSub PRIVATE Qt6::Widgets Qt6::Network Qt6::Sql Qt6::CorePrivate
-    windowsapp ole32 oleaut32 dwmapi gdi32 user32 shell32 advapi32)
+    runtimeobject ole32 oleaut32 dwmapi gdi32 user32 shell32 advapi32 kernel32)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     target_compile_options(GameSub PRIVATE -Wall -Wno-unused-parameter)
     target_link_options(GameSub PRIVATE -municode)

@@ -93,6 +93,7 @@
   "ocr.capture_ocr_error_e": "Capture/OCR error: {e}",
   "ocr.couldnt_start_ocr_eng_e": "Couldn't start OCR '{eng}': {e}",
   "ocr.rapidocr_is_downloaded_but_failed": "RapidOCR is downloaded but failed to load: {e}",
+  "ocr.rapidocr_not_in_cpp": "RapidOCR isn't supported in the C++ build yet — choose Windows OCR or Tesseract in Settings → OCR",
   "ocr.rapidocr_not_installed_settings_ocr": "RapidOCR not installed — Settings → OCR → “Download RapidOCR”",
   "ocr.saved_region_image_path": "Saved region image: {path}",
   "ocr.tesseract_not_installed_settings_ocr": "Tesseract not installed — Settings → OCR → “Download Tesseract”",

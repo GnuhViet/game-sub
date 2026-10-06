@@ -93,6 +93,7 @@
   "ocr.capture_ocr_error_e": "Lỗi capture/OCR: {e}",
   "ocr.couldnt_start_ocr_eng_e": "Không khởi tạo được OCR '{eng}': {e}",
   "ocr.rapidocr_is_downloaded_but_failed": "RapidOCR đã tải nhưng không nạp được: {e}",
+  "ocr.rapidocr_not_in_cpp": "Bản C++ chưa hỗ trợ RapidOCR — chọn Windows OCR hoặc Tesseract trong Cài đặt → OCR",
   "ocr.rapidocr_not_installed_settings_ocr": "chưa có RapidOCR — Cài đặt → OCR → «Tải RapidOCR»",
   "ocr.saved_region_image_path": "Đã lưu ảnh vùng: {path}",
   "ocr.tesseract_not_installed_settings_ocr": "chưa có Tesseract — Cài đặt → OCR → «Tải Tesseract»",
