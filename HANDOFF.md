@@ -42,9 +42,9 @@ gamesub/hotkeys.py       RegisterHotKey + QAbstractNativeEventFilter
 gamesub/ui_overlay.py    Overlay + WordPopup
 gamesub/ui_region.py     RegionSelector + to_physical
 gamesub/ui_dialogs.py    Settings, Glossary, Vocab, Review, Subs
-gamesub/i18n.py          tr() / N_() / set_lang; bản dịch ở gamesub/locales/<mã>.py (en)
+gamesub/i18n.py          tr("key") / N_() / set_lang; chữ ở gamesub/locales/<mã>.json (vi = gốc, en), tự nhận file mới
 gamesub/assets/          icon.ico / icon.png (vẽ lại: python tools/make_icon.py)
-tools/i18n_check.py      chuỗi thiếu bản dịch (--todo: chuỗi tiếng Việt chưa bọc tr)
+tools/i18n_check.py      key thiếu / thừa / sai biến giữa các file locales (--todo: chuỗi tiếng Việt còn viết thẳng)
 tests/                   test_core, test_capture_translate, test_ui_smoke (offscreen), test_i18n
 ```
 

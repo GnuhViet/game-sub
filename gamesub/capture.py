@@ -33,7 +33,7 @@ class CaptureWorker(QThread):
         try:
             e = ocr.create(self.cfg["ocr_engine"], self.cfg["ocr_lang"]); self.status.emit(f"OCR: {e.name}"); return e
         except Exception as ex:
-            self.error.emit(tr("Không khởi tạo được OCR '{eng}': {e}", eng=self.cfg["ocr_engine"], e=ex)); return None
+            self.error.emit(tr("ocr.couldnt_start_ocr_eng_e", eng=self.cfg["ocr_engine"], e=ex)); return None
 
     def _ocr(self, eng, img):
         s = float(self.cfg["ocr_scale"] or 1)
@@ -49,11 +49,11 @@ class CaptureWorker(QThread):
                 r = self.cfg["region"]
                 if self.snapshot_req and r:
                     from PIL import Image
-                    Image.fromarray(grab(sct, r)).save(self.snapshot_req); self.status.emit(tr("Đã lưu ảnh vùng: {path}", path=self.snapshot_req)); self.snapshot_req = None
+                    Image.fromarray(grab(sct, r)).save(self.snapshot_req); self.status.emit(tr("ocr.saved_region_image_path", path=self.snapshot_req)); self.snapshot_req = None
                 if self.paused or not r or eng is None:
                     time.sleep(0.2); continue
                 if not winapp.is_target(self.cfg["target_app"]):          # đang ở app khác -> không chụp
-                    if not waiting: waiting = True; self.status.emit(tr("Chờ {app}…", app=self.cfg["target_app"]))
+                    if not waiting: waiting = True; self.status.emit(tr("ocr.waiting_for_app", app=self.cfg["target_app"]))
                     time.sleep(0.3); continue
                 if waiting: waiting = False; self.status.emit("")
                 img = grab(sct, r); sig = signature(img)
@@ -68,6 +68,6 @@ class CaptureWorker(QThread):
                         spk = self._ocr(eng, grab(sct, self.cfg["speaker_region"])) if text and self.cfg["speaker_region"] else ""
                         self.text_ready.emit(spk, text)
             except Exception as ex:
-                self.error.emit(tr("Lỗi capture/OCR: {e}", e=ex)); traceback.print_exc(); time.sleep(1)
+                self.error.emit(tr("ocr.capture_ocr_error_e", e=ex)); traceback.print_exc(); time.sleep(1)
             time.sleep(max(0.02, self.cfg["interval_ms"] / 1000 - (time.time() - t0)))
         sct.close()

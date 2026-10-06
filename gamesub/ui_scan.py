@@ -12,7 +12,7 @@ class ScanWindow(QWidget):
 
     def __init__(self, cfg):
         super().__init__(None, Qt.Tool | Qt.WindowStaysOnTopHint); self.cfg = cfg; self.src = ""; self.setAttribute(Qt.WA_AlwaysShowToolTips)
-        self.setWindowTitle(tr("Dịch vùng — hover từ để tra nghĩa")); self.resize(620, 560)
+        self.setWindowTitle(tr("scan.area_translation_hover_word_look")); self.resize(620, 560)
         v = QVBoxLayout(self); v.setContentsMargins(8, 8, 8, 8)
         self.src_view = QTextBrowser(); self.src_view.setOpenLinks(False)
         self.src_view.highlighted.connect(lambda u: self.word_hover.emit(self._word(u), QCursor.pos()))
@@ -21,7 +21,7 @@ class ScanWindow(QWidget):
         self.vi_view = QTextBrowser()
         sp = QSplitter(Qt.Vertical); sp.addWidget(self.src_view); sp.addWidget(self.vi_view); v.addWidget(sp, 1)
         hb = QHBoxLayout(); self.tag = QLabel(); hb.addWidget(self.tag, 1)
-        for k, t in [("scan", tr("📷 Chụp lại")), ("scan_retranslate", tr("Dịch lại")), ("copy", tr("Copy")), ("close", tr("Đóng"))]:
+        for k, t in [("scan", tr("scan.scan")), ("scan_retranslate", tr("scan.scan_retranslate")), ("copy", tr("scan.copy")), ("close", tr("scan.close"))]:
             b = QPushButton(t); b.clicked.connect(lambda _=0, k=k: self._btn(k)); hb.addWidget(b)
         v.addLayout(hb); self.apply_style()
 

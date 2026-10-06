@@ -13,7 +13,7 @@ class StarDict:
         bits = 64 if info.get("idxoffsetbits") == "64" else 32
         base = ifo.with_suffix("")
         idx = next((p for p in (Path(f"{base}.idx"), Path(f"{base}.idx.gz")) if p.exists()), None)
-        if not idx: raise FileNotFoundError(tr("Thiếu file .idx cho {name}", name=ifo.name))
+        if not idx: raise FileNotFoundError(tr("dict.missing_idx_file_for_name", name=ifo.name))
         raw = gzip.decompress(idx.read_bytes()) if idx.suffix == ".gz" else idx.read_bytes()
         dz, dc = Path(f"{base}.dict.dz"), Path(f"{base}.dict")
         self.data = gzip.decompress(dz.read_bytes()) if dz.exists() else dc.read_bytes()

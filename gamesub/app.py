@@ -45,7 +45,7 @@ def on_top(dlg):
     dlg.setWindowFlag(Qt.WindowStaysOnTopHint, True); return dlg
 
 ICON = Path(__file__).resolve().parent / "assets" / "icon.ico"
-WAIT_ONLINE, WAIT_GOOGLE, WAIT_AI = N_("Đang tra online…"), N_("Đang dịch…"), N_("AI đang giải nghĩa…")     # chữ chờ trong popup tra từ (dịch lúc hiện)
+WAIT_ONLINE, WAIT_GOOGLE, WAIT_AI = N_("app.looking_up_online"), N_("app.translating"), N_("app.ai_is_explaining")     # chữ chờ trong popup tra từ (dịch lúc hiện)
 
 def migrate_db(d):
     """Đổi tên app (WuWa Sub -> Game Sub): wuwasub.db (+ -wal/-shm) -> gamesub.db, giữ nguyên sub / glossary / sổ từ.
@@ -87,10 +87,10 @@ class App:
         self._tray()
         self.elev_warned = set(); self.elev_t = QTimer(interval=2000, timeout=self._check_elevation); self.elev_t.start()
         self.ov.show()
-        hint = [] if cfg["region"] else [tr("Bấm nút chọn vùng (hoặc {hk}) để chọn vùng thoại.", hk=cfg["hotkeys"]["region"])]
-        if not len(self.index): hint.append(tr("Bấm nút thư mục (Bộ sub) để nhập bộ sub."))
-        if self.dicts.errors: hint.append(tr("Lỗi từ điển: {e}", e="; ".join(self.dicts.errors)))
-        self.ov.show_line("", "", " ".join(hint) or tr("Sẵn sàng."), tr("{n} câu sub", n=f"{len(self.index):,}"))
+        hint = [] if cfg["region"] else [tr("app.press_select_region_button_or", hk=cfg["hotkeys"]["region"])]
+        if not len(self.index): hint.append(tr("app.press_folder_button_subtitle_pack"))
+        if self.dicts.errors: hint.append(tr("app.dictionary_error_e", e="; ".join(self.dicts.errors)))
+        self.ov.show_line("", "", " ".join(hint) or tr("app.ready"), tr("app.n_subtitle_lines", n=f"{len(self.index):,}"))
 
     # ---------------- setup
     def rebuild_index(self):
@@ -103,19 +103,19 @@ class App:
 
     def _register_hotkeys(self):
         errs = self.hk.register(self.cfg["hotkeys"])
-        if errs: self.ov.status.setText(tr("Hotkey bị trùng: {keys}", keys=", ".join(errs)))
+        if errs: self.ov.status.setText(tr("app.hotkey_conflict_keys", keys=", ".join(errs)))
 
     def _tray(self):
         self.icon = QIcon(str(ICON)); self.q.setWindowIcon(self.icon)          # vẽ lại: python tools/make_icon.py
         self.tray = QSystemTrayIcon(self.icon); m = QMenu()
-        for txt, k in [(N_("Ẩn/hiện overlay"), "toggle"), (N_("Chụp & dịch 1 vùng"), "scan"), (N_("Chọn vùng"), "region"), (N_("Tạm dừng"), "pause"), (N_("Bộ sub"), "subs"),
-                       (N_("Glossary"), "glossary"), (N_("Sổ từ"), "vocab"), (N_("Cài đặt"), "settings"), (None, None)] + ([] if winapp.self_elevated() else [(N_("Chạy lại với quyền admin"), "relaunch_admin")]) + [(N_("Thoát"), "quit")]:
+        for txt, k in [(N_("tray.toggle"), "toggle"), (N_("tray.scan"), "scan"), (N_("tray.region"), "region"), (N_("tray.pause"), "pause"), (N_("tray.subs"), "subs"),
+                       (N_("tray.glossary"), "glossary"), (N_("tray.vocab"), "vocab"), (N_("tray.settings"), "settings"), (None, None)] + ([] if winapp.self_elevated() else [(N_("tray.relaunch_admin"), "relaunch_admin")]) + [(N_("tray.quit"), "quit")]:
             if txt is None: m.addSeparator(); continue
             a = QAction(tr(txt), m); a.triggered.connect(lambda _=0, k=k: self.on_action(k)); m.addAction(a)
             if k == "pause":
-                self.ct_action = a = QAction(tr("Click-through (chuột xuyên qua)"), m); a.setCheckable(True); a.setChecked(self.cfg["click_through"])
+                self.ct_action = a = QAction(tr("app.click_through_mouse_passes_through"), m); a.setCheckable(True); a.setChecked(self.cfg["click_through"])
                 a.triggered.connect(lambda _=0: self.on_action("clickthrough")); m.addAction(a)
-                self.lock_action = a = QAction(tr("Khóa overlay"), m); a.setCheckable(True); a.setChecked(self.cfg["locked"])
+                self.lock_action = a = QAction(tr("app.lock_overlay"), m); a.setCheckable(True); a.setChecked(self.cfg["locked"])
                 a.triggered.connect(lambda _=0: self.on_action("lock")); m.addAction(a)
         self.tray.setContextMenu(m); self.tray.setToolTip("Game Sub"); self.tray_menu = m
         self.tray.activated.connect(lambda r: self.on_action("toggle") if r == QSystemTrayIcon.Trigger else None)
@@ -140,16 +140,16 @@ class App:
 
     def resolve(self, line, machine=False):
         c = self.cfg
-        if not c["translate"] and not machine: line.update(vi="", tag=tr("Không dịch — chỉ câu gốc"), notr=True, alert=False); self.render(line); return
+        if not c["translate"] and not machine: line.update(vi="", tag=tr("app.not_translating_source_text_only"), notr=True, alert=False); self.render(line); return
         if c["use_subs"] and not machine:
             m = self.index.match(line["src"], c["fuzzy_threshold"])
-            if m: line.update(vi=m.vi, tag=tr("Bộ sub · khớp {p}%", p=f"{m.score:.0f}"), notr=False, alert=False); self.render(line); return
+            if m: line.update(vi=m.vi, tag=tr("app.subtitle_pack_p_match", p=f"{m.score:.0f}"), notr=False, alert=False); self.render(line); return
         line.update(tag="", busy=True, notr=False, alert=False); self.render(line)               # không hiện "Đang dịch…"
         i = next((k for k, l in enumerate(self.history) if l is line), len(self.history))
         ctx = [(l["speaker"], l["src"], l["vi"]) for l in self.history[max(0, i - c["context_lines"]):i]] if c["context_lines"] else []
         def partial(t): line["vi"] = t; self.render(line)
         def done(res): line.update(vi=res[0], tag=self.tr.label(res[1]) + self._note(res[2] if len(res) > 2 else ""), busy=False); self.render(line)
-        def err(e): line.update(tag=tr("Lỗi dịch: {e}", e=e), busy=False, alert=True); self.render(line)
+        def err(e): line.update(tag=tr("app.translation_error_e", e=e), busy=False, alert=True); self.render(line)
         run(lambda p: self.tr.translate(line["src"], line["speaker"], ctx, p), done, err, partial)
 
     def _note(self, note):
@@ -171,8 +171,8 @@ class App:
         pid, exe = winapp.foreground(); tgt = self.cfg["target_app"]
         if not exe or exe in self.elev_warned or (tgt and exe != tgt) or not winapp.elevated(pid): return
         self.elev_warned.add(exe)
-        msg = tr("{exe} chạy quyền admin nên hotkey / giữ phím mở khóa không tới được GameSub. Menu khay → «Chạy lại với quyền admin».", exe=exe)
-        self.ov.status.setText(tr("⚠ Game chạy quyền admin — xem menu khay")); self.tray.showMessage("Game Sub", msg, QSystemTrayIcon.Warning, 8000)
+        msg = tr("app.exe_runs_as_administrator_so", exe=exe)
+        self.ov.status.setText(tr("app.game_runs_as_administrator_see")); self.tray.showMessage("Game Sub", msg, QSystemTrayIcon.Warning, 8000)
 
     def _auto_hide(self):
         if self.ov.isVisible() and not self.ov.underMouse() and not self.pop.isVisible():
@@ -204,8 +204,8 @@ class App:
     def _meta(self, word):
         out = []
         g = next((g for g in self.db.glossary() if g["term"].lower() == word.lower()), None)
-        if g: out.append("🏷 " + (tr("giữ nguyên") if g["mode"] == "keep" or not g["vi"] else f"→ {html.escape(g['vi'])}") + (f" — {html.escape(g['note'])}" if g["note"] else ""))
-        if self.db.has_vocab(word): out.append("📖 " + tr("đã có trong sổ từ"))
+        if g: out.append("🏷 " + (tr("app.keep_as_is") if g["mode"] == "keep" or not g["vi"] else f"→ {html.escape(g['vi'])}") + (f" — {html.escape(g['note'])}" if g["note"] else ""))
+        if self.db.has_vocab(word): out.append("📖 " + tr("app.already_in_vocabulary"))
         return ("<div style='color:%s;font-size:11px'>%s</div>" % (self.cfg["accent"], " · ".join(out))) if out else ""
 
     def lookup(self, word, pos, pinned=False):
@@ -213,29 +213,29 @@ class App:
         mode, meta, sent = self.cfg["dict_mode"], self._meta(word), self.cur_line()["src"]
         if mode in ("offline", "auto"):
             r = self.dicts.lookup(word)
-            if r: self.pop.show_for(word, r[0], meta, r[1], pos, pinned, tr("Từ điển offline")); return
+            if r: self.pop.show_for(word, r[0], meta, r[1], pos, pinned, tr("app.offline_dictionary")); return
             if mode == "offline":
-                self.pop.show_for(word, "", meta, "<i>" + tr("Không có trong từ điển offline.") + "</i>" + ("" if self.dicts.dicts else "<br><i>" + tr("Chưa nạp file từ điển (Cài đặt → Từ điển).") + "</i>"), pos, pinned, tr("Từ điển offline")); return
+                self.pop.show_for(word, "", meta, "<i>" + tr("app.not_in_offline_dictionary") + "</i>" + ("" if self.dicts.dicts else "<br><i>" + tr("app.no_dictionary_file_loaded_settings") + "</i>"), pos, pinned, tr("app.offline_dictionary")); return
         if mode in ("google", "auto", "online"):
             tl = self.cfg["target_lang"]
-            key, fn, wait, srcname = (("on:" + word.lower(), lambda _: online_lookup(word), WAIT_ONLINE, tr("dictionaryapi.dev (Anh-Anh)")) if mode == "online" else
+            key, fn, wait, srcname = (("on:" + word.lower(), lambda _: online_lookup(word), WAIT_ONLINE, tr("app.dictionaryapi_dev_english_english")) if mode == "online" else
                              (f"gg:{tl}:{word.lower()}", lambda _: google_lookup(word, tl, self.cfg["timeout_s"]), WAIT_GOOGLE, "Google Translate"))
-            cached = self.db.cache_get(key); miss = "<i>" + tr("Không tìm thấy. Bấm «AI ngữ cảnh».") + "</i>"
+            cached = self.db.cache_get(key); miss = "<i>" + tr("app.not_found_press_ai_in") + "</i>"
             if cached is not None: self.pop.show_for(word, "", meta, cached or miss, pos, pinned, srcname); return
             self.pop.show_for(word, "", meta, f"<i>{tr(wait)}</i>", pos, pinned, srcname)
             self._fetch(key, fn, lambda r: self.pop.set_body(word, (r[1] if r else "") or miss), lambda r: (r[1] if r else ""),
-                        lambda e: self.pop.set_body(word, "<i>" + tr("Lỗi tra: {e}", e=html.escape(e)) + "</i>")); return
+                        lambda e: self.pop.set_body(word, "<i>" + tr("app.lookup_error_e", e=html.escape(e)) + "</i>")); return
         self.explain(word, sent, pos, pinned)
 
     def explain(self, word, sentence, pos=None, pinned=True):
         key = f"ai:{word.lower()}|{norm(sentence)}"; fmt = lambda t: html.escape(t).replace("\n", "<br>")
         wait = f"<i>{tr(WAIT_AI)}</i>"
-        if pos is not None or not (self.pop.isVisible() and self.pop.word == word): self.pop.show_for(word, "", self._meta(word), wait, pos or QCursor.pos(), pinned, tr("AI ngữ cảnh"))
-        else: self.pop.pinned = True; self.pop.source.setText(tr("AI ngữ cảnh")); self.pop.set_body(word, wait)
+        if pos is not None or not (self.pop.isVisible() and self.pop.word == word): self.pop.show_for(word, "", self._meta(word), wait, pos or QCursor.pos(), pinned, tr("app.ai_in_context"))
+        else: self.pop.pinned = True; self.pop.source.setText(tr("app.ai_in_context")); self.pop.set_body(word, wait)
         cached = self.db.cache_get(key)
         if cached: self.pop.set_body(word, fmt(cached)); return
         self._fetch(key, lambda _: self.tr.explain(word, sentence), lambda t: self.pop.set_body(word, fmt(t)), lambda t: t,
-                    lambda e: self.pop.set_body(word, "<i>" + tr("Lỗi: {e}", e=html.escape(e)) + "</i>"))
+                    lambda e: self.pop.set_body(word, "<i>" + tr("app.error_e", e=html.escape(e)) + "</i>"))
 
     def _fetch(self, key, fn, show, to_cache, error):
         """Gọi mạng 1 lần cho mỗi key: đang chờ thì không gửi trùng (popup tự cập nhật khi kết quả về)."""
@@ -259,11 +259,11 @@ class App:
         elif act == "vocab":
             waiting = self.pop.raw in {f"<i>{tr(w)}</i>" for w in (WAIT_ONLINE, WAIT_GOOGLE, WAIT_AI)}     # nghĩa chưa về thì không lưu chữ "Đang…"
             body = self.pop.raw if self.pop.word == phrase and self.pop.isVisible() and not waiting else ""
-            self.db.add_vocab(phrase, body, line["src"], line.get("vi", "")); self._toast(tr("Đã lưu «{w}» vào sổ từ", w=phrase))
-        elif act == "keep": self.db.set_term(phrase, "", "keep"); self._toast(tr("Glossary: giữ nguyên «{w}»", w=phrase))
+            self.db.add_vocab(phrase, body, line["src"], line.get("vi", "")); self._toast(tr("app.saved_w_vocabulary", w=phrase))
+        elif act == "keep": self.db.set_term(phrase, "", "keep"); self._toast(tr("app.glossary_keep_w_as_is", w=phrase))
         elif act == "translate":
             g = next((g for g in self.db.glossary() if g["term"].lower() == phrase.lower()), None)
-            d = on_top(QInputDialog()); d.setWindowTitle("Glossary"); d.setLabelText(tr("Dịch «{w}» là:", w=phrase)); d.setTextValue(g["vi"] if g else "")
+            d = on_top(QInputDialog()); d.setWindowTitle(tr("app.glossary_title")); d.setLabelText(tr("app.translate_w_as", w=phrase)); d.setTextValue(g["vi"] if g else "")
             if d.exec() and d.textValue().strip(): self.db.set_term(phrase, d.textValue().strip(), "translate"); self._toast(f"Glossary: {phrase} → {d.textValue().strip()}")
         if act in ("vocab", "keep", "translate") and self.pop.isVisible() and self.pop.word == phrase:
             self.pop.set_body(phrase, self.pop.raw, self._meta(phrase))
@@ -279,11 +279,11 @@ class App:
         elif k == "pause": self.worker.paused = not self.worker.paused; self.ov.set_paused(self.worker.paused)
         elif k == "rescan": self.last = ""; self.worker.force = True
         elif k == "translate":
-            c["translate"] = not c["translate"]; c.save(); self.ov.apply_style(); self._toast(tr("Dịch: BẬT") if c["translate"] else tr("Dịch: TẮT — chỉ câu gốc"))
+            c["translate"] = not c["translate"]; c.save(); self.ov.apply_style(); self._toast(tr("app.translation_on") if c["translate"] else tr("app.translation_off_source_text_only"))
             if self.history: self.resolve(self.history[self.pos])
         elif k == "lock":
             c["locked"] = not c["locked"]; c.save(); self.ov.set_locked(c["locked"]); self.lock_action.setChecked(c["locked"])
-            self._toast(tr("Đã khóa overlay (chuột xuyên qua) — {hk} hoặc menu khay để mở", hk=c["hotkeys"].get("lock", "")) if c["locked"] else tr("Đã mở khóa overlay"))
+            self._toast(tr("app.overlay_locked_mouse_passes_through", hk=c["hotkeys"].get("lock", "")) if c["locked"] else tr("app.overlay_unlocked"))
         elif k == "clear": self.ov.show_line("", "", "", ""); self.pop.close_pop()
         elif k == "retranslate" and self.history: self.resolve(self.history[self.pos], machine=True)
         elif k in ("region", "speaker", "scan"): self.select_region(k)
@@ -292,7 +292,7 @@ class App:
         elif k == "toggle": self.auto_hidden = False; self.ov.setVisible(not self.ov.isVisible()); self.pop.hide()
         elif k == "clickthrough":
             c["click_through"] = not c["click_through"]; self.ov.set_click_through(c["click_through"]); self.ct_action.setChecked(c["click_through"])
-            self._toast(tr("Click-through: BẬT — {hk} để tắt", hk=c["hotkeys"].get("clickthrough", "")) if c["click_through"] else tr("Click-through: TẮT"))
+            self._toast(tr("app.click_through_on_hk_turn", hk=c["hotkeys"].get("clickthrough", "")) if c["click_through"] else tr("app.click_through_off"))
         elif k == "hide": self.auto_hidden = False; self.ov.hide(); self.pop.hide(); self._toast("")
         elif k == "subs": on_top(SubsDialog(self.db, self.index, c, self.rebuild_index)).exec(); self.render()
         elif k == "glossary": on_top(GlossaryDialog(self.db, c)).exec(); self._known_words()
@@ -307,8 +307,8 @@ class App:
         if self.flash: self._flash_off(); return
         c = self.cfg
         self.flash = [RegionFlash(to_logical(r), name, col) for r, name, col in
-                      [(c["region"], tr("Vùng thoại"), c["accent"]), (c["speaker_region"], tr("Vùng tên nhân vật"), "#6ab7e8")] if r]
-        if not self.flash: self._toast(tr("Chưa chọn vùng thoại — bấm nút chọn vùng ({hk})", hk=c["hotkeys"]["region"])); return
+                      [(c["region"], tr("app.dialogue_area"), c["accent"]), (c["speaker_region"], tr("app.speaker_name_area"), "#6ab7e8")] if r]
+        if not self.flash: self._toast(tr("app.no_dialogue_area_selected_press", hk=c["hotkeys"]["region"])); return
         for w in self.flash: w.show()
         self.flash_t.start()
 
@@ -321,14 +321,14 @@ class App:
         ov_vis, scan_vis = self.ov.isVisible() or kind != "scan", self.scan_win.isVisible()
         self.ov.hide(); self.pop.hide(); self.scan_win.hide(); self.worker.paused = True
         def go():
-            title = {"region": N_("Kéo chọn vùng THOẠI cần dịch — Esc để hủy"), "scan": N_("Kéo chọn vùng cần dịch 1 lần (thư, bảng…) — Esc để hủy")}.get(kind, N_("Kéo chọn vùng TÊN NHÂN VẬT — Esc để hủy / bỏ vùng tên"))
+            title = {"region": N_("app.drag_select_dialogue_area_translate"), "scan": N_("app.drag_select_area_translate_once")}.get(kind, N_("app.drag_select_speaker_name_area"))
             self.sel = RegionSelector(tr(title))
             def ok(r):
                 if kind == "scan": end(); self.scan_capture(r); return
                 self.cfg["region" if kind == "region" else "speaker_region"] = r; self.cfg.save(); self.last = ""; self.worker.force = True; end()
             def cancel():
                 if kind == "speaker" and self.cfg["speaker_region"]:
-                    b = QMessageBox.question(None, tr("Vùng tên nhân vật"), tr("Bỏ vùng tên nhân vật hiện tại?"))
+                    b = QMessageBox.question(None, tr("app.speaker_name_area"), tr("app.remove_current_speaker_name_area"))
                     if b == QMessageBox.Yes: self.cfg["speaker_region"] = None; self.cfg.save()
                 end()
             def end():
@@ -341,7 +341,7 @@ class App:
     # ---------------- chụp & dịch 1 vùng
     def scan_capture(self, r):
         c = self.cfg; use_gem = c["scan_engine"] == "gemini_image" and c["translate"]
-        self.scan_win.show_result(self.scan["src"], "", tr("Gemini đang đọc ảnh…") if use_gem else tr("Đang OCR…"))
+        self.scan_win.show_result(self.scan["src"], "", tr("app.gemini_is_reading_image") if use_gem else tr("app.running_ocr"))
         def work(partial):
             with open_sct() as sct: img = grab(sct, r)
             gem_err = ""
@@ -356,26 +356,26 @@ class App:
         def done(res):
             kind, text, extra = res
             if kind == "gemini":
-                self.scan = {"src": text, "vi": extra}; self.scan_win.show_result(text, extra, tr("Gemini đọc ảnh · {model}", model=c["gemini_model"])); return
-            note = tr("Gemini đọc ảnh lỗi: {e} → dùng OCR", e=extra) if extra else ""
+                self.scan = {"src": text, "vi": extra}; self.scan_win.show_result(text, extra, tr("app.gemini_image_reading_model", model=c["gemini_model"])); return
+            note = tr("app.gemini_image_reading_failed_e", e=extra) if extra else ""
             if c["fix_spacing"]: text = self.spacer.fix(text)
             self.scan = {"src": text, "vi": "", "note": note}
-            if not text.strip(): self.scan_win.show_result("", "", tr("Không đọc được chữ trong vùng này") + self._note(note)); return
+            if not text.strip(): self.scan_win.show_result("", "", tr("app.no_text_could_be_read") + self._note(note)); return
             self.scan_translate()
-        run(work, done, lambda e: self.scan_win.show_result(self.scan["src"], "", tr("Lỗi OCR: {e}", e=e)),
-            lambda t: self.scan_win.show_result("", t, tr("Gemini đang đọc ảnh…")))
+        run(work, done, lambda e: self.scan_win.show_result(self.scan["src"], "", tr("app.ocr_error_e", e=e)),
+            lambda t: self.scan_win.show_result("", t, tr("app.gemini_is_reading_image")))
 
     def scan_translate(self, machine=False):
         c, sc = self.cfg, self.scan; src = sc["src"]
-        if not c["translate"] and not machine: self.scan_win.show_result(src, "", tr("Không dịch — chỉ câu gốc")); return
+        if not c["translate"] and not machine: self.scan_win.show_result(src, "", tr("app.not_translating_source_text_only")); return
         m = self.index.match(src, c["fuzzy_threshold"]) if c["use_subs"] and not machine else None
-        if m: sc["vi"] = m.vi; self.scan_win.show_result(src, m.vi, tr("Bộ sub · khớp {p}%", p=f"{m.score:.0f}")); return
-        self.scan_win.show_result(src, "", tr("Đang dịch…"))
-        def partial(t): self.scan_win.show_result(src, t, tr("Đang dịch…"))
+        if m: sc["vi"] = m.vi; self.scan_win.show_result(src, m.vi, tr("app.subtitle_pack_p_match", p=f"{m.score:.0f}")); return
+        self.scan_win.show_result(src, "", tr("app.translating"))
+        def partial(t): self.scan_win.show_result(src, t, tr("app.translating"))
         def done(res):
             sc["vi"] = res[0]
             self.scan_win.show_result(src, res[0], self.tr.label(res[1]) + self._note(sc.get("note", "")) + self._note(res[2] if len(res) > 2 else ""))
-        run(lambda p: self.tr.translate(src, "", [], p, engine=c["scan_engine"]), done, lambda e: self.scan_win.show_result(src, "", tr("Lỗi dịch: {e}", e=e)), partial)
+        run(lambda p: self.tr.translate(src, "", [], p, engine=c["scan_engine"]), done, lambda e: self.scan_win.show_result(src, "", tr("app.translation_error_e", e=e)), partial)
 
     def open_settings(self):
         c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens", "translate", "ui_lang")}
@@ -387,7 +387,7 @@ class App:
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:
             self.dicts.load(c["dict_files"])
-            if self.dicts.errors: QMessageBox.warning(None, tr("Từ điển"), "\n".join(self.dicts.errors))
+            if self.dicts.errors: QMessageBox.warning(None, tr("app.dictionary"), "\n".join(self.dicts.errors))
         if any(c[k] != old[k] for k in ("gender", "player_name", "name_tokens")): self.rebuild_index()
         self.ov.apply_style(); self.pop.apply_style(); self.scan_win.apply_style(); self._register_hotkeys(); self.render()
         if c["translate"] != old["translate"] and self.history: self.resolve(self.history[self.pos])

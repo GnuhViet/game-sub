@@ -24,7 +24,7 @@ def google_free(s, text, tl, timeout, cool):
             d = r.json(); d = d[0] if isinstance(d, list) and d else d
             return d[0] if isinstance(d, list) else str(d)
     if r.status_code == 429:
-        cool["google"] = time.time() + GOOGLE_COOLDOWN; raise ProviderError(tr("Google tạm chặn do gửi quá nhiều (429), thử lại sau 10s"))
+        cool["google"] = time.time() + GOOGLE_COOLDOWN; raise ProviderError(tr("translator.google_is_temporarily_blocking_too"))
     raise ProviderError(f"Google HTTP {r.status_code}")
 
 class Translator:
@@ -71,14 +71,14 @@ class Translator:
     def _translate(self, text, speaker, context, on_partial, eng):
         errs = []
         for name in CHAINS.get(eng, ["google"]):
-            if time.time() < self.cool.get(name, 0): errs.append(f"{name}: " + tr("đang nghỉ do bị giới hạn (429)")); continue
-            note = ("; ".join(errs)).replace("gemini:", tr("Gemini lỗi:"))
+            if time.time() < self.cool.get(name, 0): errs.append(f"{name}: " + tr("translator.paused_after_rate_limit_429")); continue
+            note = ("; ".join(errs)).replace("gemini:", tr("translator.gemini_error"))
             try:
                 if name == "google": return self.google(text), name, note
                 if name == "gemini": return self.gemini(self.system_prompt(text), self.user_prompt(text, speaker, context), on_partial), name, note
             except ProviderError as e: errs.append(f"{name}: {e}")
             except requests.RequestException as e: errs.append(f"{name}: {type(e).__name__}")
-        raise ProviderError("; ".join(errs) or tr("Chưa cấu hình nhà cung cấp dịch"))
+        raise ProviderError("; ".join(errs) or tr("translator.no_translation_provider_configured"))
 
     def label(self, name):
         """Tên hiển thị nguồn bản dịch ở góc overlay."""
@@ -90,19 +90,19 @@ class Translator:
         if self.cfg["gemini_key"] and time.time() >= self.cool.get("gemini", 0):
             try: return self.gemini("", p, None)
             except (ProviderError, requests.RequestException): pass
-        g = self.google(word); return g + " " + tr("(Google — cần Gemini key để giải nghĩa AI)")
+        g = self.google(word); return g + " " + tr("translator.google_gemini_key_is_needed")
 
     # ---------- providers
     def _check(self, name, r):
         if r.status_code == 429:
-            self.cool[name] = time.time() + self.cfg["cooldown_s"]; raise ProviderError(tr("hết quota (429)"))
+            self.cool[name] = time.time() + self.cfg["cooldown_s"]; raise ProviderError(tr("translator.out_quota_429"))
         if r.status_code >= 400:
             try: msg = r.json().get("error", {}); msg = msg.get("message", msg) if isinstance(msg, dict) else msg
             except Exception: msg = r.text[:200]
             msg = str(msg)
-            if "API key not valid" in msg or "API_KEY_INVALID" in msg: raise ProviderError(tr("API key sai"))
-            if r.status_code == 404: raise ProviderError(tr("model '{m}' không tồn tại / không dùng được", m=self.cfg.get("gemini_model")))
-            if r.status_code == 403: raise ProviderError(tr("key không có quyền (bị chặn hoặc chưa bật Gemini API)"))
+            if "API key not valid" in msg or "API_KEY_INVALID" in msg: raise ProviderError(tr("translator.invalid_api_key"))
+            if r.status_code == 404: raise ProviderError(tr("translator.model_m_doesnt_exist_isnt", m=self.cfg.get("gemini_model")))
+            if r.status_code == 403: raise ProviderError(tr("translator.key_not_permitted_blocked_or"))
             raise ProviderError(f"HTTP {r.status_code} {msg[:160]}")
 
     def google(self, text):
@@ -150,12 +150,12 @@ class Translator:
         split = lambda t: [x.strip() for x in t.split(SEP, 1)] if SEP in t else ["", t.strip()]
         part = (lambda t: on_partial(split(t)[1] if SEP in t else "")) if on_partial else None
         src, vi = split(self.gemini(self.system_prompt(""), user, part, image=png, max_tokens=4096))
-        if not src: raise ProviderError(tr("Gemini không trả về chữ đọc được"))
+        if not src: raise ProviderError(tr("translator.gemini_returned_no_readable_text"))
         return src, vi
 
     def gemini(self, system, user, on_partial, image=None, max_tokens=1024):
         c = self.cfg
-        if not c["gemini_key"]: raise ProviderError(tr("chưa có API key"))
+        if not c["gemini_key"]: raise ProviderError(tr("translator.no_api_key"))
         parts = [{"text": user}]
         if image: parts.insert(0, {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(image).decode()}})
         body = {"contents": [{"role": "user", "parts": parts}],
@@ -186,5 +186,5 @@ class Translator:
 def _gem_text(d):
     try: return "".join(p.get("text", "") for p in d["candidates"][0]["content"]["parts"] if not p.get("thought"))
     except (KeyError, IndexError):
-        if d.get("promptFeedback", {}).get("blockReason"): raise ProviderError(tr("bị chặn bởi safety filter"))
+        if d.get("promptFeedback", {}).get("blockReason"): raise ProviderError(tr("translator.blocked_by_safety_filter"))
         return ""

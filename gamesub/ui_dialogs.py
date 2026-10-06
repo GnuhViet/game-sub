@@ -12,138 +12,130 @@ from .dictionary import LANGS
 from .ui_overlay import outline_offsets, TOOLBAR, TIPS
 from .i18n import tr, N_, LANGS as UI_LANGS
 
-DIALOG_ENGINES = {"google": N_("Google Translate (nhanh, free)"), "gemini_google": N_("Gemini AI (hiểu ngữ cảnh) — lỗi/hết quota thì Google"),
-                  "gemini": N_("Chỉ Gemini AI")}
-SCAN_ENGINES = {"ocr_google": N_("OCR + Google Translate"), "ocr_gemini": N_("OCR + Gemini AI (lỗi thì Google)"),
-                "gemini_image": N_("Gemini AI đọc thẳng ảnh (chính xác nhất; lỗi thì OCR + Google)")}
+DIALOG_ENGINES = {"google": N_("settings.translate.dialog_engine.google"), "gemini_google": N_("settings.translate.dialog_engine.gemini_google"),
+                  "gemini": N_("settings.translate.dialog_engine.gemini")}
+SCAN_ENGINES = {"ocr_google": N_("settings.translate.scan_engine.ocr_google"), "ocr_gemini": N_("settings.translate.scan_engine.ocr_gemini"),
+                "gemini_image": N_("settings.translate.scan_engine.gemini_image")}
 
 OCR_TIPS = {
-    "ocr_engine": N_("Bộ nhận dạng chữ. Windows OCR có sẵn trong Windows, nhanh và nhẹ, đủ tốt cho thoại game. "
-                  "RapidOCR chạy offline, đọc chuẩn hơn với chữ nhỏ / nền rối nhưng nặng hơn. RapidOCR và Tesseract phải tải ở mục bên dưới."),
-    "ocr_lang": N_("Ngôn ngữ chữ trong game. Windows OCR dùng mã en-US, ja, zh-Hans-CN, ko… và cần gói ngôn ngữ đó trong Windows "
-                "(Settings → Time & Language → Language). Tesseract dùng mã eng, jpn, chi_sim… RapidOCR bỏ qua ô này."),
-    "ocr_scale": N_("Phóng to ảnh vùng thoại trước khi OCR. Chữ nhỏ (màn hình độ phân giải thấp) hay bị đọc sai thì thử 1.5–2. "
-                 "Càng lớn càng chậm. 1 = giữ nguyên."),
-    "interval_ms": N_("Cứ bao lâu chụp vùng thoại một lần để xem chữ có đổi không. Nhỏ hơn = bắt câu mới nhanh hơn nhưng tốn CPU hơn. "
-                   "Chỉ khi ảnh thay đổi mới chạy OCR."),
-    "stable_ms": N_("Ảnh vùng thoại phải đứng yên bao lâu mới OCR. Game hiện chữ dần từng ký tự: chờ chữ hiện hết rồi mới đọc để không dịch câu dở dang. "
-                 "Câu bị cắt nửa thì tăng lên; muốn hiện nhanh hơn thì giảm."),
-    "diff_threshold": N_("Ảnh vùng thoại phải khác lần chụp trước bao nhiêu mới tính là có thay đổi (độ lệch sáng trung bình, thang 0–255). "
-                      "Nền game động (nước, lửa, hiệu ứng) làm OCR chạy liên tục thì tăng lên; câu mới mà không được nhận thì giảm xuống."),
-    "dedupe_ratio": N_("Câu OCR ra giống câu vừa dịch từ mức này trở lên thì bỏ qua, không dịch lại (mỗi lần OCR có thể lệch vài ký tự). "
-                    "100 = chỉ bỏ qua khi giống hệt."),
-    "target_app": N_("Chỉ chụp & dịch khi cửa sổ app này đang được chọn; chuyển sang app khác thì tạm ngưng (đỡ tốn CPU, không dịch nhầm). "
-                  "Wuthering Waves là client-win64-shipping.exe. Bấm «Làm mới» để cập nhật danh sách app đang mở."),
-    "clear_on_empty": N_("Hết thoại (vùng thoại không còn chữ) thì xóa chữ trên overlay. Tắt thì câu cuối vẫn giữ đến khi có câu mới."),
-    "fix_spacing": N_("OCR đôi khi đọc dính các từ vào nhau. Bật để tự tách lại trước khi dịch; tên riêng trong bộ sub / glossary được giữ nguyên."),
+    "ocr_engine": N_("settings.ocr.tip.ocr_engine"),
+    "ocr_lang": N_("settings.ocr.tip.ocr_lang"),
+    "ocr_scale": N_("settings.ocr.tip.ocr_scale"),
+    "interval_ms": N_("settings.ocr.tip.interval_ms"),
+    "stable_ms": N_("settings.ocr.tip.stable_ms"),
+    "diff_threshold": N_("settings.ocr.tip.diff_threshold"),
+    "dedupe_ratio": N_("settings.ocr.tip.dedupe_ratio"),
+    "target_app": N_("settings.ocr.tip.target_app"),
+    "clear_on_empty": N_("settings.ocr.tip.clear_on_empty"),
+    "fix_spacing": N_("settings.ocr.tip.fix_spacing"),
 }
-SNAP_TIP = N_("Lưu ảnh vùng thoại đang chụp ra file để xem OCR thực sự nhìn thấy gì (vùng có lệch không, ảnh có bị đen không).")
+SNAP_TIP = N_("settings.ocr.snap_tip")
 
 class SettingsDialog(QDialog):
     def __init__(self, cfg, parent=None, on_preview=None):
-        super().__init__(parent); self.cfg = cfg; self.on_preview = on_preview; self.w = {}; self._snap = {k: cfg[k] for k in self.LIVE}; self.setWindowTitle(tr("Cài đặt")); self.resize(760, 680)
+        super().__init__(parent); self.cfg = cfg; self.on_preview = on_preview; self.w = {}; self._snap = {k: cfg[k] for k in self.LIVE}; self.setWindowTitle(tr("settings.title")); self.resize(760, 680)
         tabs = QTabWidget(); v = QVBoxLayout(self); v.addWidget(tabs)
         # --- OCR
-        f = self._tab(tabs, "OCR")
-        self._combo(f, "ocr_engine", "Engine", {"windows": "Windows OCR (nhẹ, khuyên dùng)", "rapidocr": "RapidOCR (offline, chính xác hơn)", "tesseract": "Tesseract"})
-        self._line(f, "ocr_lang", "Ngôn ngữ OCR", "en-US / ja / zh-Hans-CN / ko …")
-        self._dspin(f, "ocr_scale", "Phóng to ảnh trước OCR", 0.5, 4, 0.25)
-        self._spin(f, "interval_ms", "Chu kỳ chụp (ms)", 50, 2000)
-        self._spin(f, "stable_ms", "Chờ chữ ổn định (ms)", 0, 3000)
-        self._dspin(f, "diff_threshold", "Ngưỡng thay đổi ảnh", 0.2, 50, 0.5)
-        self._spin(f, "dedupe_ratio", "Bỏ qua nếu giống câu trước ≥ (%)", 50, 100)
+        f = self._tab(tabs, "settings.tab.ocr")
+        self._combo(f, "ocr_engine", "settings.ocr.ocr_engine", {"windows": "settings.ocr.ocr_engine.windows", "rapidocr": "settings.ocr.ocr_engine.rapidocr", "tesseract": "settings.ocr.ocr_engine.tesseract"})
+        self._line(f, "ocr_lang", "settings.ocr.ocr_lang", "settings.ocr.ocr_lang.placeholder")
+        self._dspin(f, "ocr_scale", "settings.ocr.ocr_scale", 0.5, 4, 0.25)
+        self._spin(f, "interval_ms", "settings.ocr.interval_ms", 50, 2000)
+        self._spin(f, "stable_ms", "settings.ocr.stable_ms", 0, 3000)
+        self._dspin(f, "diff_threshold", "settings.ocr.diff_threshold", 0.2, 50, 0.5)
+        self._spin(f, "dedupe_ratio", "settings.ocr.dedupe_ratio", 50, 100)
         self.app_combo = QComboBox(); self.app_combo.setEditable(True); self.app_combo.setMinimumWidth(260)
-        ref = QPushButton(tr("Làm mới")); ref.clicked.connect(self._load_apps); self._load_apps()
-        hb = QHBoxLayout(); hb.addWidget(self.app_combo, 1); hb.addWidget(ref); f.addRow(tr("Chỉ dịch khi đang mở app"), hb)
+        ref = QPushButton(tr("settings.ocr.refresh")); ref.clicked.connect(self._load_apps); self._load_apps()
+        hb = QHBoxLayout(); hb.addWidget(self.app_combo, 1); hb.addWidget(ref); f.addRow(tr("settings.ocr.only_translate_while_this_app"), hb)
         self.w["target_app"] = (self.app_combo, self._app_value)
-        self._check(f, "clear_on_empty", "Tự xóa chữ khi vùng thoại không còn chữ")
-        self._check(f, "fix_spacing", "Tự tách từ bị dính (youfinallywoke → you finally woke)")
-        f.addRow(QLabel("<i>" + tr("Vùng dịch / vùng tên nhân vật chọn bằng nút Chọn vùng thoại / Chọn vùng tên nhân vật trên overlay.") + "</i>"))
-        self.btn_snap = QPushButton(tr("Lưu ảnh vùng hiện tại để kiểm tra")); self.btn_show = QPushButton(tr("Xem vùng đang chọn"))
-        self.btn_show.setToolTip("<p>" + tr("Vẽ viền quanh vùng thoại và vùng tên nhân vật trên màn hình trong vài giây.") + "</p>")
+        self._check(f, "clear_on_empty", "settings.ocr.clear_on_empty")
+        self._check(f, "fix_spacing", "settings.ocr.fix_spacing")
+        f.addRow(QLabel("<i>" + tr("settings.ocr.pick_dialogue_speaker_name_areas") + "</i>"))
+        self.btn_snap = QPushButton(tr("settings.ocr.save_current_region_image_for")); self.btn_show = QPushButton(tr("settings.ocr.show_selected_areas"))
+        self.btn_show.setToolTip("<p>" + tr("settings.ocr.outline_dialogue_and_speaker_name") + "</p>")
         hb2 = QHBoxLayout(); hb2.addWidget(self.btn_show); hb2.addWidget(self.btn_snap, 1); f.addRow(hb2)
         for k, t in OCR_TIPS.items(): self._tip(f, hb if k == "target_app" else self.w[k][0], t)
         self.btn_snap.setToolTip(f"<p>{tr(SNAP_TIP)}</p>")
         # quản lý OCR engine tải thêm: trạng thái + dung lượng, Tải / Xóa
         self.installed = False; self.eng_rows = {}
-        g = self._group(f, "OCR engine tải thêm (Windows OCR có sẵn, không cần tải)")
+        g = self._group(f, "settings.ocr.group.downloadable_ocr_engines")
         for key, name, dl in [("rapidocr", "RapidOCR", "~80 MB"), ("tesseract", "Tesseract", "~50 MB")]:
-            st = QLabel(); bi = QPushButton(); bd = QPushButton(tr("Xóa"))
+            st = QLabel(); bi = QPushButton(); bd = QPushButton(tr("settings.ocr.remove"))
             bi.clicked.connect(lambda _=0, k=key: self._install(k)); bd.clicked.connect(lambda _=0, k=key: self._remove(k))
             hb = QHBoxLayout(); hb.addWidget(st, 1); hb.addWidget(bi); hb.addWidget(bd); g.addRow(name, hb); self.eng_rows[key] = (st, bi, bd, dl)
         self.eng_status = QLabel(); self.eng_status.setWordWrap(True); g.addRow(self.eng_status)
         self._eng_refresh()
         # --- Dịch
-        tab = self._tab(tabs, "Dịch")
-        f = self._group(tab, "Dịch thoại (overlay)")
-        self._check(f, "translate", "Bật dịch (tắt = chỉ hiện câu gốc để tra từ)")
-        self._check(f, "use_subs", "Ưu tiên bộ sub Việt hóa (khớp thì dùng luôn)"); self._spin(f, "fuzzy_threshold", "Ngưỡng khớp sub (%)", 50, 100)
-        self._combo(f, "dialog_engine", "Không khớp sub thì dịch bằng", DIALOG_ENGINES)
-        f = self._group(tab, "Dịch vùng chụp 📷 (thư, bảng…)")
-        self._combo(f, "scan_engine", "Dịch bằng", SCAN_ENGINES)
-        f = self._group(tab, "Gemini AI — chỉ dùng khi chọn Gemini ở trên")
+        tab = self._tab(tabs, "settings.tab.translate")
+        f = self._group(tab, "settings.translate.group.dialogue_translation_overlay")
+        self._check(f, "translate", "settings.translate.translate")
+        self._check(f, "use_subs", "settings.translate.use_subs"); self._spin(f, "fuzzy_threshold", "settings.translate.fuzzy_threshold", 50, 100)
+        self._combo(f, "dialog_engine", "settings.translate.dialog_engine", DIALOG_ENGINES)
+        f = self._group(tab, "settings.translate.group.captured_area_translation")
+        self._combo(f, "scan_engine", "settings.translate.scan_engine", SCAN_ENGINES)
+        f = self._group(tab, "settings.translate.group.gemini_ai_only")
         self.gem_warn = QLabel(); self.gem_warn.setWordWrap(True); self.gem_warn.setStyleSheet("color:#e8a33a"); f.addRow(self.gem_warn)
-        self._line(f, "gemini_key", "API key (free: aistudio.google.com)", password=True)
-        self.model = QComboBox(); self.model.setEditable(True); self.model.addItem(cfg["gemini_model"]); self.model.setToolTip(tr("Bấm «Kiểm tra key» để lấy danh sách model key dùng được"))
-        f.addRow("Model", self.model); self.w["gemini_model"] = (self.model, lambda: self.model.currentText().strip())
-        bt = QPushButton(tr("Kiểm tra key")); self.key_status = QLabel(); self.key_status.setWordWrap(True); bt.clicked.connect(self._test_key)
+        self._line(f, "gemini_key", "settings.translate.gemini_key", password=True)
+        self.model = QComboBox(); self.model.setEditable(True); self.model.addItem(cfg["gemini_model"]); self.model.setToolTip(tr("settings.translate.press_check_key_list_models"))
+        f.addRow(tr("settings.translate.gemini_model"), self.model); self.w["gemini_model"] = (self.model, lambda: self.model.currentText().strip())
+        bt = QPushButton(tr("settings.translate.check_key")); self.key_status = QLabel(); self.key_status.setWordWrap(True); bt.clicked.connect(self._test_key)
         hb = QHBoxLayout(); hb.addWidget(bt); hb.addWidget(self.key_status, 1); f.addRow(hb)
         for k in ("dialog_engine", "scan_engine"): self.w[k][0].currentIndexChanged.connect(self._gem_warn)
         self.w["gemini_key"][0].textChanged.connect(self._gem_warn); self._gem_warn()
-        self._spin(f, "context_lines", "Số câu thoại trước làm ngữ cảnh", 0, 20); self._check(f, "keep_terms", "Không dịch tên riêng / thuật ngữ")
-        self._check(f, "stream", "Hiện chữ dần khi đang dịch (streaming)")
-        self._spin(f, "gemini_thinking_budget", "Thinking budget (0 = nhanh nhất, -1 = mặc định)", -1, 8192)
-        self._spin(f, "timeout_s", "Timeout (s)", 3, 120); self._spin(f, "cooldown_s", "Hết quota (429) thì nghỉ Gemini (s)", 0, 3600)
-        self._src_lang = self._line(f, "src_lang", "Ngôn ngữ gốc (mô tả cho AI)")
+        self._spin(f, "context_lines", "settings.translate.context_lines", 0, 20); self._check(f, "keep_terms", "settings.translate.keep_terms")
+        self._check(f, "stream", "settings.translate.stream")
+        self._spin(f, "gemini_thinking_budget", "settings.translate.gemini_thinking_budget", -1, 8192)
+        self._spin(f, "timeout_s", "settings.translate.timeout_s", 3, 120); self._spin(f, "cooldown_s", "settings.translate.cooldown_s", 0, 3600)
+        self._src_lang = self._line(f, "src_lang", "settings.translate.src_lang")
         # --- Prompt
-        t = QWidget(); tv = QVBoxLayout(t); tabs.addTab(t, "Prompt")
-        tv.addWidget(QLabel(tr("Biến:") + " {src_lang} {player} {gender} {keep_rule} {glossary}"))
+        t = QWidget(); tv = QVBoxLayout(t); tabs.addTab(t, tr("settings.tab.prompt"))
+        tv.addWidget(QLabel(tr("settings.prompt.variables") + " {src_lang} {player} {gender} {keep_rule} {glossary}"))
         self.prompt = QPlainTextEdit(cfg["prompt"]); tv.addWidget(self.prompt)
-        tv.addWidget(QLabel(tr("Prompt giải nghĩa từ — biến:") + " {word} {sentence}")); self.explain = QPlainTextEdit(cfg["explain_prompt"]); tv.addWidget(self.explain)
+        tv.addWidget(QLabel(tr("settings.prompt.word_explanation_prompt_variables") + " {word} {sentence}")); self.explain = QPlainTextEdit(cfg["explain_prompt"]); tv.addWidget(self.explain)
         # --- Nhân vật
-        f = self._tab(tabs, "Nhân vật")
-        self._line(f, "player_name", "Tên Rover trong game"); self._combo(f, "gender", "Giới tính Rover", {"male": N_("Nam"), "female": "Nữ"})
-        self.tokens = QLineEdit(", ".join(cfg["name_tokens"])); f.addRow(tr("Placeholder tên trong file sub"), self.tokens)
-        f.addRow(QLabel("<i>" + tr("Macro giới tính dạng {{Male=he;Female=she}} được tự xử lý.", _=0) + "</i>"))
+        f = self._tab(tabs, "settings.tab.character")
+        self._line(f, "player_name", "settings.character.player_name"); self._combo(f, "gender", "settings.character.gender", {"male": N_("settings.character.gender.male"), "female": "settings.character.gender.female"})
+        self.tokens = QLineEdit(", ".join(cfg["name_tokens"])); f.addRow(tr("settings.character.name_placeholders_in_subtitle_files"), self.tokens)
+        f.addRow(QLabel("<i>" + tr("settings.character.gender_macros_like_male_he", _=0) + "</i>"))
         # --- Từ điển
-        f = self._tab(tabs, "Từ điển")
-        self._combo(f, "dict_mode", "Nguồn nghĩa khi hover", {"auto": "Offline → Google dịch tự động", "google": "Google dịch tự động", "offline": "Chỉ offline", "online": "Online (Anh-Anh, dictionaryapi.dev)", "llm": "AI theo ngữ cảnh (tốn quota)"})
-        self._combo(f, "target_lang", "Ngôn ngữ dịch (Google)", LANGS)
-        self._combo(f, "popup_trigger", "Hiện nghĩa khi", {"click": "Bấm vào từ (hoặc bôi đen)", "hover": "Rê chuột vào từ"})
-        self._spin(f, "hover_delay_ms", "Độ trễ khi rê chuột (ms)", 0, 2000)
-        self.dicts = QListWidget(); self.dicts.addItems(cfg["dict_files"]); f.addRow(tr("File từ điển"), self.dicts)
-        hb = QHBoxLayout(); a = QPushButton(tr("Thêm…")); d = QPushButton(tr("Xóa")); hb.addWidget(a); hb.addWidget(d); hb.addStretch(1); f.addRow(hb)
+        f = self._tab(tabs, "settings.tab.dictionary")
+        self._combo(f, "dict_mode", "settings.dictionary.dict_mode", {"auto": "settings.dictionary.dict_mode.auto", "google": "settings.dictionary.dict_mode.google", "offline": "settings.dictionary.dict_mode.offline", "online": "settings.dictionary.dict_mode.online", "llm": "settings.dictionary.dict_mode.llm"})
+        self._combo(f, "target_lang", "settings.dictionary.target_lang", LANGS)
+        self._combo(f, "popup_trigger", "settings.dictionary.popup_trigger", {"click": "settings.dictionary.popup_trigger.click", "hover": "settings.dictionary.popup_trigger.hover"})
+        self._spin(f, "hover_delay_ms", "settings.dictionary.hover_delay_ms", 0, 2000)
+        self.dicts = QListWidget(); self.dicts.addItems(cfg["dict_files"]); f.addRow(tr("settings.dictionary.dictionary_files"), self.dicts)
+        hb = QHBoxLayout(); a = QPushButton(tr("settings.dictionary.add")); d = QPushButton(tr("settings.dictionary.remove")); hb.addWidget(a); hb.addWidget(d); hb.addStretch(1); f.addRow(hb)
         a.clicked.connect(self._add_dict); d.clicked.connect(lambda: [self.dicts.takeItem(self.dicts.row(i)) for i in self.dicts.selectedItems()])
-        f.addRow(QLabel("<i>" + tr("Hỗ trợ StarDict (.ifo + .idx + .dict/.dict.dz), TSV/CSV (từ⇥nghĩa), JSON {{từ: nghĩa}}.", _=0) + "</i>"))
+        f.addRow(QLabel("<i>" + tr("settings.dictionary.supports_stardict_ifo_idx_dict", _=0) + "</i>"))
         # --- Giao diện
-        tab = self._tab(tabs, "Giao diện")
+        tab = self._tab(tabs, "settings.tab.appearance")
         lc = QComboBox(); lc.addItem("Tự động (theo Windows) / Auto", "")   # no-i18n: song ngữ
         for code, name in UI_LANGS.items(): lc.addItem(name, code)
         lc.setCurrentIndex(max(0, lc.findData(cfg["ui_lang"]))); tab.addRow("Ngôn ngữ / Language", lc); self.w["ui_lang"] = (lc, lc.currentData)   # no-i18n: song ngữ, chọn nhầm vẫn tìm lại được
         # khung / màu / độ trong suốt / viền chữ: đổi là overlay + ô xem trước cập nhật ngay; Cancel thì trả lại
         self.prev = _Preview(cfg); tab.addRow(self.prev)
-        f = self._group(tab, "Chữ")
-        self._spin(f, "font_size", "Cỡ chữ bản dịch", 8, 48); self._spin(f, "src_font_size", "Cỡ chữ câu gốc", 8, 40)
-        self._combo(f, "display", "Hiển thị", {"both": "2 ngôn ngữ (câu gốc + bản dịch)", "vi": "Chỉ bản dịch",
-                                                "vi_hover": "Chỉ bản dịch — rê chuột vào hiện câu gốc", "src_hover": "Chỉ câu gốc — rê chuột vào hiện bản dịch"})
-        self._combo(f, "text_valign", "Vị trí chữ trong khung", {"top": "Trên", "center": "Giữa", "bottom": "Dưới"})
+        f = self._group(tab, "settings.appearance.group.text")
+        self._spin(f, "font_size", "settings.appearance.font_size", 8, 48); self._spin(f, "src_font_size", "settings.appearance.src_font_size", 8, 40)
+        self._combo(f, "display", "settings.appearance.display", {"both": "settings.appearance.display.both", "vi": "settings.appearance.display.vi",
+                                                "vi_hover": "settings.appearance.display.vi_hover", "src_hover": "settings.appearance.display.src_hover"})
+        self._combo(f, "text_valign", "settings.appearance.text_valign", {"top": "settings.appearance.text_valign.top", "center": "settings.appearance.text_valign.center", "bottom": "settings.appearance.text_valign.bottom"})
         cb = self.w["text_valign"][0]; cb.currentIndexChanged.connect(lambda _: self._live("text_valign", cb.currentData()))
-        self._tip(f, cb, "Khung cao hơn chữ thì khối chữ (câu gốc + bản dịch) nằm sát trên, ở giữa hay sát dưới khung. Câu gốc và bản dịch luôn đi liền nhau.")
-        s = self._spin(f, "line_gap", "Khoảng cách câu gốc – bản dịch (px)", 0, 40); s.valueChanged.connect(lambda v: self._live("line_gap", v))
-        self._tip(f, s, "Khoảng cách thêm giữa câu gốc và bản dịch. 0 = sát nhau.")
-        s = self._spin(f, "text_outline", "Độ dày viền chữ (px, 0 = tắt)", 0, 4); s.valueChanged.connect(lambda v: self._live("text_outline", v))
-        self._check(f, "show_speaker", "Hiện tên nhân vật")
-        f = self._group(tab, "Khung && màu")
-        c = self._check(f, "show_frame", "Hiện khung nền"); c.toggled.connect(lambda on: self._live("show_frame", on))
+        self._tip(f, cb, "settings.appearance.tip.when_frame_is_taller")
+        s = self._spin(f, "line_gap", "settings.appearance.line_gap", 0, 40); s.valueChanged.connect(lambda v: self._live("line_gap", v))
+        self._tip(f, s, "settings.appearance.tip.extra_space_between_source")
+        s = self._spin(f, "text_outline", "settings.appearance.text_outline", 0, 4); s.valueChanged.connect(lambda v: self._live("text_outline", v))
+        self._check(f, "show_speaker", "settings.appearance.show_speaker")
+        f = self._group(tab, "settings.appearance.group.frame_colors")
+        c = self._check(f, "show_frame", "settings.appearance.show_frame"); c.toggled.connect(lambda on: self._live("show_frame", on))
         sl = QSlider(Qt.Horizontal); sl.setRange(0, 95); sl.setValue(round((1 - float(cfg["opacity"])) * 100))
         pct = QLabel(f"{sl.value()}%"); pct.setMinimumWidth(44)
         sl.valueChanged.connect(lambda t: (pct.setText(f"{t}%"), self._live("opacity", round(1 - t / 100, 2))))
-        hb = QHBoxLayout(); hb.addWidget(sl, 1); hb.addWidget(pct); f.addRow(tr("Độ trong suốt khung"), hb)
+        hb = QHBoxLayout(); hb.addWidget(sl, 1); hb.addWidget(pct); f.addRow(tr("settings.appearance.frame_transparency"), hb)
         self.w["opacity"] = (sl, lambda: round(1 - sl.value() / 100, 2))
         cols = QHBoxLayout(); cf = [QFormLayout(), QFormLayout()]; cols.addLayout(cf[0]); cols.addSpacing(16); cols.addLayout(cf[1]); f.addRow(cols)
-        for i, (k, n) in enumerate([("bg", N_("Màu khung")), ("fg", N_("Màu chữ dịch")), ("src_fg", N_("Màu câu gốc")), ("accent", N_("Màu nhấn"))]): self._color(cf[i % 2], k, n)
-        self._tip(cf[1], self.w["accent"][0], "Tên nhân vật, viền popup tra từ, icon khi rê chuột.")
-        g = QGroupBox(tr("Nút trên toolbar — tick để hiện, kéo thả (hoặc ↑ ↓) để sắp xếp")); gl = QHBoxLayout(g)
+        for i, (k, n) in enumerate([("bg", N_("settings.appearance.bg")), ("fg", N_("settings.appearance.fg")), ("src_fg", N_("settings.appearance.src_fg")), ("accent", N_("settings.appearance.accent"))]): self._color(cf[i % 2], k, n)
+        self._tip(cf[1], self.w["accent"][0], "settings.appearance.tip.speaker_name_lookup_popup")
+        g = QGroupBox(tr("settings.appearance.toolbar_buttons_tick_show_drag")); gl = QHBoxLayout(g)
         lst = QListWidget(); lst.setDragDropMode(QAbstractItemView.InternalMove); lst.setDefaultDropAction(Qt.MoveAction)
         col, icons = lst.palette().text().color(), dict(TOOLBAR)
         for k in list(cfg["toolbar"]) + [k for k, _ in TOOLBAR if k not in cfg["toolbar"]]:     # nút đang hiện theo thứ tự đã xếp, nút ẩn xuống cuối
@@ -157,23 +149,23 @@ class SettingsDialog(QDialog):
             if r < 0 or not 0 <= n < lst.count(): return
             lst.insertItem(n, lst.takeItem(r)); lst.setCurrentRow(n)
         bv = QVBoxLayout()
-        for ic, d, tip in (("mdi6.arrow-up", -1, N_("Lên (sang trái trên toolbar)")), ("mdi6.arrow-down", 1, N_("Xuống (sang phải trên toolbar)"))):
+        for ic, d, tip in (("mdi6.arrow-up", -1, N_("settings.appearance.up_further_left_on_toolbar")), ("mdi6.arrow-down", 1, N_("settings.appearance.down_further_right_on_toolbar"))):
             b = QPushButton(qta.icon(ic, color=col), ""); b.setToolTip(tr(tip)); b.clicked.connect(lambda _=0, d=d: move(d)); bv.addWidget(b)
         bv.addStretch(1)
         gl.addWidget(lst, 1); gl.addLayout(bv)
         tab.addRow(g); self.w["toolbar"] = (lst, lambda: [lst.item(i).data(Qt.UserRole) for i in range(lst.count()) if lst.item(i).checkState() == Qt.Checked])
-        f = self._group(tab, "Hành vi")
-        self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
-        uk = KeyCapture(cfg["unlock_key"]); f.addRow(tr("Giữ phím để bấm khi đã khóa"), uk); self.w["unlock_key"] = (uk, uk.text)
-        self._tip(f, uk, "Khi khóa overlay, chuột xuyên qua overlay xuống game. Giữ phím / tổ hợp / nút chuột này để tạm bấm, kéo và tra từ trên overlay. Bấm vào ô rồi nhấn phím để đổi; Backspace = tắt.")
-        c = self._check(f, "hide_from_capture", "Ẩn overlay khỏi ảnh chụp màn hình")
-        self._tip(f, c, "Overlay vẫn hiện trên màn hình nhưng vô hình với mọi ảnh chụp: đặt đè lên vùng thoại mà OCR không đọc lại bản dịch; quay video / stream / chụp màn hình cũng không thấy overlay.")
+        f = self._group(tab, "settings.appearance.group.behavior")
+        self._dspin(f, "auto_hide_s", "settings.appearance.auto_hide_s", 0, 60, 0.5)
+        uk = KeyCapture(cfg["unlock_key"]); f.addRow(tr("settings.appearance.hold_key_interact_while_locked"), uk); self.w["unlock_key"] = (uk, uk.text)
+        self._tip(f, uk, "settings.appearance.tip.while_overlay_is_locked")
+        c = self._check(f, "hide_from_capture", "settings.appearance.hide_from_capture")
+        self._tip(f, c, "settings.appearance.tip.overlay_stays_visible_on")
         # --- Hotkey
-        f = self._tab(tabs, "Hotkey"); self.hk = {}
-        for k, n in [("toggle", N_("Ẩn/hiện overlay")), ("region", N_("Chọn vùng")), ("pause", N_("Tạm dừng")), ("rescan", N_("Quét lại")), ("clickthrough", "Click-through"),
-                     ("clear", N_("Xóa chữ")), ("translate", N_("Bật/tắt dịch")), ("scan", N_("Chụp & dịch 1 vùng")), ("lock", N_("Khóa/mở overlay"))]:
+        f = self._tab(tabs, "settings.tab.hotkeys"); self.hk = {}
+        for k, n in [("toggle", N_("settings.hotkeys.toggle")), ("region", N_("settings.hotkeys.region")), ("pause", N_("settings.hotkeys.pause")), ("rescan", N_("settings.hotkeys.rescan")), ("clickthrough", "Click-through"),
+                     ("clear", N_("settings.hotkeys.clear")), ("translate", N_("settings.hotkeys.translate")), ("scan", N_("settings.hotkeys.scan")), ("lock", N_("settings.hotkeys.lock"))]:
             e = QLineEdit(cfg["hotkeys"].get(k, "")); f.addRow(tr(n), e); self.hk[k] = e
-        self._check(f, "run_as_admin", "Luôn chạy GameSub với quyền admin (cần khi game chạy quyền admin, nếu không hotkey / giữ phím mở khóa không tới)")
+        self._check(f, "run_as_admin", "settings.hotkeys.run_as_admin")
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
         ver = QLabel(f"Game Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới
         foot = QHBoxLayout(); foot.addWidget(ver); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
@@ -233,18 +225,18 @@ class SettingsDialog(QDialog):
         pend = engines.pending()
         for k, (st, bi, bd, dl) in self.eng_rows.items():
             if {"rapidocr": "py", "tesseract": "tesseract"}[k] in pend:
-                st.setText(tr("sẽ xóa khi khởi động lại app")); bi.setEnabled(False); bd.setEnabled(False); continue
-            st.setText(tr("✓ đã cài — {mb} MB trên đĩa", mb=f"{engines.size_mb(k):.0f}") if ok[k] else tr("chưa cài"))
-            bi.setText(tr("Tải lại") if ok[k] else tr("Tải ({size})", size=dl)); bd.setEnabled(ok[k])
-        self.eng_status.setText("<i>" + tr("Nằm trong {path}", path=html.escape(str(engines.ENG_DIR))) + "</i>")
+                st.setText(tr("settings.ocr.will_be_removed_when_app")); bi.setEnabled(False); bd.setEnabled(False); continue
+            st.setText(tr("settings.ocr.installed_mb_mb_on_disk", mb=f"{engines.size_mb(k):.0f}") if ok[k] else tr("settings.ocr.not_installed"))
+            bi.setText(tr("settings.ocr.re_download") if ok[k] else tr("settings.ocr.download_size", size=dl)); bd.setEnabled(ok[k])
+        self.eng_status.setText("<i>" + tr("settings.ocr.located_in_path", path=html.escape(str(engines.ENG_DIR))) + "</i>")
 
     def _load_apps(self):
         """App đang có cửa sổ mở (WuWa: client-win64-shipping.exe) + giá trị đang lưu."""
         from . import winapp
         cur = self._app_value() if self.app_combo.count() else self.cfg["target_app"]
-        c = self.app_combo; c.clear(); c.addItem(tr("Mọi cửa sổ (không lọc)"), "")
+        c = self.app_combo; c.clear(); c.addItem(tr("settings.ocr.any_window_no_filter"), "")
         apps = dict(winapp.windows())
-        if cur and cur not in apps: apps[cur] = tr("(chưa mở)")
+        if cur and cur not in apps: apps[cur] = tr("settings.ocr.not_open")
         for exe, title in sorted(apps.items()): c.addItem(f"{exe} — {title[:40]}", exe)
         c.setCurrentIndex(max(0, c.findData(cur)))
 
@@ -254,17 +246,17 @@ class SettingsDialog(QDialog):
         return t.split(" — ")[0].strip().lower()                              # gõ tay tên exe
 
     def _gem_warn(self):
-        uses = [tr(n) for k, n in (("dialog_engine", N_("dịch thoại")), ("scan_engine", N_("dịch vùng chụp"))) if "gemini" in (self.w[k][1]() or "")]
+        uses = [tr(n) for k, n in (("dialog_engine", N_("settings.translate.uses.dialog_engine")), ("scan_engine", N_("settings.translate.uses.scan_engine"))) if "gemini" in (self.w[k][1]() or "")]
         no_key = not self.w["gemini_key"][1]()
-        self.gem_warn.setText(tr("⚠ Đang chọn Gemini cho {what} nhưng chưa có API key → sẽ dùng Google.", what=tr(" và ").join(uses)) if uses and no_key else "")
+        self.gem_warn.setText(tr("settings.translate.gemini_is_selected_for_what", what=tr("settings.translate.and").join(uses)) if uses and no_key else "")
         self.gem_warn.setVisible(bool(uses and no_key))
 
     def _test_key(self):
         key, model = self.w["gemini_key"][1](), self.w["gemini_model"][1]()
-        if not key: self.key_status.setText(tr("⚠ Chưa nhập key")); return
+        if not key: self.key_status.setText(tr("settings.translate.no_key_entered")); return
         from .translator import Translator
         c = dict(self.cfg); c.update(gemini_key=key, gemini_model=model, stream=False, timeout_s=20)
-        res = {}; self.key_status.setText(tr("Đang thử…"))
+        res = {}; self.key_status.setText(tr("settings.translate.testing"))
         def work(_):     # 1) lấy danh sách model (cũng là kiểm tra key)  2) model đang chọn không có -> tự chọn  3) gọi thử
             t = Translator(c, None); res["models"] = t.list_models(key)
             if res["models"] and model not in res["models"]: c["gemini_model"] = res["picked"] = Translator.pick_model(res["models"])
@@ -273,21 +265,21 @@ class SettingsDialog(QDialog):
         def done(err):
             if res.get("models"):
                 cur = res.get("picked") or model; self.model.clear(); self.model.addItems(res["models"]); self.model.setCurrentText(cur)
-            note = tr("«{old}» không còn → đã chọn «{new}». ", old=html.escape(model), new=html.escape(res["picked"])) if res.get("picked") else ""
+            note = tr("settings.translate.model_replaced", old=html.escape(model), new=html.escape(res["picked"])) if res.get("picked") else ""
             if err: self.key_status.setText(f"<span style='color:#e86a6a'>{note}✗ {html.escape(err.split(': ', 1)[-1])}</span>")
-            else: self.key_status.setText(f"<span style='color:#7bd88f'>{note}" + tr("✓ Key dùng được — {model} trả lời sau {sec}s. Bấm OK để lưu.", model=html.escape(c["gemini_model"]), sec=f"{res['t']:.1f}") + "</span>")
+            else: self.key_status.setText(f"<span style='color:#7bd88f'>{note}" + tr("settings.translate.key_works", model=html.escape(c["gemini_model"]), sec=f"{res['t']:.1f}") + "</span>")
         job.done.connect(done); self._key_job = job; job.start()
 
     def _remove(self, key):
         name = {"rapidocr": "RapidOCR", "tesseract": "Tesseract"}[key]
-        if QMessageBox.question(self, tr("Xóa OCR engine"), tr("Xóa {name} ({mb} MB)?", name=name, mb=f"{engines.size_mb(key):.0f}")) != QMessageBox.Yes: return
+        if QMessageBox.question(self, tr("settings.ocr.remove_ocr_engine"), tr("settings.ocr.remove_name_mb_mb", name=name, mb=f"{engines.size_mb(key):.0f}")) != QMessageBox.Yes: return
         now = engines.remove(key); combo = self.w["ocr_engine"][0]
         if combo.currentData() == key: combo.setCurrentIndex(combo.findData("windows"))     # đang chọn engine bị xóa -> về Windows OCR
         self.installed = True; self._eng_refresh()
-        if not now: QMessageBox.information(self, tr("Xóa OCR engine"), tr("{name} đang được dùng — sẽ xóa hẳn khi khởi động lại app.", name=name))
+        if not now: QMessageBox.information(self, tr("settings.ocr.remove_ocr_engine"), tr("settings.ocr.name_is_in_use_it", name=name))
 
     def _install(self, key):
-        dlg = QProgressDialog(tr("Đang tải…"), tr("Hủy"), 0, 100, self); dlg.setWindowTitle(tr("Tải OCR engine")); dlg.setMinimumWidth(420)
+        dlg = QProgressDialog(tr("settings.ocr.downloading"), tr("settings.ocr.cancel"), 0, 100, self); dlg.setWindowTitle(tr("settings.ocr.download_ocr_engine")); dlg.setMinimumWidth(420)
         dlg.setWindowModality(Qt.WindowModal); dlg.setAutoClose(False); dlg.setAutoReset(False); dlg.show()
         job = _Job(engines.install_rapidocr if key == "rapidocr" else engines.install_tesseract)
         job.progress.connect(lambda t, p: (dlg.setLabelText(t), dlg.setValue(p)))
@@ -295,14 +287,14 @@ class SettingsDialog(QDialog):
         def done(err):
             dlg.close(); self._eng_refresh()
             if err == "cancel": return
-            if err: QMessageBox.warning(self, tr("Tải OCR engine"), tr("Lỗi: {e}", e=err)); return
+            if err: QMessageBox.warning(self, tr("settings.ocr.download_ocr_engine"), tr("settings.ocr.error_e", e=err)); return
             self.installed = True; i = self.w["ocr_engine"][0].findData(key)
             if i >= 0: self.w["ocr_engine"][0].setCurrentIndex(i)
-            QMessageBox.information(self, tr("Tải OCR engine"), tr("Đã cài xong. Bấm OK ở Cài đặt để dùng."))
+            QMessageBox.information(self, tr("settings.ocr.download_ocr_engine"), tr("settings.ocr.installed_press_ok"))
         job.done.connect(done); self._job = job; job.start()
 
     def _add_dict(self):
-        fs, _ = QFileDialog.getOpenFileNames(self, tr("Chọn từ điển"), "", tr("Từ điển") + " (*.ifo *.tsv *.txt *.csv *.json)")
+        fs, _ = QFileDialog.getOpenFileNames(self, tr("settings.dictionary.choose_dictionaries"), "", tr("settings.dictionary.dictionary") + " (*.ifo *.tsv *.txt *.csv *.json)")
         for x in fs: self.dicts.addItem(x)
 
     def apply(self):
@@ -320,10 +312,10 @@ class KeyCapture(QLineEdit):
     NAMES = {Qt.Key_Control: "Ctrl", Qt.Key_Alt: "Alt", Qt.Key_Shift: "Shift", Qt.Key_Meta: "Win"}
     MOUSE = {Qt.MiddleButton: "Mouse3", Qt.BackButton: "Mouse4", Qt.ForwardButton: "Mouse5"}
     def __init__(self, seq):
-        super().__init__(seq); self.setReadOnly(True); self.setPlaceholderText(tr("Tắt"))
-        self.setToolTip(tr("Bấm vào ô rồi nhấn phím, tổ hợp phím hoặc nút chuột giữa/bên. Backspace = tắt"))
-    def focusInEvent(self, e): super().focusInEvent(e); self.setPlaceholderText(tr("Nhấn phím / nút chuột… (Backspace = tắt)"))
-    def focusOutEvent(self, e): super().focusOutEvent(e); self.setPlaceholderText(tr("Tắt"))
+        super().__init__(seq); self.setReadOnly(True); self.setPlaceholderText(tr("keycap.off"))
+        self.setToolTip(tr("keycap.click_field_then_press_key"))
+    def focusInEvent(self, e): super().focusInEvent(e); self.setPlaceholderText(tr("keycap.press_key_mouse_button_backspace"))
+    def focusOutEvent(self, e): super().focusOutEvent(e); self.setPlaceholderText(tr("keycap.off"))
     def _set(self, key, mods):
         names = [n for m, n in ((Qt.ControlModifier, "Ctrl"), (Qt.AltModifier, "Alt"), (Qt.ShiftModifier, "Shift"), (Qt.MetaModifier, "Win")) if mods & m and n != key]
         seq = "+".join(names + [key])
@@ -381,23 +373,23 @@ def _table(headers):
 
 class GlossaryDialog(QDialog):
     def __init__(self, db, cfg, parent=None):
-        super().__init__(parent); self.db, self.cfg = db, cfg; self.setWindowTitle(tr("Glossary — tên riêng / thuật ngữ")); self.resize(720, 520)
+        super().__init__(parent); self.db, self.cfg = db, cfg; self.setWindowTitle(tr("glossary.glossary_names_terms")); self.resize(720, 520)
         v = QVBoxLayout(self)
-        self.keep = QCheckBox(tr("Không dịch tên riêng / thuật ngữ (mọi mục đều giữ nguyên khi dịch máy)")); self.keep.setChecked(cfg["keep_terms"]); v.addWidget(self.keep)
-        self.flt = QLineEdit(); self.flt.setPlaceholderText(tr("Lọc…")); self.flt.textChanged.connect(self._filter); v.addWidget(self.flt)
-        self.t = _table([tr("Thuật ngữ (gốc)"), tr("Dịch là"), tr("Chế độ"), tr("Ghi chú")]); v.addWidget(self.t)
+        self.keep = QCheckBox(tr("glossary.dont_translate_names_terms_every")); self.keep.setChecked(cfg["keep_terms"]); v.addWidget(self.keep)
+        self.flt = QLineEdit(); self.flt.setPlaceholderText(tr("glossary.filter")); self.flt.textChanged.connect(self._filter); v.addWidget(self.flt)
+        self.t = _table([tr("glossary.term_source"), tr("glossary.translate_as"), tr("glossary.mode"), tr("glossary.note")]); v.addWidget(self.t)
         hb = QHBoxLayout()
-        for txt, fn in [(tr("Thêm"), self._add), (tr("Xóa"), self._del), ("Import CSV", self._imp), ("Export CSV", self._exp)]:
+        for txt, fn in [(tr("glossary.add"), self._add), (tr("glossary.remove"), self._del), (tr("glossary.import_csv"), self._imp), (tr("glossary.export_csv"), self._exp)]:
             b = QPushButton(txt); b.clicked.connect(fn); hb.addWidget(b)
         hb.addStretch(1); v.addLayout(hb)
-        v.addWidget(QLabel("<i>" + tr("Chỉ áp dụng cho dịch máy (Gemini/OpenAI/Google). Câu lấy từ bộ sub giữ nguyên bản dịch của người dịch.") + "</i>"))
+        v.addWidget(QLabel("<i>" + tr("glossary.only_applies_machine_translation_gemini") + "</i>"))
         bb = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel); bb.accepted.connect(self._save); bb.rejected.connect(self.reject); v.addWidget(bb)
         self._load()
 
     def _row(self, term="", vi="", mode="keep", note=""):
         r = self.t.rowCount(); self.t.insertRow(r)
         for i, x in enumerate((term, vi)): self.t.setItem(r, i, QTableWidgetItem(x))
-        c = QComboBox(); c.addItem(tr("Giữ nguyên"), "keep"); c.addItem(tr("Dịch theo cột 'Dịch là'"), "translate"); c.setCurrentIndex(0 if mode == "keep" else 1)
+        c = QComboBox(); c.addItem(tr("glossary.keep_as_is"), "keep"); c.addItem(tr("glossary.use_translate_as_column"), "translate"); c.setCurrentIndex(0 if mode == "keep" else 1)
         self.t.setCellWidget(r, 2, c); self.t.setItem(r, 3, QTableWidgetItem(note)); return r
 
     def _load(self):
@@ -411,10 +403,10 @@ class GlossaryDialog(QDialog):
     def _del(self):
         for r in sorted({i.row() for i in self.t.selectedIndexes()}, reverse=True): self.t.removeRow(r)
     def _imp(self):
-        p, _ = QFileDialog.getOpenFileName(self, "Import glossary", "", "CSV (*.csv)")
-        if p: n = self.db.import_glossary_csv(p); self._load(); QMessageBox.information(self, "Import", tr("Đã nhập {n} mục (cột: term, vi, mode, note).", n=n))
+        p, _ = QFileDialog.getOpenFileName(self, tr("glossary.import_title"), "", "CSV (*.csv)")
+        if p: n = self.db.import_glossary_csv(p); self._load(); QMessageBox.information(self, tr("glossary.imported_title"), tr("glossary.imported_n_entries_columns_term", n=n))
     def _exp(self):
-        p, _ = QFileDialog.getSaveFileName(self, "Export glossary", "glossary.csv", "CSV (*.csv)")
+        p, _ = QFileDialog.getSaveFileName(self, tr("glossary.export_title"), "glossary.csv", "CSV (*.csv)")
         if p: self._save(close=False); self.db.export_csv("glossary", p)
     def _save(self, close=True):
         for g in self.db.glossary(): self.db.del_term(g["term"])
@@ -428,13 +420,13 @@ class GlossaryDialog(QDialog):
 
 class VocabDialog(QDialog):
     def __init__(self, db, parent=None):
-        super().__init__(parent); self.db = db; self.setWindowTitle(tr("Sổ từ")); self.resize(820, 520)
+        super().__init__(parent); self.db = db; self.setWindowTitle(tr("vocab.vocabulary")); self.resize(820, 520)
         v = QVBoxLayout(self)
-        self.flt = QLineEdit(); self.flt.setPlaceholderText(tr("Lọc…")); self.flt.textChanged.connect(self._load); v.addWidget(self.flt)
-        self.t = _table([tr("Từ"), tr("Nghĩa"), tr("Câu gốc"), tr("Câu dịch"), tr("Ngày lưu"), tr("Ôn")]); self.t.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.flt = QLineEdit(); self.flt.setPlaceholderText(tr("vocab.filter")); self.flt.textChanged.connect(self._load); v.addWidget(self.flt)
+        self.t = _table([tr("vocab.word"), tr("vocab.meaning"), tr("vocab.source_line"), tr("vocab.translated_line"), tr("vocab.saved_on"), tr("vocab.reviews")]); self.t.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.t.setWordWrap(True); v.addWidget(self.t)
         hb = QHBoxLayout()
-        for txt, fn in [(tr("Ôn tập"), self._review), (tr("Xóa"), self._del), ("Export CSV (Anki)", self._exp)]:
+        for txt, fn in [(tr("vocab.review"), self._review), (tr("vocab.remove"), self._del), (tr("vocab.export_anki"), self._exp)]:
             b = QPushButton(txt); b.clicked.connect(fn); hb.addWidget(b)
         hb.addStretch(1); self.count = QLabel(); hb.addWidget(self.count); v.addLayout(hb); self._load()
 
@@ -445,12 +437,12 @@ class VocabDialog(QDialog):
             for j, x in enumerate(r):
                 self.t.setItem(i, j, QTableWidgetItem(_plain(str(x)) if j == 1 else str(x)))
         self.t.setColumnWidth(0, 140); self.t.setColumnWidth(1, 220); self.t.setColumnWidth(2, 220); self.t.setColumnWidth(3, 160)
-        self.count.setText(tr("{n} từ", n=len(rows)))
+        self.count.setText(tr("vocab.n_words", n=len(rows)))
     def _del(self):
         for r in sorted({i.row() for i in self.t.selectedIndexes()}, reverse=True): self.db.del_vocab(self.t.item(r, 0).text())
         self._load()
     def _exp(self):
-        p, _ = QFileDialog.getSaveFileName(self, tr("Export sổ từ"), "vocab.csv", "CSV (*.csv)")
+        p, _ = QFileDialog.getSaveFileName(self, tr("vocab.export_vocabulary"), "vocab.csv", "CSV (*.csv)")
         if p: self.db.export_csv("vocab", p)
     def _review(self):
         rows = self.db.vocab()
@@ -465,7 +457,7 @@ def _plain(h):
 class ReviewDialog(QDialog):
     """Flashcard: ưu tiên từ ít ôn."""
     def __init__(self, db, rows, parent=None):
-        super().__init__(parent); self.db = db; self.setWindowTitle(tr("Ôn tập")); self.resize(520, 360)
+        super().__init__(parent); self.db = db; self.setWindowTitle(tr("review.review")); self.resize(520, 360)
         rows = sorted(rows, key=lambda r: (r[5], random.random())); self.rows, self.i = rows, 0
         v = QVBoxLayout(self)
         self.word = QLabel(); self.word.setAlignment(Qt.AlignCenter); self.word.setStyleSheet("font-size:28px;font-weight:600")
@@ -473,7 +465,7 @@ class ReviewDialog(QDialog):
         self.ans = QLabel(); self.ans.setWordWrap(True); self.ans.setTextFormat(Qt.RichText)
         for w in (self.word, self.ctx, self.ans): v.addWidget(w)
         v.addStretch(1); hb = QHBoxLayout()
-        self.show_b = QPushButton(tr("Hiện nghĩa (Space)")); self.next_b = QPushButton(tr("Tiếp →"))
+        self.show_b = QPushButton(tr("review.show_meaning_space")); self.next_b = QPushButton(tr("review.next"))
         self.show_b.clicked.connect(self._show); self.next_b.clicked.connect(self._next); hb.addWidget(self.show_b); hb.addWidget(self.next_b); v.addLayout(hb)
         self._render()
     def _render(self):
@@ -491,19 +483,19 @@ class ReviewDialog(QDialog):
 class SubsDialog(QDialog):
     def __init__(self, db, index, cfg, on_changed, parent=None):
         super().__init__(parent); self.db, self.index, self.cfg, self.on_changed = db, index, cfg, on_changed
-        self.setWindowTitle(tr("Bộ sub Việt hóa")); self.resize(860, 600); v = QVBoxLayout(self)
-        v.addWidget(QLabel(tr("<b>File đã nhập</b> (file nhập sau được ưu tiên khi trùng câu)")))
+        self.setWindowTitle(tr("subs.subtitle_pack")); self.resize(860, 600); v = QVBoxLayout(self)
+        v.addWidget(QLabel(tr("subs.imported_files_later_imports_win")))
         self.files = QListWidget(); self.files.setMaximumHeight(120); v.addWidget(self.files)
-        hb = QHBoxLayout(); b1 = QPushButton(tr("Chọn file sub…")); b2 = QPushButton(tr("Xóa file đã nhập")); hb.addWidget(b1); hb.addWidget(b2); hb.addStretch(1)
+        hb = QHBoxLayout(); b1 = QPushButton(tr("subs.choose_subtitle_file")); b2 = QPushButton(tr("subs.remove_imported_file")); hb.addWidget(b1); hb.addWidget(b2); hb.addStretch(1)
         b1.clicked.connect(self._open); b2.clicked.connect(self._del); v.addLayout(hb)
         # preview
         self.prev_lbl = QLabel(""); v.addWidget(self.prev_lbl)
         cb = QHBoxLayout(); self.src_c = QComboBox(); self.vi_c = QComboBox()
-        cb.addWidget(QLabel(tr("Cột gốc (EN):"))); cb.addWidget(self.src_c, 1); cb.addWidget(QLabel(tr("Cột tiếng Việt:"))); cb.addWidget(self.vi_c, 1)
-        self.imp_b = QPushButton(tr("Nhập")); self.imp_b.setEnabled(False); self.imp_b.clicked.connect(self._import); cb.addWidget(self.imp_b); v.addLayout(cb)
+        cb.addWidget(QLabel(tr("subs.source_column_en"))); cb.addWidget(self.src_c, 1); cb.addWidget(QLabel(tr("subs.translation_column"))); cb.addWidget(self.vi_c, 1)
+        self.imp_b = QPushButton(tr("subs.import")); self.imp_b.setEnabled(False); self.imp_b.clicked.connect(self._import); cb.addWidget(self.imp_b); v.addLayout(cb)
         self.t = _table([]); self.t.setEditTriggers(QAbstractItemView.NoEditTriggers); v.addWidget(self.t, 1)
         # test
-        tb = QHBoxLayout(); self.test = QLineEdit(); self.test.setPlaceholderText(tr("Thử khớp: dán 1 câu tiếng Anh (có thể sai vài ký tự như OCR)…"))
+        tb = QHBoxLayout(); self.test = QLineEdit(); self.test.setPlaceholderText(tr("subs.test_matching_paste_english_line"))
         self.test.returnPressed.connect(self._test); tb.addWidget(self.test); v.addLayout(tb)
         self.test_out = QLabel(); self.test_out.setWordWrap(True); self.test_out.setTextInteractionFlags(Qt.TextSelectableByMouse); v.addWidget(self.test_out)
         self.path = None; self._files()
@@ -511,30 +503,30 @@ class SubsDialog(QDialog):
     def _files(self):
         self.files.clear()
         for f, n in self.db.sub_files():
-            it = QListWidgetItem(tr("{file}  —  {n} câu", file=f, n=f"{n:,}")); it.setData(Qt.UserRole, f); self.files.addItem(it)
-        self.setWindowTitle(tr("Bộ sub Việt hóa — {n} câu trong chỉ mục", n=f"{len(self.index):,}"))
+            it = QListWidgetItem(tr("subs.file_n_lines", file=f, n=f"{n:,}")); it.setData(Qt.UserRole, f); self.files.addItem(it)
+        self.setWindowTitle(tr("subs.subtitle_pack_n_lines_indexed", n=f"{len(self.index):,}"))
 
     def _open(self):
-        p, _ = QFileDialog.getOpenFileName(self, tr("Chọn bộ sub"), "", "Sub (*.csv *.tsv *.txt *.xlsx *.json);;" + tr("Tất cả") + " (*)")
+        p, _ = QFileDialog.getOpenFileName(self, tr("subs.choose_subtitle_pack"), "", "Sub (*.csv *.tsv *.txt *.xlsx *.json);;" + tr("subs.all_files") + " (*)")
         if not p: return
         try: self.hdr, self.rows = importer.read_table(p)
-        except Exception as e: QMessageBox.warning(self, tr("Lỗi đọc file"), str(e)); return
-        if len(self.hdr) < 2: QMessageBox.warning(self, tr("Lỗi"), tr("File cần ít nhất 2 cột (gốc và tiếng Việt).")); return
+        except Exception as e: QMessageBox.warning(self, tr("subs.couldnt_read_file"), str(e)); return
+        if len(self.hdr) < 2: QMessageBox.warning(self, tr("subs.error"), tr("subs.file_needs_at_least_2")); return
         self.path = p; s, vi = importer.guess_cols(self.hdr, self.rows)
         for c in (self.src_c, self.vi_c): c.clear(); c.addItems(self.hdr)
         self.src_c.setCurrentIndex(s); self.vi_c.setCurrentIndex(vi)
         self.t.setColumnCount(len(self.hdr)); self.t.setHorizontalHeaderLabels(self.hdr); show = self.rows[:200]; self.t.setRowCount(len(show))
         for i, r in enumerate(show):
             for j, x in enumerate(r): self.t.setItem(i, j, QTableWidgetItem(x[:300]))
-        self.prev_lbl.setText(tr("<b>{file}</b>: {rows} dòng, {cols} cột — xem trước 200 dòng. Kiểm tra lại cột rồi bấm Nhập.", file=html.escape(Path(p).name), rows=f"{len(self.rows):,}", cols=len(self.hdr)))
+        self.prev_lbl.setText(tr("subs.file_rows_rows_cols_columns", file=html.escape(Path(p).name), rows=f"{len(self.rows):,}", cols=len(self.hdr)))
         self.imp_b.setEnabled(True)
 
     def _import(self):
         s, v = self.src_c.currentIndex(), self.vi_c.currentIndex()
-        if s == v: QMessageBox.warning(self, tr("Lỗi"), tr("Cột gốc và cột tiếng Việt phải khác nhau.")); return
+        if s == v: QMessageBox.warning(self, tr("subs.error"), tr("subs.source_and_translation_columns_must")); return
         pairs = importer.extract_pairs(self.rows, s, v)
         self.db.add_subs(Path(self.path).name, pairs); self.on_changed(); self._files(); self.imp_b.setEnabled(False)
-        QMessageBox.information(self, tr("Đã nhập"), tr("Đã nhập {n} cặp câu từ {file}.", n=f"{len(pairs):,}", file=Path(self.path).name))
+        QMessageBox.information(self, tr("subs.imported"), tr("subs.imported_n_line_pairs_from", n=f"{len(pairs):,}", file=Path(self.path).name))
 
     def _del(self):
         for it in self.files.selectedItems(): self.db.del_sub_file(it.data(Qt.UserRole))
@@ -542,4 +534,4 @@ class SubsDialog(QDialog):
 
     def _test(self):
         m = self.index.match(self.test.text(), self.cfg["fuzzy_threshold"])
-        self.test_out.setText(f"<b>{m.score:.1f}%</b> — {html.escape(m.src)}<br>→ {html.escape(m.vi)}" if m else "<i>" + tr("Không khớp câu nào trên ngưỡng.") + "</i>")
+        self.test_out.setText(f"<b>{m.score:.1f}%</b> — {html.escape(m.src)}<br>→ {html.escape(m.vi)}" if m else "<i>" + tr("subs.no_line_matches_above_threshold") + "</i>")

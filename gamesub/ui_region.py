@@ -11,7 +11,7 @@ class RegionSelector(QWidget):
     def __init__(self, title=None):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.scr = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
-        self.bg = self.scr.grabWindow(0); self.title = title or tr("Kéo chuột chọn vùng — Esc để hủy")
+        self.bg = self.scr.grabWindow(0); self.title = title or tr("region.drag_select_area_esc_cancel")
         self.setGeometry(self.scr.geometry()); self.setCursor(Qt.CrossCursor)
         self.p0 = self.p1 = None
 

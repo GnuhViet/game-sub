@@ -88,10 +88,14 @@ File offline hỗ trợ: **StarDict** (`.ifo` + `.idx` + `.dict`/`.dict.dz` — 
 - **RapidOCR** / **Tesseract**: Cài đặt → OCR → nút «Tải…», cài vào thư mục `engines\` cạnh exe. RapidOCR tốt hơn với font lạ/nền rối nhưng chậm hơn (~2s/lần).
 - Chữ nhỏ → tăng "Phóng to ảnh trước OCR" lên 1.5–2. Nút "Lưu ảnh vùng hiện tại" để kiểm tra vùng chụp có đúng không.
 
-## Đa ngôn ngữ (cho người sửa code)
-Chuỗi giao diện viết tiếng Việt thẳng trong code, bọc `tr("…")` (biến: `tr("Đã lưu «{w}»", w=x)`); bảng hằng (tooltip, menu) đánh dấu `N_("…")` rồi `tr()` lúc dùng.
-Bản dịch: `gamesub/locales/en.py` (`{chuỗi gốc: bản dịch}`). `python tools/i18n_check.py` báo chuỗi thiếu bản dịch, `--todo` liệt kê chuỗi tiếng Việt chưa bọc `tr()`
-(dòng là dữ liệu / prompt AI thì ghi chú `# no-i18n`). Thêm ngôn ngữ: copy `en.py` thành `<mã>.py`, dịch phần giá trị, thêm vào `TABLES` (`gamesub/locales/__init__.py`) và `LANGS` (`gamesub/i18n.py`).
+## Đa ngôn ngữ
+Mỗi ngôn ngữ là 1 file `gamesub/locales/<mã>.json`: `{"_name": "English", "settings.title": "Settings", …}` (bản exe: `_internal\gamesub\locales\`).
+- **Thêm ngôn ngữ:** copy `en.json` thành `<mã>.json` (vd `ja.json`), đổi `"_name"` và dịch phần giá trị — app tự nhận, không cần sửa code.
+  Key nào chưa dịch thì app hiện chữ tiếng Việt. Giữ nguyên các biến `{n}`, `{w}`… trong chữ.
+- **Sửa chữ:** sửa thẳng trong file JSON. `vi.json` là ngôn ngữ gốc, có đủ mọi key.
+- **Cho người sửa code:** giao diện gọi `tr("key")` / `tr("key", n=5)`; bảng hằng (tooltip, menu) đánh dấu `N_("key")` rồi `tr()` lúc dùng.
+  Thêm chữ mới: thêm key vào `vi.json` + các file khác. `python tools/i18n_check.py` báo key thiếu / thừa / sai biến giữa các file,
+  `--todo` liệt kê chuỗi tiếng Việt còn viết thẳng trong code (dòng là dữ liệu / prompt AI thì ghi chú `# no-i18n`).
 
 ## Dữ liệu
 Tất cả nằm trong `data/`: `settings.json`, `gamesub.db` (sub, glossary, sổ từ, cache tra từ).
