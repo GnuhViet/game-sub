@@ -164,7 +164,7 @@ class SettingsDialog(QDialog):
         f = self._tab(tabs, "settings.tab.hotkeys"); self.hk = {}
         for k, n in [("toggle", N_("settings.hotkeys.toggle")), ("region", N_("settings.hotkeys.region")), ("pause", N_("settings.hotkeys.pause")), ("rescan", N_("settings.hotkeys.rescan")), ("clickthrough", "Click-through"),
                      ("clear", N_("settings.hotkeys.clear")), ("translate", N_("settings.hotkeys.translate")), ("scan", N_("settings.hotkeys.scan")), ("lock", N_("settings.hotkeys.lock"))]:
-            e = QLineEdit(cfg["hotkeys"].get(k, "")); f.addRow(tr(n), e); self.hk[k] = e
+            e = QLineEdit(cfg["hotkeys"].get(k, "")); f.addRow(tr(n).replace("&", "&&"), e); self.hk[k] = e
         self._check(f, "run_as_admin", "settings.hotkeys.run_as_admin")
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
         ver = QLabel(f"Game Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới

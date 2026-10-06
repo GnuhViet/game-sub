@@ -111,7 +111,7 @@ class App:
         for txt, k in [(N_("tray.toggle"), "toggle"), (N_("tray.scan"), "scan"), (N_("tray.region"), "region"), (N_("tray.pause"), "pause"), (N_("tray.subs"), "subs"),
                        (N_("tray.glossary"), "glossary"), (N_("tray.vocab"), "vocab"), (N_("tray.settings"), "settings"), (None, None)] + ([] if winapp.self_elevated() else [(N_("tray.relaunch_admin"), "relaunch_admin")]) + [(N_("tray.quit"), "quit")]:
             if txt is None: m.addSeparator(); continue
-            a = QAction(tr(txt), m); a.triggered.connect(lambda _=0, k=k: self.on_action(k)); m.addAction(a)
+            a = QAction(tr(txt).replace("&", "&&"), m); a.triggered.connect(lambda _=0, k=k: self.on_action(k)); m.addAction(a)
             if k == "pause":
                 self.ct_action = a = QAction(tr("app.click_through_mouse_passes_through"), m); a.setCheckable(True); a.setChecked(self.cfg["click_through"])
                 a.triggered.connect(lambda _=0: self.on_action("clickthrough")); m.addAction(a)
