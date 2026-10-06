@@ -1,24 +1,32 @@
 # Game Sub — OCR dịch thoại game
 
-Overlay dịch thoại cho game bất kỳ (làm đầu tiên cho Wuthering Waves) chỉ bằng **OCR màn hình**: không hook, không đọc bộ nhớ, không sửa file game.
-
-> Trước đây tên là **WuWa Sub**. Đang dùng bản cũ: copy thư mục `data\` (và `engines\` nếu có) từ cạnh `WuWaSub.exe` sang cạnh `GameSub.exe` —
-> cài đặt, bộ sub, glossary, sổ từ được giữ nguyên.
+Overlay dịch thoại cho game bất kỳ chỉ bằng **OCR màn hình**: không hook, không đọc bộ nhớ, không sửa file game —
+an toàn với game online có anti-cheat. Mã nguồn mở, giấy phép [MIT](LICENSE).
 
 **Ngôn ngữ giao diện / UI language:** Tiếng Việt, English — Cài đặt → Giao diện → *Ngôn ngữ / Language* (mặc định theo ngôn ngữ Windows; đổi xong app hỏi mở lại).
 
-## Cài & chạy (Windows 10/11, Python 3.10+)
+## Tải về (Windows 10/11, không cần Python)
+Tải `GameSub.zip` ở trang [Releases](https://github.com/GnuhViet/game-sub/releases) → **giải nén hết** → chạy `GameSub\GameSub.exe`
+(đừng chạy thẳng trong zip). Để thư mục ở chỗ ghi được (vd. `D:\GameSub`), không để trong Program Files.
+Bản exe chỉ có Windows OCR (cần gói ngôn ngữ English trong Windows, thường có sẵn); OCR khác tải trong app.
+
+Dữ liệu nằm trong `data\` (và `engines\` nếu tải OCR) cạnh exe — copy cả thư mục là mang sang máy khác được.
+
+## Cập nhật
+App tự kiểm tra bản mới khi mở (tắt ở Cài đặt → Giao diện) và báo ở khay; hoặc bấm **Kiểm tra cập nhật** ở góc dưới Cài đặt / menu khay.
+Bấm **Cập nhật**: app tải bản mới (kiểm tra SHA256), tự tắt, thay file rồi mở lại. `data\` và `engines\` giữ nguyên — không phải tải zip, copy dữ liệu bằng tay nữa.
+File ngôn ngữ tự thêm vào `_internal\gamesub\locales\` sẽ bị thay khi cập nhật — giữ bản sao, hoặc gửi pull request để có sẵn trong bản sau.
+
+## Chạy từ mã nguồn (Python 3.10+)
 ```
 run.bat            # lần đầu tự tạo .venv và cài thư viện
-build.bat          # (tùy chọn) đóng gói thành dist\GameSub\GameSub.exe
+build.bat          # (tùy chọn) đóng gói thành dist\GameSub\GameSub.exe + dist\GameSub.zip
 diag.bat           # tự kiểm tra DPI/đa màn hình, chụp game, OCR, hotkey -> data\diag.txt
 ```
-**Chạy trên máy khác không cần Python:** chạy `build.bat` → gửi `dist\GameSub.zip`. Bên kia **giải nén hết** rồi chạy
-`GameSub\GameSub.exe` (đừng chạy thẳng trong zip). Dạng thư mục mở nhanh, không giải nén gì ra `%TEMP%`.
-Dữ liệu nằm trong `data\` (và `engines\` nếu tải OCR) cạnh exe — copy cả thư mục là mang sang máy khác được. Kiểm tra lỗi: `GameSub.exe --diag` → `data\diag.txt`.
-Bản exe chỉ có Windows OCR (cần gói ngôn ngữ English trong Windows, thường có sẵn).
+Ra bản mới: tăng `__version__` trong `gamesub/__init__.py` → `build.bat` → tạo release tag `vX.Y.Z` đính kèm `dist\GameSub.zip`
+(tên file phải đúng `GameSub.zip`, app tìm file này để tự cập nhật).
 
-Gặp lỗi (vùng lệch, ảnh đen, OCR không chạy, hotkey không ăn): chạy `diag.bat` và gửi `data\diag.txt` + `data\diag_region.png`.
+Gặp lỗi (vùng lệch, ảnh đen, OCR không chạy, hotkey không ăn): chạy `diag.bat` (bản exe: `GameSub.exe --diag`) và gửi `data\diag.txt` + `data\diag_region.png`.
 Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-play thoại.
 
 ## Dùng
@@ -107,3 +115,7 @@ python tests/test_capture_translate.py
 python tests/test_ui_smoke.py
 python tests/test_i18n.py         # mọi chuỗi giao diện đã có bản dịch
 ```
+
+## Giấy phép
+[MIT](LICENSE) © 2026 Nguyễn Việt Hưng. Bản exe đóng gói kèm thư viện bên thứ ba theo giấy phép riêng của chúng
+(PySide6/Qt: LGPLv3, Material Design Icons: Apache 2.0 — xem `gamesub/assets/mdi6-NOTICE.txt`, …).

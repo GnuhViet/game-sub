@@ -9,7 +9,7 @@ from gamesub.ui_region import to_physical
 from gamesub.capture import grab, open_sct
 from gamesub import ocr
 
-SAMPLE = "Rover, you finally woke up. Let's head to Jinzhou."
+SAMPLE = "You finally woke up. Let's head to the city."
 out = []
 def log(s=""): print(s); out.append(str(s))
 def section(t): log(); log(f"== {t} ==")

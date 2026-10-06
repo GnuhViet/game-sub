@@ -1,8 +1,8 @@
 import html, os, re, sys, traceback
 from pathlib import Path
-from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal, QTimer, QPoint, QProcess
-from PySide6.QtGui import QIcon, QCursor, QAction
-from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QInputDialog, QMessageBox
+from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal, QTimer, QPoint, QProcess, QUrl
+from PySide6.QtGui import QIcon, QCursor, QAction, QDesktopServices
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QInputDialog, QMessageBox, QProgressDialog
 from rapidfuzz import fuzz
 from .config import Config, DATA_DIR
 from .db import DB
@@ -16,11 +16,11 @@ from .hotkeys import Hotkeys
 from .ui_overlay import Overlay, WordPopup
 from .ui_region import RegionSelector, RegionFlash, to_logical
 from .ui_scan import ScanWindow
-from . import winapp
+from . import winapp, updater, __version__
 from .capture import open_sct, grab
 from . import ocr
 from .textnorm import paragraphs
-from .ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog
+from .ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog, _Job
 from .i18n import tr, N_
 
 class _Sig(QObject):
@@ -47,22 +47,10 @@ def on_top(dlg):
 ICON = Path(__file__).resolve().parent / "assets" / "icon.ico"
 WAIT_ONLINE, WAIT_GOOGLE, WAIT_AI = N_("app.looking_up_online"), N_("app.translating"), N_("app.ai_is_explaining")     # chữ chờ trong popup tra từ (dịch lúc hiện)
 
-def migrate_db(d):
-    """Đổi tên app (WuWa Sub -> Game Sub): wuwasub.db (+ -wal/-shm) -> gamesub.db, giữ nguyên sub / glossary / sổ từ.
-    File cũ đang bị bản cũ mở (không đổi tên được) thì dùng tạm file cũ. -> đường dẫn db."""
-    new, old = d / "gamesub.db", d / "wuwasub.db"
-    if new.exists() or not old.exists(): return new
-    try:
-        old.rename(new)
-        for suf in ("-wal", "-shm"):
-            if (d / f"wuwasub.db{suf}").exists(): (d / f"wuwasub.db{suf}").rename(d / f"gamesub.db{suf}")
-        return new
-    except OSError: return new if new.exists() else old
-
 class App:
     def __init__(self, qapp):
         self.q = qapp; DATA_DIR.mkdir(parents=True, exist_ok=True)
-        self.cfg = cfg = Config(); self.db = DB(migrate_db(DATA_DIR))
+        self.cfg = cfg = Config(); self.db = DB(DATA_DIR / "gamesub.db")
         self.index = SubIndex(); self.spacer = Spacer(); self.rebuild_index()
         self.dicts = Dictionaries().load(cfg["dict_files"])
         self.tr = Translator(cfg, self.db)
@@ -86,6 +74,8 @@ class App:
         self.hk = Hotkeys(qapp); self.hk.triggered.connect(self.on_action); self._register_hotkeys()
         self._tray()
         self.elev_warned = set(); self.elev_t = QTimer(interval=2000, timeout=self._check_elevation); self.elev_t.start()
+        self.update_info = None
+        if cfg["check_updates"]: QTimer.singleShot(5000, self.check_update)
         self.ov.show()
         hint = [] if cfg["region"] else [tr("app.press_select_region_button_or", hk=cfg["hotkeys"]["region"])]
         if not len(self.index): hint.append(tr("app.press_folder_button_subtitle_pack"))
@@ -109,7 +99,7 @@ class App:
         self.icon = QIcon(str(ICON)); self.q.setWindowIcon(self.icon)          # vẽ lại: python tools/make_icon.py
         self.tray = QSystemTrayIcon(self.icon); m = QMenu()
         for txt, k in [(N_("tray.toggle"), "toggle"), (N_("tray.scan"), "scan"), (N_("tray.region"), "region"), (N_("tray.pause"), "pause"), (N_("tray.subs"), "subs"),
-                       (N_("tray.glossary"), "glossary"), (N_("tray.vocab"), "vocab"), (N_("tray.settings"), "settings"), (None, None)] + ([] if winapp.self_elevated() else [(N_("tray.relaunch_admin"), "relaunch_admin")]) + [(N_("tray.quit"), "quit")]:
+                       (N_("tray.glossary"), "glossary"), (N_("tray.vocab"), "vocab"), (N_("tray.settings"), "settings"), (N_("tray.check_update"), "update"), (None, None)] + ([] if winapp.self_elevated() else [(N_("tray.relaunch_admin"), "relaunch_admin")]) + [(N_("tray.quit"), "quit")]:
             if txt is None: m.addSeparator(); continue
             a = QAction(tr(txt).replace("&", "&&"), m); a.triggered.connect(lambda _=0, k=k: self.on_action(k)); m.addAction(a)
             if k == "pause":
@@ -119,6 +109,7 @@ class App:
                 a.triggered.connect(lambda _=0: self.on_action("lock")); m.addAction(a)
         self.tray.setContextMenu(m); self.tray.setToolTip("Game Sub"); self.tray_menu = m
         self.tray.activated.connect(lambda r: self.on_action("toggle") if r == QSystemTrayIcon.Trigger else None)
+        self.tray.messageClicked.connect(lambda: self.update_info and self.ask_update(self.update_info))
         if QSystemTrayIcon.isSystemTrayAvailable(): self.tray.show()
 
     # ---------------- pipeline
@@ -172,6 +163,7 @@ class App:
         if not exe or exe in self.elev_warned or (tgt and exe != tgt) or not winapp.elevated(pid): return
         self.elev_warned.add(exe)
         msg = tr("app.exe_runs_as_administrator_so", exe=exe)
+        self.update_info = None                  # bấm thông báo này không mở hộp cập nhật
         self.ov.status.setText(tr("app.game_runs_as_administrator_see")); self.tray.showMessage("Game Sub", msg, QSystemTrayIcon.Warning, 8000)
 
     def _auto_hide(self):
@@ -298,6 +290,7 @@ class App:
         elif k == "glossary": on_top(GlossaryDialog(self.db, c)).exec(); self._known_words()
         elif k == "vocab": on_top(VocabDialog(self.db)).exec()
         elif k == "settings": self.open_settings()
+        elif k == "update": self.check_update(manual=True)
         elif k == "relaunch_admin":
             if winapp.relaunch_as_admin(): self.quit()
         elif k == "quit": self.quit()
@@ -382,6 +375,7 @@ class App:
         d = on_top(SettingsDialog(c, on_preview=lambda: (self.ov.apply_style(), self.pop.apply_style())))   # đổi màu/khung -> overlay đổi ngay
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
         d.btn_show.clicked.connect(lambda: (self._flash_off(), self.show_regions()))
+        d.btn_update.clicked.connect(lambda: self.check_update(manual=True, parent=d))
         if not d.exec(): return
         d.apply(); self.noted.clear()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
@@ -394,6 +388,45 @@ class App:
         if c["ui_lang"] != old["ui_lang"] and QMessageBox.question(
                 None, "Game Sub", "Đổi ngôn ngữ cần mở lại app. Mở lại ngay?\nChanging the language requires restarting the app. Restart now?"   # no-i18n: song ngữ
                 ) == QMessageBox.Yes: self.restart()
+
+    # ---------------- cập nhật (updater.py)
+    def check_update(self, manual=False, parent=None):
+        """Hỏi GitHub có bản mới không. manual = người dùng bấm: báo cả khi đã mới nhất / lỗi; tự động: chỉ hiện thông báo khay."""
+        def done(info):
+            if manual and not info: QMessageBox.information(parent, tr("updater.title"), tr("updater.up_to_date", ver=__version__))
+            elif manual: self.ask_update(info, parent)
+            elif info:
+                self.update_info = info
+                self.tray.showMessage("Game Sub", tr("updater.available_tray", tag=info["tag"]), QSystemTrayIcon.Information, 10000)
+        def err(e):
+            if manual: QMessageBox.warning(parent, tr("updater.title"), tr("updater.check_failed_e", e=e))
+        run(lambda _: updater.check(), done, err)
+
+    def ask_update(self, info, parent=None):
+        self.update_info = None
+        box = on_top(QMessageBox(QMessageBox.Question, tr("updater.title"), tr("updater.new_version", tag=info["tag"], ver=__version__), parent=parent))
+        box.setInformativeText(tr("updater.will_restart", mb=f"{info['size'] / 1e6:.0f}") if updater.can_install() else tr("updater.from_source"))
+        if info["notes"]: box.setDetailedText(info["notes"])
+        go = box.addButton(tr("updater.update_now"), QMessageBox.AcceptRole) if updater.can_install() else None
+        page = box.addButton(tr("updater.open_page"), QMessageBox.ActionRole); box.addButton(tr("updater.later"), QMessageBox.RejectRole)
+        box.exec()
+        if box.clickedButton() is page: QDesktopServices.openUrl(QUrl(info["page"]))
+        elif go and box.clickedButton() is go: self._install_update(info, parent)
+
+    def _install_update(self, info, parent):
+        dlg = on_top(QProgressDialog(tr("settings.ocr.downloading"), tr("settings.ocr.cancel"), 0, 100, parent)); dlg.setWindowTitle(tr("updater.title"))
+        dlg.setMinimumWidth(420); dlg.setWindowModality(Qt.ApplicationModal); dlg.setAutoClose(False); dlg.setAutoReset(False); dlg.show()
+        job = _Job(lambda p: updater.download(info, p))
+        job.progress.connect(lambda t, p: (dlg.setLabelText(t), dlg.setValue(p))); dlg.canceled.connect(lambda: setattr(job, "cancel", True))
+        def done(e):
+            dlg.close()
+            if e == "cancel": return
+            try:
+                if e: raise RuntimeError(e)
+                updater.apply(job.result)
+            except Exception as ex: QMessageBox.warning(parent, tr("updater.title"), tr("updater.failed_e", e=ex)); return
+            self.hk.register({}); self.quit()                  # script đợi tiến trình này tắt rồi mới chép đè
+        job.done.connect(done); self._upd_job = job; job.start()
 
     def restart(self):
         """Mở lại app (đổi ngôn ngữ). Nhả hotkey trước để bản mới đăng ký được."""

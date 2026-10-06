@@ -3,12 +3,12 @@
 > Dán file này + giải nén `gamesub.zip` vào repo, rồi nói: "Đọc HANDOFF.md và README.md, tiếp tục dự án."
 
 ## 1. Mục tiêu
-Tool overlay dịch thoại game **Wuthering Waves** sang tiếng Việt, chạy trên **Windows**, chỉ dùng **OCR màn hình**
+Tool overlay dịch thoại game sang tiếng Việt, chạy trên **Windows**, chỉ dùng **OCR màn hình**
 (không hook/inject/sửa file game → tránh anti-cheat). Người dùng: Hưng, dev Java, thích code gọn, trả lời ngắn bằng tiếng Việt, làm theo kiểu lặp dần.
 
 ## 2. Bối cảnh & quyết định đã chốt
 - Đã cân nhắc Translumo / LunaTranslator. Translumo hay sai chủ ngữ vì dịch từng câu không ngữ cảnh → tự build tool riêng.
-- WuWa là game online có anti-cheat → **chỉ OCR**. Game để text **English**, chế độ Borderless/Windowed, tắt Auto-play thoại.
+- Game online thường có anti-cheat → **chỉ OCR**. Game để text **English**, chế độ Borderless/Windowed, tắt Auto-play thoại.
 - Dịch: **ưu tiên bộ sub Việt hóa có sẵn** (file riêng của user, định dạng chưa biết → importer generic có chọn cột).
   Không khớp → engine chọn riêng cho thoại (`dialog_engine`) và vùng chụp (`scan_engine`): Google / Gemini (fallback Google). Đã bỏ OpenAI/DeepSeek.
 - Gemini free tier (từ 04/2026 chỉ còn Flash/Flash-Lite, khoảng 5–15 RPM): mặc định `gemini-2.5-flash-lite`, thinking budget 0, streaming.
@@ -75,7 +75,7 @@ zip ra `dist\GameSub.zip`. Bỏ onefile vì giải nén ~160MB ra %TEMP% mỗi l
 ## 6. Việc tiếp theo
 1. User chạy `diag.bat` + `run.bat` trên Windows, gửi `data/diag.txt` → sửa lỗi theo báo cáo.
 2. User gửi 1–2 dòng mẫu của **file sub riêng** → chỉnh `importer.guess_cols` và placeholder (`name_tokens`, regex giới tính) cho đúng định dạng.
-3. Tinh chỉnh `stable_ms`, `diff_threshold`, `fuzzy_threshold` với thoại WuWa thật.
+3. Tinh chỉnh `stable_ms`, `diff_threshold`, `fuzzy_threshold` với thoại game thật.
 4. Ý tưởng chưa làm: nhiều vùng OCR, gợi ý tự thêm tên riêng vào glossary, lọc OCR rác khi không có hộp thoại (ảnh cảnh nền).
 
 ## 7. Lệnh hữu ích

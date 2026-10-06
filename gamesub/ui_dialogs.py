@@ -160,6 +160,7 @@ class SettingsDialog(QDialog):
         self._tip(f, uk, "settings.appearance.tip.while_overlay_is_locked")
         c = self._check(f, "hide_from_capture", "settings.appearance.hide_from_capture")
         self._tip(f, c, "settings.appearance.tip.overlay_stays_visible_on")
+        self._check(f, "check_updates", "settings.appearance.check_updates")
         # --- Hotkey
         f = self._tab(tabs, "settings.tab.hotkeys"); self.hk = {}
         for k, n in [("toggle", N_("settings.hotkeys.toggle")), ("region", N_("settings.hotkeys.region")), ("pause", N_("settings.hotkeys.pause")), ("rescan", N_("settings.hotkeys.rescan")), ("clickthrough", "Click-through"),
@@ -168,7 +169,8 @@ class SettingsDialog(QDialog):
         self._check(f, "run_as_admin", "settings.hotkeys.run_as_admin")
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
         ver = QLabel(f"Game Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới
-        foot = QHBoxLayout(); foot.addWidget(ver); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
+        self.btn_update = QPushButton(tr("updater.check_button"))                         # app.check_update nối vào
+        foot = QHBoxLayout(); foot.addWidget(ver); foot.addWidget(self.btn_update); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
 
     LIVE = ("opacity", "bg", "fg", "src_fg", "accent", "show_frame", "text_outline", "text_valign", "line_gap")
 
@@ -231,7 +233,7 @@ class SettingsDialog(QDialog):
         self.eng_status.setText("<i>" + tr("settings.ocr.located_in_path", path=html.escape(str(engines.ENG_DIR))) + "</i>")
 
     def _load_apps(self):
-        """App đang có cửa sổ mở (WuWa: client-win64-shipping.exe) + giá trị đang lưu."""
+        """App đang có cửa sổ mở + giá trị đang lưu."""
         from . import winapp
         cur = self._app_value() if self.app_combo.count() else self.cfg["target_app"]
         c = self.app_combo; c.clear(); c.addItem(tr("settings.ocr.any_window_no_filter"), "")
@@ -360,7 +362,7 @@ class _Job(QThread):
     progress = Signal(str, int); done = Signal(str)        # done("") = OK, "cancel", hoặc thông báo lỗi
     def __init__(self, fn): super().__init__(); self.fn = fn; self.cancel = False
     def run(self):
-        try: self.fn(lambda t, p: (self.progress.emit(t, p), not self.cancel)[1]); self.done.emit("")
+        try: self.result = self.fn(lambda t, p: (self.progress.emit(t, p), not self.cancel)[1]); self.done.emit("")
         except engines.Cancelled: self.done.emit("cancel")
         except Exception as e: self.done.emit(f"{type(e).__name__}: {e}")
 

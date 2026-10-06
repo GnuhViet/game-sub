@@ -7,7 +7,7 @@ def app_dir() -> Path:
 DATA_DIR = app_dir() / "data"
 CFG_PATH = DATA_DIR / "settings.json"
 
-DEFAULT_PROMPT = """Bạn là người dịch thoại game Wuthering Waves từ {src_lang} sang tiếng Việt.
+DEFAULT_PROMPT = """Bạn là người dịch thoại game từ {src_lang} sang tiếng Việt.
 - Văn phong tự nhiên, đúng xưng hô theo quan hệ nhân vật và ngữ cảnh các câu trước.
 - Nhân vật chính: {player} ({gender}), xưng "tôi".
 - {keep_rule}
@@ -49,6 +49,7 @@ DEFAULTS = {
     "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
     "ui_lang": "",                                    # ngôn ngữ giao diện: "" = theo Windows / vi / en (đổi cần mở lại app)
     "unlock_key": "Alt",                              # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
+    "check_updates": True,                            # khởi động: hỏi GitHub có bản mới không (báo ở khay)
     "run_as_admin": False,                            # game chạy quyền admin -> GameSub cũng phải admin thì hotkey/giữ phím mới tới
     "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "show_region", "subs", "glossary", "vocab", "lock"],
     "toolbar_known": [],                              # nút toolbar đã có lúc lưu cài đặt: nút mới ra sau đó tự hiện (bỏ tick rồi thì thôi)

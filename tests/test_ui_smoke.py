@@ -17,6 +17,8 @@ class FakeWorker(A.CaptureWorker):
     def run(self):
         while self.running: time.sleep(0.05)
 A.CaptureWorker = FakeWorker
+INFO = {"tag": "v99.0", "name": "v99.0", "notes": "", "url": "", "size": 1, "digest": "", "page": ""}
+A.updater.check = lambda: INFO                    # không gọi GitHub thật
 
 q = QApplication(sys.argv)
 def pump(sec=0.3):
@@ -25,6 +27,8 @@ def pump(sec=0.3):
     QThreadPool.globalInstance().waitForDone(2000); q.processEvents()
 
 a = A.App(q)
+msgs = []; a.tray.showMessage = lambda *x: msgs.append(x)
+a.check_update(); pump(); assert a.update_info is INFO and "v99.0" in msgs[0][1]     # tự kiểm tra: chỉ báo ở khay
 (C.DATA_DIR / "d.tsv").write_text("finally\tcuối cùng\nwake\tthức dậy\n", "utf-8")
 a.cfg["dict_files"] = [str(C.DATA_DIR / "d.tsv")]; a.dicts.load(a.cfg["dict_files"])
 a.db.add_subs("vh.csv", [("Rover, you finally woke up.", "Rover, cuối cùng anh cũng tỉnh rồi.")]); a.rebuild_index()

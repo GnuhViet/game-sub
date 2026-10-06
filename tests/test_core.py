@@ -123,6 +123,35 @@ def test_pick_model():
     assert T.pick_model(["gemini-3.1-pro", "gemini-3.1-flash-lite-preview", "gemini-3-flash-lite", "gemini-3-flash"]) == "gemini-3-flash-lite"
     assert T.pick_model(["gemini-2.5-pro", "gemini-2.5-flash"]) == "gemini-2.5-flash" and T.pick_model([]) == ""
 
+def test_updater():
+    import hashlib, io, zipfile
+    from gamesub import updater as U, __version__
+    from gamesub.engines import Cancelled
+    assert U.ver("v0.2.10") > U.ver("v0.2.9") > U.ver("0.2") and U.ver(__version__)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z: z.writestr("GameSub/GameSub.exe", "x"); z.writestr("GameSub/_internal/a.txt", "y")
+    data = buf.getvalue(); dig = "sha256:" + hashlib.sha256(data).hexdigest()
+    def rel(tag, draft=False, name="GameSub.zip"):
+        return {"tag_name": tag, "draft": draft, "body": "notes", "html_url": "p", "assets": [{"name": name, "browser_download_url": tag, "size": len(data), "digest": dig}]}
+    class R:
+        def __init__(self, js=None, body=b""): self.js, self.body, self.status_code, self.content, self.headers = js, body, 200, b"1", {"content-length": str(len(body))}
+        def json(self): return self.js
+        def raise_for_status(self): pass
+        def iter_content(self, n): yield from (self.body[i:i + n] for i in range(0, len(self.body), n))
+    class S:
+        rels = []
+        def get(self, url, **kw): return R(self.rels) if url == U.API else R(body=data)
+    real = U.net.session; U.net.session = lambda: S()
+    try:
+        S.rels = [rel("v0.0.1"), rel("v999.0", draft=True), rel("v998.0", name="other.zip")]; assert U.check() is None     # draft / không có GameSub.zip -> bỏ
+        S.rels = [rel("v0.0.1"), rel("v100.2.10"), rel("v100.2.9")]; info = U.check(); assert info["tag"] == "v100.2.10" and info["digest"] == dig
+        U.TMP = T / "upd"; new = U.download(info, lambda t, p: True); assert (new / "GameSub.exe").read_text() == "x" and new.name == "GameSub"
+        try: U.download(dict(info, digest="sha256:00"), lambda t, p: True); assert False
+        except RuntimeError: pass
+        try: U.download(info, lambda t, p: False); assert False
+        except Cancelled: pass
+    finally: U.net.session = real
+
 if __name__ == "__main__":
     for n, f in list(globals().items()):
         if n.startswith("test_"): f(); print("PASS", n)
