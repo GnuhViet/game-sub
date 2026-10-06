@@ -17,6 +17,8 @@
 #include <QInputDialog>
 #include <QMenu>
 #include <QMessageBox>
+#include <QTabWidget>
+#include <QEnterEvent>
 #include <QProcess>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -97,7 +99,7 @@ void App::tray() {
     items.append(QPair<const char*, QString>(N_("tray.quit"), "quit"));
     for (const auto& [txt, k] : items) {
         if (!txt) { m->addSeparator(); continue; }
-        m->addAction(tx(txt), this, [this, k = k] { onAction(k); });
+        m->addAction(tx(txt).replace("&", "&&"), this, [this, k = k] { onAction(k); });   // "&" trong menu là phím tắt -> nhân đôi
         if (k == "pause") {
             ctAction_ = m->addAction(tx("app.click_through_mouse_passes_through"), this, [this] { onAction("clickthrough"); });
             ctAction_->setCheckable(true); ctAction_->setChecked(cfg_.b("click_through"));
@@ -437,4 +439,25 @@ void App::restart() {
 
 void App::quit() {
     cfg_.save(); worker_->stop(); if (tray_) tray_->hide(); q_.quit();
+}
+
+void App::shots(const QString& dir) {
+    QDir().mkpath(dir);
+    auto save = [&](QWidget* w, const QString& name) { QApplication::processEvents(); w->grab().save(dir + "/" + name + ".png"); };
+    QEnterEvent enter(QPointF(5, 5), QPointF(5, 5), QPointF(5, 5)); QApplication::sendEvent(ov_, &enter);     // rê chuột: hiện toolbar
+    ov_->showLine("Yangyang", "Rover, you finally woke up. Let's head to Jinzhou.", QString::fromUtf8("Rover, cuối cùng anh cũng tỉnh rồi. Đi Jinzhou thôi."), "Google Translate");
+    save(ov_, "overlay");
+    pop_->showFor("finally", "", meta("finally"), QString::fromUtf8("<b style='font-size:15px'>cuối cùng</b> &nbsp;<span style='opacity:.65'>/ˈfaɪnəli/</span><br><i>adverb</i>: cuối cùng, sau cùng"),
+                  QPoint(700, 500), true, "Google Translate");
+    save(pop_, "popup");
+    scanWin_->showResult("Dear Rover,\nThank you for your help in the last battle.", QString::fromUtf8("Rover thân mến,\nCảm ơn cậu đã giúp đỡ trong trận chiến vừa rồi."), "Google Translate");
+    save(scanWin_, "scan");
+    {
+        SettingsDialog d(cfg_, {}); d.show(); auto* tabs = d.findChild<QTabWidget*>();
+        for (int i = 0; i < tabs->count(); ++i) { tabs->setCurrentIndex(i); save(&d, QString("settings_%1").arg(i)); }
+    }
+    { GlossaryDialog d(*db_, cfg_); d.show(); save(&d, "glossary"); }
+    { VocabDialog d(*db_); d.show(); save(&d, "vocab"); }
+    { SubsDialog d(*db_, index_, cfg_, [] {}); d.show(); save(&d, "subs"); }
+    quit();
 }

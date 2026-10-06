@@ -33,6 +33,8 @@ public:
     explicit App(QApplication& q);
     ~App() override;
     void quit();
+    void shots(const QString& dir);      // dev: --shot <thư mục> -> chụp các cửa sổ ra PNG rồi thoát
+    int selfTest();                       // dev: --selftest (src/selftest.cpp; GAMESUB_DATA=thư mục tạm) -> 0 nếu qua hết
 public slots:
     void onAction(const QString& k);
 private:

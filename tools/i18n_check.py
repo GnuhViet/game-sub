@@ -1,5 +1,5 @@
 """Kiểm tra đa ngôn ngữ (python tools/i18n_check.py [--todo]):
-- key dùng trong code (tr("key") / N_("key") / nhãn truyền vào hàm dựng form của Cài đặt) phải có trong locales/vi.json
+- key dùng trong code (tr("key") / N_("key") / nhãn truyền vào hàm dựng form của Cài đặt; cả tx("key") của bản C++ cpp/src) phải có trong locales/vi.json
 - mọi file locales/<mã>.json đủ key như vi.json, biến {…} khớp; key thừa / không còn dùng -> cảnh báo
 - --todo: liệt kê chuỗi tiếng Việt còn viết thẳng trong code (bỏ docstring, log, dòng có ghi chú no-i18n)."""
 import ast, json, re, sys
@@ -57,11 +57,31 @@ def scan():
                 for m in ast.walk(n): inside.add(id(m))
     return used, todo
 
+CPP = ROOT / "cpp" / "src"
+CPP_KEY = re.compile(r'"((?:app|tray|toolbar|overlay|popup|settings|glossary|vocab|review|subs|keycap|scan|region|ocr|engines|dict|translator|lang)\.[A-Za-z0-9_.\-]+)"')
+
+FILE_EXT = re.compile(r"\.(h|cpp|csv|tsv|png|json|txt|db|exe|dll|qz|ttf|ico)$")
+
+def scan_cpp():
+    """Key dùng trong bản C++ (cpp/src/*.cpp): mọi chuỗi có dạng key i18n."""
+    used = {}
+    for p in sorted(CPP.glob("*.cpp")) if CPP.is_dir() else []:
+        for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+            if line.lstrip().startswith("#include"): continue
+            for k in CPP_KEY.findall(line):
+                if FILE_EXT.search(k): continue                              # tên file (glossary.csv, ocr.png…), không phải key
+                if not k.startswith("settings.ocr.tip.") or k.count(".") > 3: used.setdefault(k, []).append(f"cpp/{p.name}:{n}")
+            if 'QString("settings.ocr.tip.") + k' in line:                 # key ghép: settings.ocr.tip.<cfg>
+                for k in ("ocr_engine", "ocr_lang", "ocr_scale", "interval_ms", "stable_ms", "diff_threshold", "dedupe_ratio", "clear_on_empty", "fix_spacing"):
+                    used.setdefault("settings.ocr.tip." + k, []).append(f"cpp/{p.name}:{n}")
+    return used
+
 def load(code): return json.loads((LOC / f"{code}.json").read_text(encoding="utf-8"))
 
 def check():
     """-> (lỗi, cảnh báo)."""
     used, _ = scan(); errs, warns = [], []
+    for k, where in scan_cpp().items(): used.setdefault(k, []).extend(where)          # bản C++ dùng chung locales
     base = {k: v for k, v in load("vi").items() if k != "_name"}
     for k, where in used.items():
         if k not in base: errs.append(f"[vi] thiếu key ({where[0]}): {k!r}")

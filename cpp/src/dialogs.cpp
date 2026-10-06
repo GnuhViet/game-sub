@@ -328,7 +328,7 @@ SettingsDialog::SettingsDialog(Config& cfg, std::function<void()> onPreview) : c
     const QList<QPair<const char*, const char*>> hks{{"toggle", N_("settings.hotkeys.toggle")}, {"region", N_("settings.hotkeys.region")},
         {"pause", N_("settings.hotkeys.pause")}, {"rescan", N_("settings.hotkeys.rescan")}, {"clickthrough", "Click-through"},
         {"clear", N_("settings.hotkeys.clear")}, {"translate", N_("settings.hotkeys.translate")}, {"scan", N_("settings.hotkeys.scan")}, {"lock", N_("settings.hotkeys.lock")}};
-    for (const auto& [k, n] : hks) { auto* e = new QLineEdit(cfg_.hotkey(k)); f->addRow(tx(n), e); hk_.insert(k, e); }
+    for (const auto& [k, n] : hks) { auto* e = new QLineEdit(cfg_.hotkey(k)); f->addRow(tx(n).replace("&", "&&"), e); hk_.insert(k, e); }
     check(f, "run_as_admin", "settings.hotkeys.run_as_admin");
     auto* bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     connect(bb, &QDialogButtonBox::accepted, this, &QDialog::accept); connect(bb, &QDialogButtonBox::rejected, this, &QDialog::reject);
