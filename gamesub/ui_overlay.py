@@ -7,6 +7,7 @@ import qtawesome as qta
 from .textnorm import WORD_RE
 from .dictionary import LANGS
 from .hotkeys import held_vks
+from .i18n import tr, N_
 
 FLAGS = Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
 
@@ -47,11 +48,10 @@ def caption_font():
     return next((f for f in ("Segoe Fluent Icons", "Segoe MDL2 Assets") if f in fams), None)
 
 # tooltip toolbar; hotkey (nếu có) được ghép vào lúc apply_style
-TIPS = {"prev": "Câu trước", "next": "Câu sau", "pause": "Tạm dừng / tiếp tục nhận dạng", "translate": "Bật/tắt dịch (tắt = chỉ câu gốc để tra từ)",
-        "rescan": "Quét lại vùng thoại", "clear": "Xóa chữ trên overlay", "scan": "Chụp & dịch 1 vùng (thư, bảng…)",
-        "region": "Chọn vùng thoại", "speaker": "Chọn vùng tên nhân vật", "show_region": "Xem vùng đang chọn (thoại + tên nhân vật)", "subs": "Bộ sub Việt hóa", "glossary": "Glossary (tên riêng, thuật ngữ)",
-        "vocab": "Sổ từ", "lock": "Khóa overlay (chuột xuyên qua để chơi game)", "settings": "Cài đặt", "hide": "Ẩn overlay", "quit": "Thoát"}
-BUSY = ("Đang", "Lỗi", "Chưa", "Không khớp", "Không đọc")          # trạng thái luôn hiện ở góc (nguồn dịch chỉ hiện khi rê chuột)
+TIPS = {"prev": N_("Câu trước"), "next": N_("Câu sau"), "pause": N_("Tạm dừng / tiếp tục nhận dạng"), "translate": N_("Bật/tắt dịch (tắt = chỉ câu gốc để tra từ)"),
+        "rescan": N_("Quét lại vùng thoại"), "clear": N_("Xóa chữ trên overlay"), "scan": N_("Chụp & dịch 1 vùng (thư, bảng…)"),
+        "region": N_("Chọn vùng thoại"), "speaker": N_("Chọn vùng tên nhân vật"), "show_region": N_("Xem vùng đang chọn (thoại + tên nhân vật)"), "subs": N_("Bộ sub Việt hóa"), "glossary": N_("Glossary (tên riêng, thuật ngữ)"),
+        "vocab": N_("Sổ từ"), "lock": N_("Khóa overlay (chuột xuyên qua để chơi game)"), "settings": N_("Cài đặt"), "hide": N_("Ẩn overlay"), "quit": N_("Thoát")}
 
 class FlowLayout(QLayout):
     """Xếp widget theo hàng, hết chỗ thì xuống dòng (toolbar không bị bóp khi overlay hẹp)."""
@@ -99,11 +99,11 @@ class Overlay(QWidget):
     action = Signal(str)                       # prev/next/pause/region/vocab/glossary/subs/settings/quit/rescan
 
     def __init__(self, cfg):
-        super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._auto = False; self._alt = False
+        super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._alert = False; self._auto = False; self._alt = False
         self.alt_t = QTimer(self, interval=60, timeout=self._poll_alt)        # đang khóa: giữ phím mở khóa (mặc định Alt) -> overlay nhận chuột
         self.setAttribute(Qt.WA_TranslucentBackground); self.setMouseTracking(True)
         self.setAttribute(Qt.WA_AlwaysShowToolTips)          # cửa sổ Tool không focus: Windows mặc định không hiện tooltip
-        self.setWindowTitle("WuWa Sub"); self.setMinimumSize(320, 90)
+        self.setWindowTitle("Game Sub"); self.setMinimumSize(320, 90)
         v = QVBoxLayout(self); v.setContentsMargins(14, 6, 14, 8); v.setSpacing(3)
         # toolbar
         # toolbar: nút tùy chọn (cfg["toolbar"]) xếp tự xuống dòng bên trái; Cài đặt / Ẩn / Thoát luôn ghim bên phải
@@ -121,7 +121,7 @@ class Overlay(QWidget):
         hb.addWidget(left, 1); hb.addLayout(right); hb.setAlignment(right, Qt.AlignTop)
         sp = self.bar.sizePolicy(); sp.setRetainSizeWhenHidden(True); self.bar.setSizePolicy(sp)   # ẩn vẫn giữ chỗ: chữ không xê dịch khi rê chuột
         v.addWidget(self.bar)
-        self.speaker = QLabel(); self.src_lbl = QLabel(); self.vi = QLabel(); self.tag = QLabel(); self.tag.setToolTip("Nguồn bản dịch: Bộ sub / Gemini / OpenAI / Google Translate")
+        self.speaker = QLabel(); self.src_lbl = QLabel(); self.vi = QLabel(); self.tag = QLabel(); self.tag.setToolTip(tr("Nguồn bản dịch: Bộ sub / Gemini / OpenAI / Google Translate"))
         for l in (self.speaker, self.src_lbl, self.vi): l.setWordWrap(True)
         self.src_lbl.setTextFormat(Qt.RichText)
         self.src_lbl.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse)
@@ -164,8 +164,8 @@ class Overlay(QWidget):
         pos = {b: c["toolbar"].index(k) if k in c["toolbar"] else 99 for k, b in self.btns.items()}
         self.flow.items.sort(key=lambda it: pos.get(it.widget(), 99)); self.flow.invalidate()     # xếp theo thứ tự đã chọn
         for k, b in self.btns.items():
-            tip = TIPS.get(k, ""); hk = c["hotkeys"].get(k) or c["hotkeys"].get({"hide": "toggle"}.get(k, ""), "")
-            if k == "translate": tip = "Đang dịch — bấm để tắt (chỉ câu gốc để tra từ)" if c["translate"] else "Đang TẮT dịch — bấm để bật"
+            tip = tr(TIPS.get(k, "")); hk = c["hotkeys"].get(k) or c["hotkeys"].get({"hide": "toggle"}.get(k, ""), "")
+            if k == "translate": tip = tr("Đang dịch — bấm để tắt (chỉ câu gốc để tra từ)") if c["translate"] else tr("Đang TẮT dịch — bấm để bật")
             b.setToolTip(tip + (f"  [{hk}]" if hk else ""))
         self.set_locked(c["locked"]); self._fit(); exclude_from_capture(self, c["hide_from_capture"])
 
@@ -177,14 +177,14 @@ class Overlay(QWidget):
         p.setBrush(col); p.setPen(Qt.NoPen); p.drawRoundedRect(self.rect(), 10, 10)
 
     # ---- nội dung
-    def show_line(self, speaker, src, vi, tag):
+    def show_line(self, speaker, src, vi, tag, alert=False):
         self.speaker.setText(speaker or ""); self.speaker.setVisible(bool(speaker) and self.cfg["show_speaker"])
         if src != self.src: self.src = src; self._render_src()
-        self.vi.setText(vi or ""); self._tag = tag or ""; self._tag_vis(); self._fit()
+        self.vi.setText(vi or ""); self._tag = tag or ""; self._alert = alert; self._tag_vis(); self._fit()
 
     def _tag_vis(self):
-        """Nguồn dịch (Google/Gemini/Bộ sub…) chỉ hiện khi rê chuột; trạng thái đang dịch / lỗi thì luôn hiện."""
-        self.tag.setText(self._tag if self.bar.isVisible() or self._tag.startswith(BUSY) else "")
+        """Nguồn dịch (Google/Gemini/Bộ sub…) chỉ hiện khi rê chuột; báo lỗi (alert) thì luôn hiện."""
+        self.tag.setText(self._tag if self.bar.isVisible() or self._alert else "")
 
     def _fit(self):
         """Khung tự giãn lên trên (giữ mép dưới) khi chữ dài, co về cỡ người dùng đặt khi chữ ngắn."""
@@ -217,16 +217,16 @@ class Overlay(QWidget):
     def _menu(self, pos):
         sel = self.src_lbl.selectedText().strip(); m = QMenu(self)
         if sel:
-            for k, t in [("lookup", f"Tra «{sel[:30]}»"), ("vocab", "Lưu vào sổ từ"), ("keep", "Glossary: giữ nguyên"),
-                         ("translate", "Glossary: dịch là…"), ("explain", "Giải nghĩa theo ngữ cảnh (AI)")]:
+            for k, t in [("lookup", tr("Tra «{w}»", w=sel[:30])), ("vocab", tr("Lưu vào sổ từ")), ("keep", tr("Glossary: giữ nguyên")),
+                         ("translate", tr("Glossary: dịch là…")), ("explain", tr("Giải nghĩa theo ngữ cảnh (AI)"))]:
                 m.addAction(t, lambda k=k: self.phrase_action.emit(k, sel))
             m.addSeparator()
-        m.addAction("Copy câu gốc", lambda: QApplication.clipboard().setText(self.src))
+        m.addAction(tr("Copy câu gốc"), lambda: QApplication.clipboard().setText(self.src))
         m.exec(self.src_lbl.mapToGlobal(pos))
 
     def _menu_vi(self, pos):
-        m = QMenu(self); m.addAction("Copy bản dịch", lambda: QApplication.clipboard().setText(self.vi.text()))
-        m.addAction("Dịch lại bằng máy", lambda: self.action.emit("retranslate")); m.exec(self.vi.mapToGlobal(pos))
+        m = QMenu(self); m.addAction(tr("Copy bản dịch"), lambda: QApplication.clipboard().setText(self.vi.text()))
+        m.addAction(tr("Dịch lại bằng máy"), lambda: self.action.emit("retranslate")); m.exec(self.vi.mapToGlobal(pos))
 
     def set_click_through(self, on): self.cfg["click_through"] = on; self._apply_input()
 
@@ -249,7 +249,7 @@ class Overlay(QWidget):
             if k in CAPTION and self.cap_font: continue
             self.btns[k].setIcon(qta.icon(ICON_ON[k] if on.get(k) else name, color=c["src_fg"], color_active=c["accent"]))
 
-    def set_paused(self, p): self._paused = p; self._icons(); self.status.setText("Tạm dừng" if p else "")
+    def set_paused(self, p): self._paused = p; self._icons(); self.status.setText(tr("Tạm dừng") if p else "")
 
     # ---- kéo thả / hover toolbar
     def showEvent(self, e): super().showEvent(e); exclude_from_capture(self, self.cfg["hide_from_capture"]); self._apply_input()
@@ -319,11 +319,11 @@ class WordPopup(QFrame):
         self.setAttribute(Qt.WA_ShowWithoutActivating); self.setAttribute(Qt.WA_AlwaysShowToolTips); self.setObjectName("pop"); self.meta = self.raw = ""
         v = QVBoxLayout(self); v.setContentsMargins(10, 8, 10, 8)
         self.title = QLabel(); self.title.setTextFormat(Qt.RichText); self.anchor = QPoint()   # AutoText đoán sai -> hiện nguyên &#x27;
-        self.lang = QComboBox(); self.lang.setToolTip("Ngôn ngữ dịch")
+        self.lang = QComboBox(); self.lang.setToolTip(tr("Ngôn ngữ dịch"))
         for code, name in LANGS.items(): self.lang.addItem(name, code)
         self.lang.setCurrentIndex(max(0, self.lang.findData(cfg["target_lang"])))
         self.lang.activated.connect(lambda _: self.lang_changed.emit(self.lang.currentData()))
-        self.close_btn = QToolButton(); self.close_btn.setToolTip("Đóng"); self.close_btn.setAutoRaise(True); self.close_btn.setFixedSize(26, 22)
+        self.close_btn = QToolButton(); self.close_btn.setToolTip(tr("Đóng")); self.close_btn.setAutoRaise(True); self.close_btn.setFixedSize(26, 22)
         self.cap_font = caption_font()
         if self.cap_font: self.close_btn.setText(CAPTION["quit"]); f = QFont(self.cap_font); f.setPixelSize(10); self.close_btn.setFont(f)
         self.close_btn.clicked.connect(self.close_pop)
@@ -332,7 +332,7 @@ class WordPopup(QFrame):
         self.body.setTextInteractionFlags(Qt.TextSelectableByMouse)
         v.addLayout(th); v.addWidget(self.body)
         hb = QHBoxLayout(); hb.setSpacing(4)
-        for k, t in [("vocab", "＋ Sổ từ"), ("keep", "Giữ nguyên"), ("translate", "Dịch là…"), ("explain", "AI ngữ cảnh")]:
+        for k, t in [("vocab", tr("＋ Sổ từ")), ("keep", tr("Giữ nguyên")), ("translate", tr("Dịch là…")), ("explain", tr("AI ngữ cảnh"))]:
             b = QPushButton(t); b.clicked.connect(lambda _=0, k=k: self.act.emit(k, self.word)); hb.addWidget(b)
         v.addLayout(hb)
         self.source = QLabel(); self.source.setAlignment(Qt.AlignRight); v.addWidget(self.source)   # nguồn tra: Google / offline / AI

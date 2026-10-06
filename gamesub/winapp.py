@@ -44,7 +44,7 @@ def elevated(pid):
     finally: k32.CloseHandle(h)
 
 def relaunch_as_admin():
-    """Mở lại WuWaSub với quyền admin (Windows hỏi UAC). -> True nếu đã mở."""
+    """Mở lại GameSub với quyền admin (Windows hỏi UAC). -> True nếu đã mở."""
     if getattr(sys, "frozen", False): exe, args = sys.executable, ""
     else: exe, args = sys.executable, f'"{os.path.abspath(sys.argv[0])}"'
     return ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, os.getcwd(), 1) > 32
@@ -62,13 +62,13 @@ def force_foreground(hwnd):
         if attached: u32.AttachThreadInput(me, other, False)
 
 def is_target(target):
-    """True nếu không lọc, app đích đang focus, hoặc đang thao tác trên chính WuWaSub."""
+    """True nếu không lọc, app đích đang focus, hoặc đang thao tác trên chính GameSub."""
     if not target or not WIN: return True
     pid, exe = foreground()
     return not exe or pid == os.getpid() or exe == target.lower()
 
 def windows():
-    """Các app có cửa sổ đang mở: [(exe, tiêu đề)] (bỏ chính WuWaSub)."""
+    """Các app có cửa sổ đang mở: [(exe, tiêu đề)] (bỏ chính GameSub)."""
     if not WIN: return []
     out, me = {}, os.getpid()
     @ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)

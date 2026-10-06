@@ -1,13 +1,13 @@
 import json, struct, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from wuwasub.textnorm import resolve, norm, join_lines, lemmas, split_sentences
-from wuwasub.matcher import SubIndex
-from wuwasub import importer
-from wuwasub.db import DB
-from wuwasub.dictionary import Dictionaries
-from wuwasub.translator import Translator
-from wuwasub.config import Config
+from gamesub.textnorm import resolve, norm, join_lines, lemmas, split_sentences
+from gamesub.matcher import SubIndex
+from gamesub import importer
+from gamesub.db import DB
+from gamesub.dictionary import Dictionaries
+from gamesub.translator import Translator
+from gamesub.config import Config
 
 T = Path(tempfile.mkdtemp())
 PAIRS = [
@@ -85,7 +85,7 @@ def test_dictionaries():
     assert len(d.errors) == 1 and d.lookup("zzz") is None
 
 def test_spacing():
-    from wuwasub.spacing import Spacer
+    from gamesub.spacing import Spacer
     s = Spacer(); s.set_known(["Huanglong"])
     assert s.fix("Rover,youfinallywoke up.") == "Rover, you finally woke up."
     assert s.fix("Letsheadto Jinzhou with Yangyang.") == "Lets head to Jinzhou with Yangyang."    # tên riêng giữ nguyên
@@ -93,7 +93,7 @@ def test_spacing():
 
 def test_hotkey_migration():
     import json, tempfile
-    from wuwasub.config import Config
+    from gamesub.config import Config
     p = Path(tempfile.mkdtemp()) / "s.json"
     p.write_text(json.dumps({"hotkeys": {"toggle": "Alt+T", "pause": "F8", "scan": "Alt+Q"}}), "utf-8")
     hk = Config(p)["hotkeys"]
@@ -101,7 +101,7 @@ def test_hotkey_migration():
 
 def test_engine_remove():
     import tempfile, shutil
-    from wuwasub import engines as E
+    from gamesub import engines as E
     root = Path(tempfile.mkdtemp()); E.ENG_DIR, E.PY_DIR, E.TESS_DIR, E.PENDING = root, root / "py", root / "tesseract", root / "pending_remove.txt"
     (E.PY_DIR / "rapidocr_onnxruntime").mkdir(parents=True); (E.PY_DIR / "rapidocr_onnxruntime" / "m.onnx").write_bytes(b"x" * 2_000_000)
     assert E.has_rapidocr() and 1.9 < E.size_mb("rapidocr") < 2.1
@@ -113,13 +113,13 @@ def test_engine_remove():
     E.setup(); assert not E.TESS_DIR.exists() and not E.PENDING.exists()   # khởi động lại -> xóa hẳn
 
 def test_paragraphs():
-    from wuwasub.textnorm import paragraphs
+    from gamesub.textnorm import paragraphs
     L = ["Dear Rover,", "I hope this letter finds you well. The Black Shores have", "been quiet since the incident, but I fear the",
          "calm will not last.", "Yours,", "Jinhsi"]
     assert paragraphs(L).split("\n") == ["Dear Rover,", "I hope this letter finds you well. The Black Shores have been quiet since the incident, but I fear the calm will not last.", "Yours,", "Jinhsi"]
 
 def test_pick_model():
-    from wuwasub.translator import Translator as T
+    from gamesub.translator import Translator as T
     assert T.pick_model(["gemini-3.1-pro", "gemini-3.1-flash-lite-preview", "gemini-3-flash-lite", "gemini-3-flash"]) == "gemini-3-flash-lite"
     assert T.pick_model(["gemini-2.5-pro", "gemini-2.5-flash"]) == "gemini-2.5-flash" and T.pick_model([]) == ""
 

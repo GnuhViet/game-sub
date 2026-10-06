@@ -4,10 +4,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import numpy as np
 from PySide6.QtCore import QCoreApplication
-import wuwasub.capture as cap
-from wuwasub.config import Config
-from wuwasub.db import DB
-from wuwasub.translator import Translator
+import gamesub.capture as cap
+from gamesub.config import Config
+from gamesub.db import DB
+from gamesub.translator import Translator
 
 def test_capture_waits_for_stable_text():
     q = QCoreApplication.instance() or QCoreApplication(sys.argv)
@@ -103,7 +103,7 @@ def test_streaming_parsers():
     assert tr.translate("x", engine="ocr_gemini") == ("AI", "gemini", "")
 
 def test_google_fallback_and_cache():
-    import wuwasub.translator as T
+    import gamesub.translator as T
     calls = []
     class S:
         def get(self, url, params=None, timeout=None):

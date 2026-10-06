@@ -3,14 +3,14 @@ import os, sys, tempfile, time, pathlib
 from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import wuwasub.config as C
+import gamesub.config as C
 C.DATA_DIR = Path(tempfile.mkdtemp()); C.CFG_PATH = C.DATA_DIR / "settings.json"
-import wuwasub.app as A
+import gamesub.app as A
 A.DATA_DIR = C.DATA_DIR
 from PySide6.QtCore import QPoint, QRect, QThreadPool, Qt
 from PySide6.QtWidgets import QApplication
-from wuwasub.ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog, ReviewDialog
-from wuwasub.ui_region import RegionSelector, to_physical
+from gamesub.ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog, ReviewDialog
+from gamesub.ui_region import RegionSelector, to_physical
 
 class FakeWorker(A.CaptureWorker):
     def run(self):
@@ -48,7 +48,7 @@ assert calls[0] and calls[0][-1][2] == "Rover, cuối cùng anh cũng tỉnh r�
 # lỗi dịch
 def bad(*_): raise RuntimeError("429 hết quota")
 a.tr.translate = bad; a.on_text("", "Another line that fails."); pump()
-assert "Lỗi dịch" in a.ov._tag
+assert "Lỗi dịch" in a.ov._tag and a.ov._alert and "Lỗi dịch" in a.ov.tag.text()      # lỗi: hiện cả khi không rê chuột
 
 # 3) history nav
 a.on_action("prev"); assert "[2/3]" in a.ov._tag; a.on_action("next"); assert "[" not in a.ov._tag
@@ -103,7 +103,7 @@ sl = sd.w["opacity"][0]; sl.setValue(40); assert seen and a.cfg["opacity"] == 0.
 sd.w["show_frame"][0].setChecked(False); sd.w["text_outline"][0].setValue(2); assert not a.cfg["show_frame"] and a.cfg["text_outline"] == 2
 sd.reject(); assert a.cfg["opacity"] == 0.82 and a.cfg["show_frame"] and not a.cfg["text_outline"]     # Cancel trả lại
 sd = SettingsDialog(a.cfg); sd.w["text_outline"][0].setValue(1); sd.apply(); a.ov.apply_style(); assert a.ov.vi.graphicsEffect().w == 1
-assert isinstance(a.ov.vi.graphicsEffect(), __import__("wuwasub.ui_overlay", fromlist=["x"]).OutlineEffect); a.ov.grab()
+assert isinstance(a.ov.vi.graphicsEffect(), __import__("gamesub.ui_overlay", fromlist=["x"]).OutlineEffect); a.ov.grab()
 a.cfg["show_frame"] = False; a.ov.update(); a.ov.grab(); a.cfg["show_frame"] = True; a.cfg["text_outline"] = 0; a.ov.apply_style()
 a.render(); a.on_action("clear"); assert a.ov.vi.text() == "" and a.ov.src == ""
 # tắt dịch: chỉ câu gốc, không gọi máy dịch; bật lại thì dịch câu hiện tại
@@ -114,7 +114,7 @@ sd = SettingsDialog(a.cfg); cb = sd.w["dialog_engine"][0]; cb.setCurrentIndex(cb
 assert "openai_key" not in a.cfg and sd.w["scan_engine"][0].count() == 3
 assert not sd.gem_warn.isHidden() and "chưa có API key" in sd.gem_warn.text()          # chọn Gemini mà không có key -> cảnh báo
 sd.w["gemini_key"][0].setText("k"); assert sd.gem_warn.isHidden()
-import wuwasub.translator as T; T.Translator.gemini = lambda self, *a, **k: (_ for _ in ()).throw(T.ProviderError("API key sai"))
+import gamesub.translator as T; T.Translator.gemini = lambda self, *a, **k: (_ for _ in ()).throw(T.ProviderError("API key sai"))
 sd._test_key(); sd._key_job.wait(3000); pump(); assert "API key sai" in sd.key_status.text(), sd.key_status.text()
 T.Translator.gemini = lambda self, *a, **k: "OK"; T.Translator.list_models = lambda self, key: ["gemini-3.1-flash-lite", "gemini-3-flash", "gemini-2.5-pro"]
 sd._test_key(); sd._key_job.wait(3000); pump(); assert "dùng được" in sd.key_status.text() and sd.model.count() == 3
@@ -132,9 +132,9 @@ next(b for b in sd.findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).
 assert a.cfg["toolbar"][0] == k1 and a.cfg["toolbar"][1] == "prev", a.cfg["toolbar"]
 a.ov.apply_style(); a.ov._set_bar(True); pump(0.05); assert a.ov.btns[k1].x() < a.ov.btns["prev"].x()
 a.cfg["toolbar"].remove(k1); a.cfg["toolbar"].insert(1, k1); a.ov.apply_style(); a.ov._set_bar(False)
-from wuwasub import __version__
-assert any(l.text() == f"WuWa Sub v{__version__}" for l in SettingsDialog(a.cfg).findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QLabel))
-# game chạy quyền admin, WuWaSub không -> cảnh báo 1 lần
+from gamesub import __version__
+assert any(l.text() == f"Game Sub v{__version__}" for l in SettingsDialog(a.cfg).findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QLabel))
+# game chạy quyền admin, GameSub không -> cảnh báo 1 lần
 W = A.winapp; _orig = (W.self_elevated, W.foreground, W.elevated)
 W.self_elevated = lambda: False; W.foreground = lambda: (4242, "client-win64-shipping.exe"); W.elevated = lambda pid: True
 shown = []; a.tray.showMessage = lambda *x: shown.append(x)
@@ -182,7 +182,8 @@ a.cfg.update(scan_engine="ocr_google", gemini_key="")
 # 11) nguồn dịch chỉ hiện khi rê chuột; khóa overlay; khung tự giãn; tooltip có hotkey; 1/2 ngôn ngữ
 a.ov.show_line("", "Hi.", "Xin chào.", "Google Translate"); assert a.ov.tag.text() == ""
 a.ov._set_bar(True); assert a.ov.tag.text() == "Google Translate"; a.ov._set_bar(False)
-a.ov.show_line("", "Hi.", "", "Đang dịch…"); assert a.ov.tag.text() == "Đang dịch…"
+a.ov.show_line("", "Hi.", "", "Lỗi dịch: x", alert=True); assert a.ov.tag.text() == "Lỗi dịch: x"      # báo lỗi: luôn hiện
+a.on_error("Lỗi capture/OCR: x"); assert a.ov.tag.text() == "Lỗi capture/OCR: x"
 a.on_action("lock"); assert a.cfg["locked"] and not a.ov.grip.isVisible() and a.lock_action.isChecked() and a.ov.passthrough_wanted()
 a.ov.enterEvent(None); assert not a.ov.bar.isVisible(); a.on_action("lock"); assert not a.cfg["locked"]
 h0 = a.ov.height(); bottom = a.ov.geometry().bottom()

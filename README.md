@@ -1,16 +1,21 @@
-# WuWa Sub — OCR dịch thoại game
+# Game Sub — OCR dịch thoại game
 
-Overlay dịch thoại cho Wuthering Waves (và game bất kỳ) chỉ bằng **OCR màn hình**: không hook, không đọc bộ nhớ, không sửa file game.
+Overlay dịch thoại cho game bất kỳ (làm đầu tiên cho Wuthering Waves) chỉ bằng **OCR màn hình**: không hook, không đọc bộ nhớ, không sửa file game.
+
+> Trước đây tên là **WuWa Sub**. Đang dùng bản cũ: copy thư mục `data\` (và `engines\` nếu có) từ cạnh `WuWaSub.exe` sang cạnh `GameSub.exe` —
+> cài đặt, bộ sub, glossary, sổ từ được giữ nguyên.
+
+**Ngôn ngữ giao diện / UI language:** Tiếng Việt, English — Cài đặt → Giao diện → *Ngôn ngữ / Language* (mặc định theo ngôn ngữ Windows; đổi xong app hỏi mở lại).
 
 ## Cài & chạy (Windows 10/11, Python 3.10+)
 ```
 run.bat            # lần đầu tự tạo .venv và cài thư viện
-build.bat          # (tùy chọn) đóng gói thành dist\WuWaSub\WuWaSub.exe
+build.bat          # (tùy chọn) đóng gói thành dist\GameSub\GameSub.exe
 diag.bat           # tự kiểm tra DPI/đa màn hình, chụp game, OCR, hotkey -> data\diag.txt
 ```
-**Chạy trên máy khác không cần Python:** chạy `build.bat` → gửi `dist\WuWaSub.zip`. Bên kia **giải nén hết** rồi chạy
-`WuWaSub\WuWaSub.exe` (đừng chạy thẳng trong zip). Dạng thư mục mở nhanh, không giải nén gì ra `%TEMP%`.
-Dữ liệu nằm trong `data\` (và `engines\` nếu tải OCR) cạnh exe — copy cả thư mục là mang sang máy khác được. Kiểm tra lỗi: `WuWaSub.exe --diag` → `data\diag.txt`.
+**Chạy trên máy khác không cần Python:** chạy `build.bat` → gửi `dist\GameSub.zip`. Bên kia **giải nén hết** rồi chạy
+`GameSub\GameSub.exe` (đừng chạy thẳng trong zip). Dạng thư mục mở nhanh, không giải nén gì ra `%TEMP%`.
+Dữ liệu nằm trong `data\` (và `engines\` nếu tải OCR) cạnh exe — copy cả thư mục là mang sang máy khác được. Kiểm tra lỗi: `GameSub.exe --diag` → `data\diag.txt`.
 Bản exe chỉ có Windows OCR (cần gói ngôn ngữ English trong Windows, thường có sẵn).
 
 Gặp lỗi (vùng lệch, ảnh đen, OCR không chạy, hotkey không ăn): chạy `diag.bat` và gửi `data\diag.txt` + `data\diag_region.png`.
@@ -83,12 +88,18 @@ File offline hỗ trợ: **StarDict** (`.ifo` + `.idx` + `.dict`/`.dict.dz` — 
 - **RapidOCR** / **Tesseract**: Cài đặt → OCR → nút «Tải…», cài vào thư mục `engines\` cạnh exe. RapidOCR tốt hơn với font lạ/nền rối nhưng chậm hơn (~2s/lần).
 - Chữ nhỏ → tăng "Phóng to ảnh trước OCR" lên 1.5–2. Nút "Lưu ảnh vùng hiện tại" để kiểm tra vùng chụp có đúng không.
 
+## Đa ngôn ngữ (cho người sửa code)
+Chuỗi giao diện viết tiếng Việt thẳng trong code, bọc `tr("…")` (biến: `tr("Đã lưu «{w}»", w=x)`); bảng hằng (tooltip, menu) đánh dấu `N_("…")` rồi `tr()` lúc dùng.
+Bản dịch: `gamesub/locales/en.py` (`{chuỗi gốc: bản dịch}`). `python tools/i18n_check.py` báo chuỗi thiếu bản dịch, `--todo` liệt kê chuỗi tiếng Việt chưa bọc `tr()`
+(dòng là dữ liệu / prompt AI thì ghi chú `# no-i18n`). Thêm ngôn ngữ: copy `en.py` thành `<mã>.py`, dịch phần giá trị, thêm vào `TABLES` (`gamesub/locales/__init__.py`) và `LANGS` (`gamesub/i18n.py`).
+
 ## Dữ liệu
-Tất cả nằm trong `data/`: `settings.json`, `wuwasub.db` (sub, glossary, sổ từ, cache tra từ).
+Tất cả nằm trong `data/`: `settings.json`, `gamesub.db` (sub, glossary, sổ từ, cache tra từ).
 
 ## Test
 ```
 python tests/test_core.py
 python tests/test_capture_translate.py
 python tests/test_ui_smoke.py
+python tests/test_i18n.py         # mọi chuỗi giao diện đã có bản dịch
 ```

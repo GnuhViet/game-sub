@@ -4,10 +4,10 @@ import platform, sys, time, traceback
 import numpy as np
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtCore import QRect
-from wuwasub.config import Config, DATA_DIR
-from wuwasub.ui_region import to_physical
-from wuwasub.capture import grab, open_sct
-from wuwasub import ocr
+from gamesub.config import Config, DATA_DIR
+from gamesub.ui_region import to_physical
+from gamesub.capture import grab, open_sct
+from gamesub import ocr
 
 SAMPLE = "Rover, you finally woke up. Let's head to Jinzhou."
 out = []
@@ -73,31 +73,31 @@ def check_ocr(cfg):
 def check_hotkeys(cfg):
     section("Hotkey")
     if sys.platform != "win32": log("Bỏ qua (không phải Windows)"); return
-    import ctypes; from wuwasub.hotkeys import parse; u32 = ctypes.windll.user32
+    import ctypes; from gamesub.hotkeys import parse; u32 = ctypes.windll.user32
     for n, (action, seq) in enumerate(cfg["hotkeys"].items(), 0xB000):
         if not seq: continue
         mods, vk = parse(seq)
         ok = vk is not None and u32.RegisterHotKey(None, n, mods | 0x4000, vk)
         if ok: u32.UnregisterHotKey(None, n)
-        log(f"{action:8s} {seq:10s}: " + ("OK" if ok else "!! không đăng ký được (trùng app khác hoặc sai cú pháp) — WuWaSub đang chạy cũng gây trùng"))
+        log(f"{action:8s} {seq:10s}: " + ("OK" if ok else "!! không đăng ký được (trùng app khác hoặc sai cú pháp) — GameSub đang chạy cũng gây trùng"))
 
 def main():
     app = QGuiApplication(sys.argv); DATA_DIR.mkdir(parents=True, exist_ok=True); cfg = Config()
-    log(f"WuWa Sub diag — {time.strftime('%Y-%m-%d %H:%M')}")
+    log(f"Game Sub diag — {time.strftime('%Y-%m-%d %H:%M')}")
     import PySide6, mss
     log(f"{platform.platform()} | Python {platform.python_version()} | PySide6 {PySide6.__version__} | mss {mss.__version__ if hasattr(mss, '__version__') else '?'}")
     log(f"ocr_engine={cfg['ocr_engine']} ocr_lang={cfg['ocr_lang']} ocr_scale={cfg['ocr_scale']}")
-    from wuwasub import winapp
-    log(f"WuWaSub quyền admin: {winapp.self_elevated()} | target_app={cfg['target_app'] or '(không lọc)'}"
+    from gamesub import winapp
+    log(f"GameSub quyền admin: {winapp.self_elevated()} | target_app={cfg['target_app'] or '(không lọc)'}"
         + "".join(f" | {exe} admin: {winapp.elevated(pid)}" for pid, exe in [winapp.foreground()] if exe))
     try:
-        from wuwasub.spacing import Spacer; log("Tách từ dính: 'Rover,youfinallywoke up.' -> " + repr(Spacer().fix('Rover,youfinallywoke up.')))
+        from gamesub.spacing import Spacer; log("Tách từ dính: 'Rover,youfinallywoke up.' -> " + repr(Spacer().fix('Rover,youfinallywoke up.')))
     except Exception as ex: log(f"Tách từ dính: lỗi {ex}")
     for f in (check_screens, check_ocr, check_hotkeys):
         try: f(cfg)
         except Exception: log(traceback.format_exc().rstrip())
     section("Kiểm tra tay")
-    log("1. Mở game (Borderless), bật WuWaSub: overlay có nổi trên game không? Alt+Tab có mất overlay không?")
+    log("1. Mở game (Borderless), bật GameSub: overlay có nổi trên game không? Alt+Tab có mất overlay không?")
     log("2. Mở data/diag_region.png: đúng khung thoại không (không lệch, không đen)?")
     (DATA_DIR / "diag.txt").write_text("\n".join(out), "utf-8"); log(); log(f"Đã ghi {DATA_DIR / 'diag.txt'} — gửi file này khi báo lỗi.")
     del app

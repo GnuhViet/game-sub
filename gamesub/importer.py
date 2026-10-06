@@ -2,9 +2,9 @@
 import csv, json, io, re
 from pathlib import Path
 
-VI_CHARS = re.compile(r"[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹáàãéèíìóòõúùýĂÂĐÊÔƠƯ]")
-SRC_NAMES = ("en", "eng", "english", "source", "src", "original", "goc", "gốc", "text_en", "en_us", "content")
-VI_NAMES = ("vi", "vn", "viet", "vietnamese", "tiếng việt", "dich", "dịch", "translation", "target", "text_vi", "vi_vn")
+VI_CHARS = re.compile(r"[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹáàãéèíìóòõúùýĂÂĐÊÔƠƯ]")   # no-i18n: nhận diện cột / tiếng Việt
+SRC_NAMES = ("en", "eng", "english", "source", "src", "original", "goc", "gốc", "text_en", "en_us", "content")   # no-i18n: nhận diện cột / tiếng Việt
+VI_NAMES = ("vi", "vn", "viet", "vietnamese", "tiếng việt", "dich", "dịch", "translation", "target", "text_vi", "vi_vn")   # no-i18n: nhận diện cột / tiếng Việt
 
 def _decode(raw: bytes) -> str:
     if raw[:2] in (b"\xff\xfe", b"\xfe\xff"): return raw.decode("utf-16")

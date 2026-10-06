@@ -47,8 +47,9 @@ DEFAULTS = {
     "text_valign": "center",                          # vị trí chữ trong khung khi khung cao hơn chữ: top / center / bottom
     "line_gap": 0,                                    # khoảng cách thêm giữa câu gốc và bản dịch (px)
     "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
+    "ui_lang": "",                                    # ngôn ngữ giao diện: "" = theo Windows / vi / en (đổi cần mở lại app)
     "unlock_key": "Alt",                              # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
-    "run_as_admin": False,                            # game chạy quyền admin -> WuWaSub cũng phải admin thì hotkey/giữ phím mới tới
+    "run_as_admin": False,                            # game chạy quyền admin -> GameSub cũng phải admin thì hotkey/giữ phím mới tới
     "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "show_region", "subs", "glossary", "vocab", "lock"],
     "toolbar_known": [],                              # nút toolbar đã có lúc lưu cài đặt: nút mới ra sau đó tự hiện (bỏ tick rồi thì thôi)
     "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)

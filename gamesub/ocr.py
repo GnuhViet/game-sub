@@ -1,6 +1,7 @@
 """OCR engines. Mỗi engine: recognize(np.ndarray RGB uint8) -> list[str] (các dòng, từ trên xuống)."""
 import asyncio
 import numpy as np
+from .i18n import tr
 
 class WindowsOcr:
     name = "windows"
@@ -20,7 +21,7 @@ class WindowsOcr:
         if lang and OcrEngine.is_language_supported(Language(lang)):
             self.engine = OcrEngine.try_create_from_language(Language(lang))
         if self.engine is None: self.engine = OcrEngine.try_create_from_user_profile_languages()
-        if self.engine is None: raise RuntimeError(f"Windows OCR không có gói ngôn ngữ '{lang}'. Cài trong Settings > Time & Language > Language.")
+        if self.engine is None: raise RuntimeError(tr("Windows OCR không có gói ngôn ngữ '{lang}'. Cài trong Settings > Time & Language > Language.", lang=lang))
         try: self.max_dim = int(OcrEngine.max_image_dimension)
         except Exception: self.max_dim = 10000
         self.loop = asyncio.new_event_loop()
@@ -48,9 +49,9 @@ class RapidOcr:
             self.eng = RapidOCR(det_limit_type="max", det_limit_side_len=1920, use_cls=False, intra_op_num_threads=2, inter_op_num_threads=1)
             return
         except ImportError as e:
-            if has_rapidocr(): raise RuntimeError(f"RapidOCR đã tải nhưng không nạp được: {e}") from None
+            if has_rapidocr(): raise RuntimeError(tr("RapidOCR đã tải nhưng không nạp được: {e}", e=e)) from None
             try: from rapidocr import RapidOCR; self.new = True
-            except ImportError: raise RuntimeError("chưa có RapidOCR — Cài đặt → OCR → «Tải RapidOCR»") from None
+            except ImportError: raise RuntimeError(tr("chưa có RapidOCR — Cài đặt → OCR → «Tải RapidOCR»")) from None
         self.eng = RapidOCR()
 
     def recognize(self, img):
@@ -73,7 +74,7 @@ class TesseractOcr:
                         if d and os.path.exists(p := os.path.join(d, "Tesseract-OCR", "tesseract.exe"))), None)
         if exe: pytesseract.pytesseract.tesseract_cmd = exe
         try: self.pt.get_tesseract_version()
-        except Exception: raise RuntimeError("chưa có Tesseract — Cài đặt → OCR → «Tải Tesseract»") from None
+        except Exception: raise RuntimeError(tr("chưa có Tesseract — Cài đặt → OCR → «Tải Tesseract»")) from None
     def recognize(self, img):
         return [l for l in self.pt.image_to_string(img, lang=self.lang).splitlines() if l.strip()]
 

@@ -3,6 +3,7 @@ RapidOCR: giải nén wheel từ PyPI vào engines/py. Tesseract: chạy bộ c�
 import io, re, shutil, sys, zipfile
 from . import net
 from .config import app_dir
+from .i18n import tr
 
 ENG_DIR = app_dir() / "engines"
 PY_DIR = ENG_DIR / "py"
@@ -71,7 +72,7 @@ def _wheel_url(name, ver):
         if abi == "abi3": return 2 if int(re.sub(r"\D", "", pyt.split(".")[0]) or 0) <= int(py[2:]) else -1
         return 1 if "py3" in pyt.split(".") and abi == "none" else -1
     best = max(files, key=score, default=None)
-    if not best or score(best) < 0: raise RuntimeError(f"Không có bản {name} {ver} cho {py}/win_amd64")
+    if not best or score(best) < 0: raise RuntimeError(tr("Không có bản {name} {ver} cho {py}/win_amd64", name=name, ver=ver, py=py))
     return best["url"]
 
 def install_rapidocr(progress):
@@ -82,16 +83,16 @@ def install_rapidocr(progress):
     shutil.rmtree(PY_DIR, ignore_errors=True); tmp.rename(PY_DIR); setup()
 
 def install_tesseract(progress):
-    if sys.platform != "win32": raise RuntimeError("Chỉ hỗ trợ tự cài trên Windows")
+    if sys.platform != "win32": raise RuntimeError(tr("Chỉ hỗ trợ tự cài trên Windows"))
     rel = net.session().get(TESS_API, timeout=20).json()
     asset = next((a for a in rel.get("assets", []) if re.search(r"w64-setup.*\.exe$", a["name"])), None)
-    if not asset: raise RuntimeError("Không tìm thấy bộ cài Tesseract trên GitHub")
+    if not asset: raise RuntimeError(tr("Không tìm thấy bộ cài Tesseract trên GitHub"))
     ENG_DIR.mkdir(parents=True, exist_ok=True); setup_exe = ENG_DIR / asset["name"]
     setup_exe.write_bytes(_download(asset["browser_download_url"], progress, "Tesseract"))
-    progress("Đang cài Tesseract (đồng ý nếu Windows hỏi quyền)…", 100)
+    progress(tr("Đang cài Tesseract (đồng ý nếu Windows hỏi quyền)…"), 100)
     try: _run_wait(str(setup_exe), f"/S /D={TESS_DIR}")
     finally: setup_exe.unlink(missing_ok=True)
-    if not tesseract_exe(): raise RuntimeError("Cài Tesseract không thành công (bị hủy quyền admin?)")
+    if not tesseract_exe(): raise RuntimeError(tr("Cài Tesseract không thành công (bị hủy quyền admin?)"))
 
 def _run_wait(exe, args):
     """ShellExecuteEx để Windows tự hỏi UAC nếu bộ cài cần quyền admin, rồi chờ xong."""
@@ -102,5 +103,5 @@ def _run_wait(exe, args):
                     ("lpIDList", ctypes.c_void_p), ("lpClass", wt.LPCWSTR), ("hkeyClass", wt.HKEY), ("dwHotKey", wt.DWORD),
                     ("hIcon", wt.HANDLE), ("hProcess", wt.HANDLE)]
     sei = SEI(cbSize=ctypes.sizeof(SEI), fMask=0x40, lpVerb="open", lpFile=exe, lpParameters=args, nShow=0)   # NOCLOSEPROCESS
-    if not ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)): raise RuntimeError("Không chạy được bộ cài (bị từ chối quyền?)")
+    if not ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)): raise RuntimeError(tr("Không chạy được bộ cài (bị từ chối quyền?)"))
     ctypes.windll.kernel32.WaitForSingleObject(sei.hProcess, 0xFFFFFFFF); ctypes.windll.kernel32.CloseHandle(sei.hProcess)

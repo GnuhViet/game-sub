@@ -1,16 +1,17 @@
 from PySide6.QtCore import Qt, Signal, QRect, QPoint
 from PySide6.QtGui import QPainter, QColor, QPen, QCursor, QFont
 from PySide6.QtWidgets import QWidget, QApplication
+from .i18n import tr
 
 class RegionSelector(QWidget):
     """Đóng băng màn hình dưới con trỏ, kéo chuột để chọn vùng. Trả về rect theo pixel vật lý (cho mss)."""
     selected = Signal(dict)
     cancelled = Signal()
 
-    def __init__(self, title="Kéo chuột chọn vùng — Esc để hủy"):
+    def __init__(self, title=None):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.scr = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
-        self.bg = self.scr.grabWindow(0); self.title = title
+        self.bg = self.scr.grabWindow(0); self.title = title or tr("Kéo chuột chọn vùng — Esc để hủy")
         self.setGeometry(self.scr.geometry()); self.setCursor(Qt.CrossCursor)
         self.p0 = self.p1 = None
 

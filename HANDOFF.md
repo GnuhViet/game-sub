@@ -1,6 +1,6 @@
-# HANDOFF — WuWa Sub (tiếp tục trong Claude Code)
+# HANDOFF — Game Sub (tiếp tục trong Claude Code)
 
-> Dán file này + giải nén `wuwasub.zip` vào repo, rồi nói: "Đọc HANDOFF.md và README.md, tiếp tục dự án."
+> Dán file này + giải nén `gamesub.zip` vào repo, rồi nói: "Đọc HANDOFF.md và README.md, tiếp tục dự án."
 
 ## 1. Mục tiêu
 Tool overlay dịch thoại game **Wuthering Waves** sang tiếng Việt, chạy trên **Windows**, chỉ dùng **OCR màn hình**
@@ -29,20 +29,23 @@ Ngoài ra: `capture.py` chờ ảnh đứng yên `stable_ms` (hiệu ứng chữ
 ## 4. Cấu trúc
 ```
 main.py                  entry
-wuwasub/config.py        settings mặc định + prompt dịch / giải nghĩa (data/settings.json)
-wuwasub/app.py           controller: pipeline OCR→sub→LLM, tra từ, action, Task (QThreadPool)
-wuwasub/capture.py       QThread: mss chụp → phát hiện thay đổi → chờ ổn định → OCR
-wuwasub/ocr.py           WindowsOcr (winrt/winsdk), RapidOcr, TesseractOcr
-wuwasub/matcher.py       SubIndex
-wuwasub/textnorm.py      resolve placeholder, norm, lemmas, join_lines
-wuwasub/translator.py    Gemini (SSE, đọc ảnh) / Google gtx; CHAINS theo engine; prompt + glossary
-wuwasub/dictionary.py    StarDict, TableDict, online_lookup
-wuwasub/db.py            SQLite: subs, glossary, vocab, cache
-wuwasub/hotkeys.py       RegisterHotKey + QAbstractNativeEventFilter
-wuwasub/ui_overlay.py    Overlay + WordPopup
-wuwasub/ui_region.py     RegionSelector + to_physical
-wuwasub/ui_dialogs.py    Settings, Glossary, Vocab, Review, Subs
-tests/                   test_core, test_capture_translate, test_ui_smoke (offscreen)
+gamesub/config.py        settings mặc định + prompt dịch / giải nghĩa (data/settings.json)
+gamesub/app.py           controller: pipeline OCR→sub→LLM, tra từ, action, Task (QThreadPool)
+gamesub/capture.py       QThread: mss chụp → phát hiện thay đổi → chờ ổn định → OCR
+gamesub/ocr.py           WindowsOcr (winrt/winsdk), RapidOcr, TesseractOcr
+gamesub/matcher.py       SubIndex
+gamesub/textnorm.py      resolve placeholder, norm, lemmas, join_lines
+gamesub/translator.py    Gemini (SSE, đọc ảnh) / Google gtx; CHAINS theo engine; prompt + glossary
+gamesub/dictionary.py    StarDict, TableDict, online_lookup
+gamesub/db.py            SQLite: subs, glossary, vocab, cache
+gamesub/hotkeys.py       RegisterHotKey + QAbstractNativeEventFilter
+gamesub/ui_overlay.py    Overlay + WordPopup
+gamesub/ui_region.py     RegionSelector + to_physical
+gamesub/ui_dialogs.py    Settings, Glossary, Vocab, Review, Subs
+gamesub/i18n.py          tr() / N_() / set_lang; bản dịch ở gamesub/locales/<mã>.py (en)
+gamesub/assets/          icon.ico / icon.png (vẽ lại: python tools/make_icon.py)
+tools/i18n_check.py      chuỗi thiếu bản dịch (--todo: chuỗi tiếng Việt chưa bọc tr)
+tests/                   test_core, test_capture_translate, test_ui_smoke (offscreen), test_i18n
 ```
 
 Phiên 2: `diag.py`/`diag.bat` (tự kiểm tra các mục chưa test ở §5), tự ẩn khi hết thoại (`auto_hide_s`),
@@ -55,8 +58,8 @@ Phiên 4: build exe 1 file (`build.bat`, `--diag`). Nút tải OCR engine (`engi
 (exe cần `--collect-submodules numpy`), Tesseract = bộ cài UB-Mannheim `/S /D=engines/tesseract` (CHƯA test, cần UAC).
 Popup tra từ: Google dịch tự động (`google_lookup`, dt=bd) + chọn ngôn ngữ đích (`target_lang`). EasyOCR: bỏ qua (PyTorch >1GB, chậm trên CPU).
 
-Build: dạng thư mục (onedir) vào `build\out`, robocopy sang `dist\WuWaSub` chừa `data\`/`engines\` (PyInstaller xóa sạch thư mục đích),
-zip ra `dist\WuWaSub.zip`. Bỏ onefile vì giải nén ~160MB ra %TEMP% mỗi lần chạy, để rác khi bị tắt cưỡng bức.
+Build: dạng thư mục (onedir) vào `build\out`, robocopy sang `dist\GameSub` chừa `data\`/`engines\` (PyInstaller xóa sạch thư mục đích),
+zip ra `dist\GameSub.zip`. Bỏ onefile vì giải nén ~160MB ra %TEMP% mỗi lần chạy, để rác khi bị tắt cưỡng bức.
 
 ## 5. Trạng thái test
 **Pass trên Linux:** core (matcher, importer, db, glossary/prompt, StarDict), capture (logic chờ ổn định), parser streaming Gemini + 429 fallback + engine, UI smoke offscreen.
@@ -76,7 +79,7 @@ zip ra `dist\WuWaSub.zip`. Bỏ onefile vì giải nén ~160MB ra %TEMP% mỗi l
 
 ## 7. Lệnh hữu ích
 ```
-python tests/test_core.py && python tests/test_capture_translate.py && python tests/test_ui_smoke.py
-python -m pyflakes wuwasub tests main.py diag.py
+python tests/test_core.py && python tests/test_capture_translate.py && python tests/test_ui_smoke.py && python tests/test_i18n.py
+python -m pyflakes gamesub tests tools main.py diag.py
 QT_QPA_PLATFORM=offscreen python diag.py        # trên Linux chỉ kiểm được RapidOCR
 ```
