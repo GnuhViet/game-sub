@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxL
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox,
     QListWidgetItem, QScrollArea, QFrame)
-import qtawesome as qta
+from .icons import icon as mdi
 from . import importer, engines, hotkeys, __version__
 from .dictionary import LANGS
 from .ui_overlay import outline_offsets, TOOLBAR, TIPS
@@ -140,7 +140,7 @@ class SettingsDialog(QDialog):
         col, icons = lst.palette().text().color(), dict(TOOLBAR)
         for k in list(cfg["toolbar"]) + [k for k, _ in TOOLBAR if k not in cfg["toolbar"]]:     # nút đang hiện theo thứ tự đã xếp, nút ẩn xuống cuối
             if k not in icons: continue
-            it = QListWidgetItem(qta.icon(icons[k], color=col), tr(TIPS[k]).split(" (")[0]); it.setData(Qt.UserRole, k)
+            it = QListWidgetItem(mdi(icons[k], color=col), tr(TIPS[k]).split(" (")[0]); it.setData(Qt.UserRole, k)
             it.setFlags((it.flags() | Qt.ItemIsUserCheckable) & ~Qt.ItemIsDropEnabled)      # không thả đè lên item (mất item)
             it.setCheckState(Qt.Checked if k in cfg["toolbar"] else Qt.Unchecked); lst.addItem(it)
         lst.setFixedHeight(lst.sizeHintForRow(0) * lst.count() + 2 * lst.frameWidth() + 2)
@@ -150,7 +150,7 @@ class SettingsDialog(QDialog):
             lst.insertItem(n, lst.takeItem(r)); lst.setCurrentRow(n)
         bv = QVBoxLayout()
         for ic, d, tip in (("mdi6.arrow-up", -1, N_("settings.appearance.up_further_left_on_toolbar")), ("mdi6.arrow-down", 1, N_("settings.appearance.down_further_right_on_toolbar"))):
-            b = QPushButton(qta.icon(ic, color=col), ""); b.setToolTip(tr(tip)); b.clicked.connect(lambda _=0, d=d: move(d)); bv.addWidget(b)
+            b = QPushButton(mdi(ic, color=col), ""); b.setToolTip(tr(tip)); b.clicked.connect(lambda _=0, d=d: move(d)); bv.addWidget(b)
         bv.addStretch(1)
         gl.addWidget(lst, 1); gl.addLayout(bv)
         tab.addRow(g); self.w["toolbar"] = (lst, lambda: [lst.item(i).data(Qt.UserRole) for i in range(lst.count()) if lst.item(i).checkState() == Qt.Checked])
@@ -191,7 +191,7 @@ class SettingsDialog(QDialog):
 
     def _tip(self, f, field, text):
         """Icon ⓘ ngay sau nhãn của dòng (hoặc sau ô tick), rê chuột vào hiện giải thích (rich text để tự xuống dòng)."""
-        info = QLabel(); info.setPixmap(qta.icon("mdi6.information-outline", color=self.palette().placeholderText().color()).pixmap(15, 15))
+        info = QLabel(); info.setPixmap(mdi("mdi6.information-outline", color=self.palette().placeholderText().color()).pixmap(15, 15))
         info.setToolTip(f"<p>{html.escape(tr(text))}</p>"); info.setCursor(Qt.WhatsThisCursor)
         row, role = (f.getWidgetPosition if isinstance(field, QWidget) else f.getLayoutPosition)(field)
         old = f.labelForField(field) if role == QFormLayout.FieldRole else field      # dòng có nhãn -> gắn sau nhãn; ô tick (cả dòng) -> sau ô tick

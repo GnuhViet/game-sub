@@ -1,0 +1,3 @@
+mdi6.ttf: bản cắt (chỉ các icon app dùng) của Material Design Icons webfont 6.9.96
+https://github.com/Templarian/MaterialDesign-Webfont — Pictogrammers, Apache License 2.0
+(https://www.apache.org/licenses/LICENSE-2.0). Tạo lại: python tools/make_icon_font.py

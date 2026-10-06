@@ -4,7 +4,7 @@ from pathlib import Path
 import requests
 from . import net
 from .textnorm import lemmas
-from .i18n import tr
+from .i18n import tr, N_
 
 class StarDict:
     def __init__(self, ifo: Path):
@@ -81,8 +81,8 @@ class Dictionaries:
                 return cand, body
         return None
 
-LANGS = {"vi": "Tiếng Việt", "en": "English", "ja": "日本語", "zh-CN": "中文 (简)", "zh-TW": "中文 (繁)", "ko": "한국어",
-         "fr": "Français", "de": "Deutsch", "es": "Español", "ru": "Русский", "th": "ไทย", "id": "Indonesia"}
+# ngôn ngữ đích Google dịch; tên hiện bằng chữ Latin theo giao diện (tên bản địa 中文/日本語/ไทย… bắt Qt nạp font CJK/Thái ~45 MB RAM)
+LANGS = {"vi": N_("lang.vi"), "en": N_("lang.en"), "ja": N_("lang.ja"), "zh-CN": N_("lang.zh-CN"), "zh-TW": N_("lang.zh-TW"), "ko": N_("lang.ko"), "fr": N_("lang.fr"), "de": N_("lang.de"), "es": N_("lang.es"), "ru": N_("lang.ru"), "th": N_("lang.th"), "id": N_("lang.id")}
 
 def google_lookup(word, tl="vi", timeout=6):
     """Google Translate (gtx, free): nghĩa chính + phiên âm + nghĩa theo từ loại. -> (nghĩa chính, html) | None"""

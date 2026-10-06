@@ -1,6 +1,7 @@
 import os, sys, time, json, tempfile
 from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+if sys.platform == "win32": os.environ.setdefault("QT_QPA_FONTDIR", os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"))   # offscreen không có font hệ thống
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import numpy as np
 from PySide6.QtCore import QCoreApplication

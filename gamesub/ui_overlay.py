@@ -3,7 +3,7 @@ from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent, QSize
 from PySide6.QtGui import QColor, QPainter, QCursor, QFont, QFontDatabase
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
                                QPushButton, QApplication, QComboBox, QGraphicsEffect, QLayout, QSpacerItem, QSizePolicy)
-import qtawesome as qta
+from .icons import icon as mdi
 from .textnorm import WORD_RE
 from .dictionary import LANGS
 from .hotkeys import held_vks
@@ -35,7 +35,7 @@ class OutlineEffect(QGraphicsEffect):
         for dx, dy in self.offs: p.drawPixmap(off + QPoint(dx, dy), sh)
         p.drawPixmap(off, pm)
 
-# (nút, icon qtawesome — Material Design Icons); chọn hiện/ẩn trong Cài đặt
+# (nút, icon Material Design Icons — gamesub/icons.py); chọn hiện/ẩn trong Cài đặt
 TOOLBAR = [("prev", "mdi6.skip-previous"), ("next", "mdi6.skip-next"), ("pause", "mdi6.pause"), ("translate", "mdi6.translate"),
            ("rescan", "mdi6.refresh"), ("clear", "mdi6.eraser"), ("scan", "mdi6.camera"), ("region", "mdi6.selection-drag"),
            ("speaker", "mdi6.account"), ("show_region", "mdi6.selection-search"), ("subs", "mdi6.folder-open"), ("glossary", "mdi6.tag"), ("vocab", "mdi6.book-open-variant"), ("lock", "mdi6.lock")]
@@ -247,7 +247,7 @@ class Overlay(QWidget):
         c = self.cfg; on = {"pause": self._paused, "translate": not c["translate"], "lock": c["locked"]}
         for k, name in TOOLBAR + RIGHT_BTNS:
             if k in CAPTION and self.cap_font: continue
-            self.btns[k].setIcon(qta.icon(ICON_ON[k] if on.get(k) else name, color=c["src_fg"], color_active=c["accent"]))
+            self.btns[k].setIcon(mdi(ICON_ON[k] if on.get(k) else name, color=c["src_fg"], color_active=c["accent"]))
 
     def set_paused(self, p): self._paused = p; self._icons(); self.status.setText(tr("overlay.paused") if p else "")
 
@@ -320,7 +320,7 @@ class WordPopup(QFrame):
         v = QVBoxLayout(self); v.setContentsMargins(10, 8, 10, 8)
         self.title = QLabel(); self.title.setTextFormat(Qt.RichText); self.anchor = QPoint()   # AutoText đoán sai -> hiện nguyên &#x27;
         self.lang = QComboBox(); self.lang.setToolTip(tr("popup.target_language"))
-        for code, name in LANGS.items(): self.lang.addItem(name, code)
+        for code, name in LANGS.items(): self.lang.addItem(tr(name), code)
         self.lang.setCurrentIndex(max(0, self.lang.findData(cfg["target_lang"])))
         self.lang.activated.connect(lambda _: self.lang_changed.emit(self.lang.currentData()))
         self.close_btn = QToolButton(); self.close_btn.setToolTip(tr("popup.close")); self.close_btn.setAutoRaise(True); self.close_btn.setFixedSize(26, 22)
@@ -347,7 +347,7 @@ class WordPopup(QFrame):
         self.title.setStyleSheet(f"color:{c['accent']}; font-weight:600; font-size:14px")
         self.source.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
         self.close_btn.setStyleSheet(f"QToolButton {{ color:{c['src_fg']}; border:none; padding:0; border-radius:4px; }} QToolButton:hover {{ color:white; background:#c42b1c; }}")
-        if not self.cap_font: self.close_btn.setIcon(qta.icon("mdi6.close", color=c["src_fg"], color_active="white"))
+        if not self.cap_font: self.close_btn.setIcon(mdi("mdi6.close", color=c["src_fg"], color_active="white"))
 
     def _set(self, meta, body):
         if meta is not None: self.meta = meta

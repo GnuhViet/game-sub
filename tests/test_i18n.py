@@ -2,6 +2,7 @@
 import json, os, sys, tempfile
 from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+if sys.platform == "win32": os.environ.setdefault("QT_QPA_FONTDIR", os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"))   # offscreen không có font hệ thống
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "tools"))
 import i18n_check

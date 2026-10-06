@@ -2,6 +2,7 @@
 import os, sys, tempfile, time, pathlib
 from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+if sys.platform == "win32": os.environ.setdefault("QT_QPA_FONTDIR", os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Fonts"))   # offscreen không có font hệ thống
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import gamesub.config as C
 C.DATA_DIR = Path(tempfile.mkdtemp()); C.CFG_PATH = C.DATA_DIR / "settings.json"

@@ -43,7 +43,8 @@ gamesub/ui_overlay.py    Overlay + WordPopup
 gamesub/ui_region.py     RegionSelector + to_physical
 gamesub/ui_dialogs.py    Settings, Glossary, Vocab, Review, Subs
 gamesub/i18n.py          tr("key") / N_() / set_lang; chữ ở gamesub/locales/<mã>.json (vi = gốc, en), tự nhận file mới
-gamesub/assets/          icon.ico / icon.png (vẽ lại: python tools/make_icon.py)
+gamesub/assets/          icon.ico / icon.png (vẽ lại: python tools/make_icon.py); mdi6.ttf + mdi6.json = font icon toolbar
+gamesub/icons.py         icon đơn sắc từ mdi6.ttf (thay qtawesome: đỡ ~40 MB RAM); thêm icon: tools/make_icon_font.py
 tools/i18n_check.py      key thiếu / thừa / sai biến giữa các file locales (--todo: chuỗi tiếng Việt còn viết thẳng)
 tests/                   test_core, test_capture_translate, test_ui_smoke (offscreen), test_i18n
 ```

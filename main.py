@@ -1,4 +1,5 @@
-import sys
+import os, sys
+for v in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS"): os.environ.setdefault(v, "1")   # numpy chỉ dùng so ảnh: khỏi tạo luồng + đặt trước RAM cho mỗi nhân CPU
 from gamesub import engines
 if __name__ == "__main__":
     engines.setup()                          # OCR engine tải về (engines/py)
