@@ -9,3 +9,4 @@ engines/
 cpp/build/
 cpp/dist/
 cpp/spike/*.exe
+aqtinstall.log
