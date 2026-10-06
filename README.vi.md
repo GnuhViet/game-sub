@@ -37,7 +37,8 @@ Bấm vào từ bất kỳ để tra nghĩa và lưu vào sổ từ để ôn.
 Bản exe có sẵn **Windows OCR** (cần gói ngôn ngữ English trong Windows, thường có sẵn). RapidOCR và Tesseract tải trong Cài đặt → OCR.
 
 ## Cập nhật
-App tự kiểm tra bản mới khi mở và báo ở khay (tắt ở Cài đặt → Giao diện), hoặc bấm **Kiểm tra cập nhật** ở góc dưới Cài đặt / menu khay.
+Bấm **Kiểm tra cập nhật** ở góc dưới Cài đặt hoặc menu khay. Muốn app tự báo khi có bản mới:
+bật "Tự kiểm tra bản mới khi mở app" ở Cài đặt → Giao diện (mặc định tắt).
 Bấm **Cập nhật**: app tải bản mới, kiểm tra SHA256, tự tắt, thay file rồi mở lại.
 `data\` (cài đặt, bộ sub, glossary, sổ từ) và `engines\` (OCR đã tải) giữ nguyên.
 
@@ -54,8 +55,9 @@ Bấm **Cập nhật**: app tải bản mới, kiểm tra SHA256, tự tắt, th
 | `Ctrl+Alt+L` | Khóa overlay; giữ **Alt** để bấm trên overlay khi đang khóa |
 | `Ctrl+Alt+X` | Xóa chữ trên overlay |
 
-Đổi hotkey ở Cài đặt → Hotkey. Rê chuột vào overlay để hiện toolbar: kéo phần nền để di chuyển, kéo góc phải dưới để đổi cỡ,
-◀ ▶ để xem lại các câu trước. Có thể chọn thêm **vùng tên nhân vật**.
+Đổi hotkey: Cài đặt → Hotkey, bấm vào ô rồi nhấn tổ hợp phím mới. Rê chuột vào overlay để hiện toolbar: kéo phần nền để di chuyển,
+kéo góc phải dưới để đổi cỡ, ◀ ▶ để xem lại các câu trước. Overlay hẹp không đủ chỗ thì các nút còn lại nằm trong menu ☰.
+Chỉ chạy được 1 Game Sub cùng lúc. Có thể chọn thêm **vùng tên nhân vật**.
 
 ## Cách dịch
 ```

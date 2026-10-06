@@ -64,11 +64,11 @@ robocopy "%GS_NEW%\_internal" "%GS_APP%\_internal" /MIR /IS /IT /R:10 /W:1 /NP /
 if errorlevel 8 goto fail
 robocopy "%GS_NEW%" "%GS_APP%" /LEV:1 /IS /IT /R:10 /W:1 /NP /LOG+:"%GS_TMP%\update.log"
 if errorlevel 8 goto fail
-start "" "%GS_APP%\GameSub.exe"
+start "" "%GS_APP%\GameSub.exe" --wait
 (goto) 2>nul & rmdir /s /q "%GS_TMP%"
 :fail
 start "" notepad "%GS_TMP%\update.log"
-start "" "%GS_APP%\GameSub.exe"
+start "" "%GS_APP%\GameSub.exe" --wait
 """
 
 def apply(new):

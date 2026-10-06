@@ -55,7 +55,7 @@ class App:
         self.dicts = Dictionaries().load(cfg["dict_files"])
         self.tr = Translator(cfg, self.db)
         self.history, self.pos, self.last, self.seq, self.cleared, self.noted = [], -1, "", 0, False, set()
-        self.ov = Overlay(cfg); self.pop = WordPopup(cfg)
+        self.ov = Overlay(cfg); self.pop = WordPopup(cfg); winapp.accept_show(int(self.ov.winId()))
         self.lookup_ctx = None                    # câu ngữ cảnh khi tra từ trong cửa sổ Dịch vùng
         self.inflight = set()                     # tra từ đang chờ kết quả -> không gửi trùng
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(lambda w, p: self._hover_from(None, w, p)); self.ov.word_click.connect(lambda w, p: self._click_from(None, w, p))
@@ -72,6 +72,7 @@ class App:
         self.worker.text_ready.connect(self.on_text); self.worker.error.connect(self.on_error); self.worker.status.connect(self.ov.status.setText)
         self.worker.start()
         self.hk = Hotkeys(qapp); self.hk.triggered.connect(self.on_action); self._register_hotkeys()
+        self.hk.show_requested.connect(self.on_show_requested)
         self._tray()
         self.elev_warned = set(); self.elev_t = QTimer(interval=2000, timeout=self._check_elevation); self.elev_t.start()
         self.update_info = None
@@ -295,6 +296,11 @@ class App:
             if winapp.relaunch_as_admin(): self.quit()
         elif k == "quit": self.quit()
 
+    def on_show_requested(self):
+        """Người dùng mở GameSub lần nữa trong lúc đang chạy -> hiện overlay + báo ở khay."""
+        self.auto_hidden = False; self.ov.show(); self.ov.raise_()
+        self.update_info = None; self.tray.showMessage("Game Sub", tr("app.already_running"), QSystemTrayIcon.Information, 4000)
+
     def show_regions(self):
         """Viền sáng quanh vùng thoại + vùng tên nhân vật trong 3 giây; bấm lần nữa thì tắt."""
         if self.flash: self._flash_off(); return
@@ -376,7 +382,8 @@ class App:
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
         d.btn_show.clicked.connect(lambda: (self._flash_off(), self.show_regions()))
         d.btn_update.clicked.connect(lambda: self.check_update(manual=True, parent=d))
-        if not d.exec(): return
+        self.hk.register({})                      # nhả hotkey khi mở Cài đặt: bấm tổ hợp vào ô hotkey không kích hoạt hành động
+        if not d.exec(): self._register_hotkeys(); return
         d.apply(); self.noted.clear()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:
@@ -431,7 +438,8 @@ class App:
     def restart(self):
         """Mở lại app (đổi ngôn ngữ). Nhả hotkey trước để bản mới đăng ký được."""
         self.hk.register({}); self.cfg.save()
-        args = sys.argv[1:] if getattr(sys, "frozen", False) else [os.path.abspath(sys.argv[0])] + sys.argv[1:]
+        args = [a for a in sys.argv[1:] if a != "--wait"] + ["--wait"]          # bản mới đợi bản này thoát (single_instance)
+        if not getattr(sys, "frozen", False): args = [os.path.abspath(sys.argv[0])] + args
         QProcess.startDetached(sys.executable, args); self.quit()
 
     def quit(self):
@@ -442,5 +450,8 @@ def main():
     if sys.platform == "win32":                     # chạy từ source: taskbar hiện icon app thay vì icon python
         import ctypes; ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("GameSub")
     qapp = QApplication(sys.argv); qapp.setQuitOnLastWindowClosed(False); qapp.setApplicationName("Game Sub")
+    if not winapp.single_instance("--wait" in sys.argv):          # đã có bản đang chạy -> hiện overlay của bản đó, thoát
+        if not winapp.show_running(): QMessageBox.information(None, "Game Sub", tr("app.already_running"))
+        return
     a = App(qapp); qapp.aboutToQuit.connect(lambda: a.cfg.save())
     sys.exit(qapp.exec())

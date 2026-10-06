@@ -156,6 +156,7 @@ class SettingsDialog(QDialog):
         tab.addRow(g); self.w["toolbar"] = (lst, lambda: [lst.item(i).data(Qt.UserRole) for i in range(lst.count()) if lst.item(i).checkState() == Qt.Checked])
         f = self._group(tab, "settings.appearance.group.behavior")
         self._dspin(f, "auto_hide_s", "settings.appearance.auto_hide_s", 0, 60, 0.5)
+        self._check(f, "animations", "settings.appearance.animations")
         uk = KeyCapture(cfg["unlock_key"]); f.addRow(tr("settings.appearance.hold_key_interact_while_locked"), uk); self.w["unlock_key"] = (uk, uk.text)
         self._tip(f, uk, "settings.appearance.tip.while_overlay_is_locked")
         c = self._check(f, "hide_from_capture", "settings.appearance.hide_from_capture")
@@ -165,7 +166,7 @@ class SettingsDialog(QDialog):
         f = self._tab(tabs, "settings.tab.hotkeys"); self.hk = {}
         for k, n in [("toggle", N_("settings.hotkeys.toggle")), ("region", N_("settings.hotkeys.region")), ("pause", N_("settings.hotkeys.pause")), ("rescan", N_("settings.hotkeys.rescan")), ("clickthrough", "Click-through"),
                      ("clear", N_("settings.hotkeys.clear")), ("translate", N_("settings.hotkeys.translate")), ("scan", N_("settings.hotkeys.scan")), ("lock", N_("settings.hotkeys.lock"))]:
-            e = QLineEdit(cfg["hotkeys"].get(k, "")); f.addRow(tr(n).replace("&", "&&"), e); self.hk[k] = e
+            e = KeyCapture(cfg["hotkeys"].get(k, ""), hotkey=True); f.addRow(tr(n).replace("&", "&&"), e); self.hk[k] = e
         self._check(f, "run_as_admin", "settings.hotkeys.run_as_admin")
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
         ver = QLabel(f"Game Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới
@@ -310,24 +311,26 @@ class SettingsDialog(QDialog):
 
 
 class KeyCapture(QLineEdit):
-    """Bấm vào ô rồi nhấn phím / tổ hợp / nút chuột giữa-bên để gán; Backspace hoặc Delete = tắt."""
+    """Bấm vào ô rồi nhấn phím / tổ hợp / nút chuột giữa-bên để gán; Backspace hoặc Delete = tắt.
+    hotkey=True: hotkey toàn cục (RegisterHotKey) -> phải có 1 phím thường (vd Ctrl+Alt+R), không nhận chuột / chỉ phím bổ trợ."""
     NAMES = {Qt.Key_Control: "Ctrl", Qt.Key_Alt: "Alt", Qt.Key_Shift: "Shift", Qt.Key_Meta: "Win"}
     MOUSE = {Qt.MiddleButton: "Mouse3", Qt.BackButton: "Mouse4", Qt.ForwardButton: "Mouse5"}
-    def __init__(self, seq):
-        super().__init__(seq); self.setReadOnly(True); self.setPlaceholderText(tr("keycap.off"))
-        self.setToolTip(tr("keycap.click_field_then_press_key"))
-    def focusInEvent(self, e): super().focusInEvent(e); self.setPlaceholderText(tr("keycap.press_key_mouse_button_backspace"))
+    def __init__(self, seq, hotkey=False):
+        super().__init__(seq); self.hotkey = hotkey; self.setReadOnly(True); self.setPlaceholderText(tr("keycap.off"))
+        self.setToolTip(tr("keycap.press_combo_for_hotkey") if hotkey else tr("keycap.click_field_then_press_key"))
+    def focusInEvent(self, e): super().focusInEvent(e); self.setPlaceholderText(tr("keycap.press_combo") if self.hotkey else tr("keycap.press_key_mouse_button_backspace"))
     def focusOutEvent(self, e): super().focusOutEvent(e); self.setPlaceholderText(tr("keycap.off"))
     def _set(self, key, mods):
         names = [n for m, n in ((Qt.ControlModifier, "Ctrl"), (Qt.AltModifier, "Alt"), (Qt.ShiftModifier, "Shift"), (Qt.MetaModifier, "Win")) if mods & m and n != key]
         seq = "+".join(names + [key])
-        if hotkeys.held_vks(seq): self.setText(seq)
+        ok = key not in self.NAMES.values() and hotkeys.parse(seq)[1] is not None if self.hotkey else hotkeys.held_vks(seq)
+        if ok: self.setText(seq)
     def keyPressEvent(self, e):
         if e.key() in (Qt.Key_Backspace, Qt.Key_Delete): self.clear()
         elif e.key() == Qt.Key_Escape: self.clearFocus()
         else: self._set(self.NAMES.get(e.key()) or QKeySequence(e.key()).toString(), e.modifiers())
     def mousePressEvent(self, e):
-        if e.button() in self.MOUSE: self.setFocus(); self._set(self.MOUSE[e.button()], e.modifiers())
+        if e.button() in self.MOUSE and not self.hotkey: self.setFocus(); self._set(self.MOUSE[e.button()], e.modifiers())
         else: super().mousePressEvent(e)
 
 

@@ -1,8 +1,8 @@
 import ctypes, html, sys
-from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent, QSize
+from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent, QSize, QVariantAnimation, QEasingCurve
 from PySide6.QtGui import QColor, QPainter, QCursor, QFont, QFontDatabase
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
-                               QPushButton, QApplication, QComboBox, QGraphicsEffect, QLayout, QSpacerItem, QSizePolicy)
+                               QPushButton, QApplication, QComboBox, QGraphicsEffect, QGraphicsOpacityEffect, QLayout, QSpacerItem, QSizePolicy)
 from .icons import icon as mdi
 from .textnorm import WORD_RE
 from .dictionary import LANGS
@@ -53,32 +53,30 @@ TIPS = {"prev": N_("toolbar.prev"), "next": N_("toolbar.next"), "pause": N_("too
         "region": N_("toolbar.region"), "speaker": N_("toolbar.speaker"), "show_region": N_("toolbar.show_region"), "subs": N_("toolbar.subs"), "glossary": N_("toolbar.glossary"),
         "vocab": N_("toolbar.vocab"), "lock": N_("toolbar.lock"), "settings": N_("toolbar.settings"), "hide": N_("toolbar.hide"), "quit": N_("toolbar.quit")}
 
-class FlowLayout(QLayout):
-    """Xếp widget theo hàng, hết chỗ thì xuống dòng (toolbar không bị bóp khi overlay hẹp)."""
-    def __init__(self, parent=None, spacing=2):
-        super().__init__(parent); self.items = []; self.setSpacing(spacing); self.setContentsMargins(0, 0, 0, 0)
+class OverflowLayout(QLayout):
+    """Toolbar 1 hàng: nút không đủ chỗ thì ẩn (đẩy ra ngoài khung, nút cỡ cố định không co về 0 được) và gom vào nút ☰ `more` ở cuối hàng (Overlay._more_menu)."""
+    def __init__(self, more, parent=None, spacing=2):
+        super().__init__(parent); self.items = []; self.more = more; self.hidden = []; self.setSpacing(spacing); self.setContentsMargins(0, 0, 0, 0)
     def addItem(self, it): self.items.append(it)
     def count(self): return len(self.items)
     def itemAt(self, i): return self.items[i] if 0 <= i < len(self.items) else None
     def takeAt(self, i): return self.items.pop(i) if 0 <= i < len(self.items) else None
-    def expandingDirections(self): return Qt.Orientation(0)
-    def hasHeightForWidth(self): return True
-    def heightForWidth(self, w): return self._place(QRect(0, 0, w, 0), True)
-    def setGeometry(self, r): super().setGeometry(r); self._place(r, False)
+    def expandingDirections(self): return Qt.Horizontal
     def sizeHint(self): return self.minimumSize()
     def minimumSize(self):
-        s = QSize()
-        for it in self.items: s = s.expandedTo(it.minimumSize())
+        s = self.more.sizeHint()                                  # co hết cỡ: chỉ còn nút ☰
+        for it in self.items: s = s.expandedTo(QSize(0, it.minimumSize().height()))
         return s
-    def _place(self, r, test):
-        x, y, line_h, sp = r.x(), r.y(), 0, self.spacing()
-        for it in self.items:
-            if it.isEmpty(): continue
-            h = it.sizeHint()
-            if x > r.x() and x + h.width() > r.right() + 1: x, y, line_h = r.x(), y + line_h + sp, 0     # xuống dòng
-            if not test: it.setGeometry(QRect(QPoint(x, y), h))
-            x += h.width() + sp; line_h = max(line_h, h.height())
-        return y + line_h - r.y()
+    def setGeometry(self, r):
+        super().setGeometry(r)
+        vis = [it for it in self.items if not it.isEmpty()]; sp = self.spacing(); ws = [it.sizeHint().width() for it in vis]
+        fits = sum(ws) + sp * max(0, len(ws) - 1) <= r.width()
+        limit = r.width() if fits else r.width() - self.more.sizeHint().width() - sp     # tràn -> chừa chỗ cho ☰
+        x, self.hidden = r.x(), []
+        for it, w in zip(vis, ws):
+            if self.hidden or x + w - r.x() > limit: self.hidden.append(it.widget()); it.widget().move(-10000, 0)        # QWidgetItem.setGeometry kéo tọa độ âm về 0
+            else: it.setGeometry(QRect(QPoint(x, r.y()), it.sizeHint())); x += w + sp
+        self.more.move(QPoint(x, r.y()) if self.hidden else QPoint(-10000, 0))
 
 def esc(s): return html.escape(s, quote=False)      # không mã hóa ' " (Qt không hiểu &#x27; -> bôi đen ra chuỗi lạ)
 
@@ -108,7 +106,9 @@ class Overlay(QWidget):
         # toolbar
         # toolbar: nút tùy chọn (cfg["toolbar"]) xếp tự xuống dòng bên trái; Cài đặt / Ẩn / Thoát luôn ghim bên phải
         self.bar = QWidget(); hb = QHBoxLayout(self.bar); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(6)
-        left = QWidget(); self.flow = flow = FlowLayout(left); right = QHBoxLayout(); right.setSpacing(2)
+        left = QWidget(); right = QHBoxLayout(); right.setSpacing(2)
+        self.more = QToolButton(left); self.more.setAutoRaise(True); self.more.setFixedSize(28, 26); self.more.setIconSize(QSize(18, 18))
+        self.more.clicked.connect(self._more_menu); self.flow = flow = OverflowLayout(self.more, left); self._menu_open = False
         self.btns = {}
         for key, _ in TOOLBAR + RIGHT_BTNS:
             b = QToolButton(); b.setAutoRaise(True); b.setFixedSize(28, 26); b.setIconSize(QSize(18, 18))
@@ -133,18 +133,22 @@ class Overlay(QWidget):
         # khoảng trống thừa của khung dồn vào sp_top / sp_bot (theo "Vị trí chữ"), không chen giữa câu gốc và bản dịch
         self.sp_top, self.gap, self.sp_bot = (QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Fixed) for _ in range(3))
         v.addItem(self.sp_top); v.addWidget(self.speaker); v.addWidget(self.src_lbl); v.addItem(self.gap); v.addWidget(self.vi); v.addItem(self.sp_bot)
-        self.grip = QSizeGrip(self)
+        self.grip = QSizeGrip(self); sp = self.grip.sizePolicy(); sp.setRetainSizeWhenHidden(True); self.grip.setSizePolicy(sp)   # chỉ hiện khi rê chuột (cùng toolbar)
         self.status = QLabel("")                               # trạng thái (OCR đang dùng, tạm dừng…) ở góc trái dưới, hiện khi rê chuột
         foot = QHBoxLayout(); foot.setSpacing(10); foot.addWidget(self.status); foot.addWidget(self.tag); foot.addStretch(1); foot.addWidget(self.grip, 0, Qt.AlignBottom | Qt.AlignRight)
         v.addLayout(foot)
-        self.hide_bar = QTimer(self, singleShot=True, interval=1200, timeout=lambda: self._set_bar(False))
+        self.hide_bar = QTimer(self, singleShot=True, interval=1200, timeout=lambda: self._hover_bar(False))
+        # rê chuột: nền giãn từ khung sát chữ ra cả khung, toolbar hiện dần (_exp 0 -> 1); rời chuột thì ngược lại
+        self._exp = 0.0; self.bar_fx = QGraphicsOpacityEffect(self.bar); self.bar_fx.setOpacity(0.0); self.bar.setGraphicsEffect(self.bar_fx)
+        self.anim = QVariantAnimation(self, duration=160, easingCurve=QEasingCurve.OutCubic)
+        self.anim.valueChanged.connect(lambda v: self._set_exp(float(v))); self.anim.finished.connect(self._anim_done)
         self._drag = None
         g = cfg.get("overlay_geom")
         if not g:
             sc = QApplication.primaryScreen().availableGeometry()
             g = [sc.x() + sc.width() // 2 - 380, sc.y() + int(sc.height() * 0.70), 760, 150]
         self.base_h = g[3]; self._auto = True; self.setGeometry(QRect(*g)); self._auto = False   # base_h = cỡ người dùng đặt; khung tự giãn khi chữ dài
-        self.bar.setVisible(False); self.status.setVisible(False); self.apply_style()
+        self.bar.setVisible(False); self.status.setVisible(False); self.grip.setVisible(False); self.apply_style()
 
     def apply_style(self):
         c = self.cfg
@@ -167,20 +171,33 @@ class Overlay(QWidget):
             tip = tr(TIPS.get(k, "")); hk = c["hotkeys"].get(k) or c["hotkeys"].get({"hide": "toggle"}.get(k, ""), "")
             if k == "translate": tip = tr("overlay.translating_click_turn_off_source") if c["translate"] else tr("overlay.translation_is_off_click_turn")
             b.setToolTip(tip + (f"  [{hk}]" if hk else ""))
+        self.more.setToolTip(tr("toolbar.more"))
         self.set_locked(c["locked"]); self._fit(); exclude_from_capture(self, c["hide_from_capture"])
 
     def paintEvent(self, e):
         p = QPainter(self); p.setRenderHint(QPainter.Antialiasing)
         if self.cfg["show_frame"]: a = max(0.05, min(1.0, float(self.cfg["opacity"])))
-        else: a = 0.35 if self.bar.isVisible() else 1 / 255     # không khung: gần trong suốt (alpha 0 thì Windows cho chuột xuyên qua), rê chuột thì hiện mờ để kéo/đổi cỡ
+        else: a = 1 / 255 + (0.35 - 1 / 255) * self._exp        # không khung: gần trong suốt (alpha 0 thì Windows cho chuột xuyên qua), rê chuột thì hiện mờ để kéo/đổi cỡ
         col = QColor(self.cfg["bg"]); col.setAlphaF(a)
-        p.setBrush(col); p.setPen(Qt.NoPen); p.drawRoundedRect(self.rect(), 10, 10)
+        r = self.rect()
+        if self.cfg["show_frame"] and self._exp < 1:              # giữa khung sát chữ và cả khung theo tiến độ animation
+            t, f, k = self._text_rect(), self.rect(), self._exp
+            r = QRect(f.x(), round(t.y() + (f.y() - t.y()) * k), f.width(), round(t.height() + (f.height() - t.height()) * k))
+        p.setBrush(col); p.setPen(Qt.NoPen); p.drawRoundedRect(r, 10, 10)
+
+    def _text_rect(self):
+        """Nền khi không rê chuột: ôm sát khối chữ. Toolbar / dòng dưới vẫn giữ chỗ (chữ không nhảy khi rê chuột)
+        nhưng phần đó trong suốt -> không có dải nền trống trên dưới, chuột xuyên qua xuống game."""
+        ws = [w for w in (self.speaker, self.src_lbl, self.vi) if w.isVisible() and w.text()] + ([self.tag] if self.tag.text() else [])
+        if not ws: return self.rect()                          # chưa có chữ: hiện cả khung để còn thấy / rê chuột vào
+        top = max(0, min(w.geometry().top() for w in ws) - 8); bot = min(self.height(), max(w.geometry().bottom() for w in ws) + 10)
+        return QRect(0, top, self.width(), bot - top)
 
     # ---- nội dung
     def show_line(self, speaker, src, vi, tag, alert=False):
         self.speaker.setText(speaker or ""); self.speaker.setVisible(bool(speaker) and self.cfg["show_speaker"])
         if src != self.src: self.src = src; self._render_src()
-        self.vi.setText(vi or ""); self._tag = tag or ""; self._alert = alert; self._tag_vis(); self._fit()
+        self.vi.setText(vi or ""); self._tag = tag or ""; self._alert = alert; self._tag_vis(); self._fit(); self.update()
 
     def _tag_vis(self):
         """Nguồn dịch (Google/Gemini/Bộ sub…) chỉ hiện khi rê chuột; báo lỗi (alert) thì luôn hiện."""
@@ -236,7 +253,7 @@ class Overlay(QWidget):
     def _apply_input(self):
         """Chuột xuyên qua overlay khi khóa (trừ lúc giữ phím mở khóa) hoặc bật click-through (không chắn chuột game)."""
         want = self.passthrough_wanted()
-        if want: self.bar.setVisible(False); self.status.setVisible(False)
+        if want and self.bar.isVisible(): self._set_bar(False)
         if sys.platform == "win32": self._passthrough(want); return
         if bool(self.windowFlags() & Qt.WindowTransparentForInput) != want:           # ngoài Windows: dùng flag Qt
             vis = self.isVisible(); self.setWindowFlag(Qt.WindowTransparentForInput, want)
@@ -245,6 +262,7 @@ class Overlay(QWidget):
     def _icons(self):
         """Icon tô theo màu câu gốc, rê chuột -> màu nhấn; nút bật/tắt đổi icon theo trạng thái."""
         c = self.cfg; on = {"pause": self._paused, "translate": not c["translate"], "lock": c["locked"]}
+        self.more.setIcon(mdi("mdi6.menu", color=c["src_fg"], color_active=c["accent"]))
         for k, name in TOOLBAR + RIGHT_BTNS:
             if k in CAPTION and self.cap_font: continue
             self.btns[k].setIcon(mdi(ICON_ON[k] if on.get(k) else name, color=c["src_fg"], color_active=c["accent"]))
@@ -255,8 +273,7 @@ class Overlay(QWidget):
     def showEvent(self, e): super().showEvent(e); exclude_from_capture(self, self.cfg["hide_from_capture"]); self._apply_input()
 
     def set_locked(self, on):
-        self.grip.setVisible(not on)
-        if on: self._set_bar(False)
+        self._set_bar(self.bar.isVisible() and not on)
         self._icons(); self._apply_input()
         self._unlock_vks = held_vks(self.cfg["unlock_key"] or "") or []
         if on and self._unlock_vks and sys.platform == "win32": self.alt_t.start()
@@ -266,7 +283,7 @@ class Overlay(QWidget):
         down = all(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in self._unlock_vks)
         if down == self._alt: return
         self._alt = down; self._apply_input()
-        if not down: self._set_bar(False)
+        if not down: self._hover_bar(False)
 
     def _passthrough(self, on):
         """Chuột xuyên qua bằng WS_EX_TRANSPARENT (+LAYERED). Không dùng flag Qt: Qt tự bỏ sự kiện chuột của cửa sổ
@@ -279,25 +296,55 @@ class Overlay(QWidget):
         al = self.cfg["text_valign"]; grow = lambda on: QSizePolicy.Expanding if on else QSizePolicy.Fixed
         self.sp_top.changeSize(0, 0, QSizePolicy.Minimum, grow(al in ("center", "bottom")))
         self.sp_bot.changeSize(0, 0, QSizePolicy.Minimum, grow(al in ("center", "top")))
-        both = self.src_lbl.isVisibleTo(self) and self.vi.isVisibleTo(self)          # chỉ 1 dòng thì khỏi chừa khoảng
+        both = all(l.isVisibleTo(self) or l.sizePolicy().retainSizeWhenHidden() for l in (self.src_lbl, self.vi))   # chỉ 1 dòng thì khỏi chừa khoảng
         self.gap.changeSize(0, int(self.cfg["line_gap"]) if both else 0, QSizePolicy.Minimum, QSizePolicy.Fixed)
         self.layout().invalidate()
 
     def _apply_display(self):
         """2 ngôn ngữ / chỉ bản dịch / chỉ 1 thứ, rê chuột vào overlay hiện thêm thứ còn lại."""
         c, h = self.cfg, self.bar.isVisible(); d, tr = c["display"], c["translate"]
+        keep = tr and d in ("vi_hover", "src_hover")          # rê chuột mới hiện dòng kia: giữ chỗ sẵn để chữ không nhảy
+        for l in (self.src_lbl, self.vi):
+            if l.sizePolicy().retainSizeWhenHidden() != keep: sp = l.sizePolicy(); sp.setRetainSizeWhenHidden(keep); l.setSizePolicy(sp); self._apply_text_layout()
         src = (not tr) or d in ("both", "src_hover") or (d == "vi_hover" and h)
         vi = tr and (d in ("both", "vi", "vi_hover") or (d == "src_hover" and h))
         if self.src_lbl.isVisibleTo(self) != src or self.vi.isVisibleTo(self) != vi:
             self.src_lbl.setVisible(src); self.vi.setVisible(vi); self._apply_text_layout(); self._fit()
 
     def _set_bar(self, on):
-        self.bar.setVisible(on); self.status.setVisible(on); self._tag_vis(); self._apply_display(); self.update()
+        """Hiện / ẩn toolbar ngay (không animation)."""
+        self.anim.stop(); self._apply_bar(on); self._set_exp(1.0 if on else 0.0)
+
+    def _apply_bar(self, on):
+        self.bar.setVisible(on); self.status.setVisible(on); self.grip.setVisible(on and not self.cfg["locked"]); self._tag_vis(); self._apply_display(); self.update()
+
+    def _hover_bar(self, on):
+        """Rê chuột vào / ra: nền giãn ra / co lại, toolbar hiện / mờ dần. Ẩn hẳn (toolbar, nguồn dịch…) khi co xong."""
+        if not self.cfg["animations"]: self._set_bar(on); return
+        if on and not self.bar.isVisible(): self._apply_bar(True)
+        self.anim.stop(); self.anim.setStartValue(self._exp); self.anim.setEndValue(1.0 if on else 0.0); self.anim.start()
+
+    def _set_exp(self, v):
+        self._exp = v; self.bar_fx.setOpacity(max(0.0, (v - 0.4) / 0.6)); self.bar_fx.setEnabled(v < 1); self.update()   # icon hiện sau khi nền đã phủ tới
+
+    def _anim_done(self):
+        if self._exp == 0 and self.bar.isVisible(): self._apply_bar(False)
 
     def enterEvent(self, e):
         if self.cfg["locked"] and not self._alt: return     # khóa: rê chuột không hiện gì (giữ phím mở khóa thì được)
-        self.hide_bar.stop(); self._set_bar(True)
-    def leaveEvent(self, e): self.hide_bar.start()
+        self.hide_bar.stop(); self._hover_bar(True)
+    def leaveEvent(self, e):
+        if not self._menu_open: self.hide_bar.start()            # đang mở menu ☰ thì giữ toolbar
+
+    def _more_menu(self):
+        """Nút ☰: các nút toolbar bị ẩn vì overlay hẹp (OverflowLayout.hidden)."""
+        keys = {b: k for k, b in self.btns.items()}; m = QMenu(self)
+        for b in self.flow.hidden:
+            a = m.addAction(b.icon(), b.toolTip().replace("&", "&&")); a.triggered.connect(lambda _=0, k=keys[b]: self.action.emit(k))
+        self._menu_open = True; self.hide_bar.stop()
+        m.exec(self.more.mapToGlobal(QPoint(0, self.more.height())))
+        self._menu_open = False
+        if not self.underMouse(): self.hide_bar.start()
     def mousePressEvent(self, e):
         if e.button() == Qt.LeftButton and (not self.cfg["locked"] or self._alt): self._drag = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
     def mouseMoveEvent(self, e):

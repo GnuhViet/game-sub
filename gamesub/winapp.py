@@ -1,11 +1,13 @@
 """Cửa sổ đang focus thuộc app nào (để chỉ chụp/dịch khi game đang mở trên cùng)."""
-import ctypes, os, sys
+import ctypes, os, sys, time
 from ctypes import wintypes as wt
 
 WIN = sys.platform == "win32"
 if WIN:
     u32, k32 = ctypes.windll.user32, ctypes.windll.kernel32
     k32.OpenProcess.restype = wt.HANDLE
+    _k32e = ctypes.WinDLL("kernel32", use_last_error=True); _k32e.CreateMutexW.restype = wt.HANDLE
+    SHOW_MSG = u32.RegisterWindowMessageW("GameSub.ShowRunning")    # bản mở sau -> bản đang chạy: hiện overlay
 
 def _exe(pid):
     h = k32.OpenProcess(0x1000, False, pid)                  # PROCESS_QUERY_LIMITED_INFORMATION
@@ -43,10 +45,35 @@ def elevated(pid):
         finally: k32.CloseHandle(tok)
     finally: k32.CloseHandle(h)
 
+_mutex = None
+
+def single_instance(wait=False):
+    """Giữ mutex "đang chạy" tới khi tiến trình thoát. -> False nếu đã có bản khác đang chạy.
+    wait (--wait): bản mở lại sau restart / chạy lại quyền admin / cập nhật -> đợi bản cũ thoát hẳn (tối đa 15s)."""
+    global _mutex
+    if not WIN: return True
+    end = time.time() + (15 if wait else 0)
+    while True:
+        h = _k32e.CreateMutexW(None, False, "Local\\GameSub.SingleInstance"); err = ctypes.get_last_error()
+        if h and err != 183: _mutex = h; return True          # 183 = đã tồn tại; h = 0 (err 5) = bản kia chạy quyền admin
+        if h: k32.CloseHandle(h)
+        if time.time() >= end: return False
+        time.sleep(0.2)
+
+def show_running():
+    """Báo bản đang chạy hiện overlay. -> False nếu không tìm thấy / không gửi được."""
+    if not WIN: return False
+    hwnd = u32.FindWindowW(None, "Game Sub")                   # tiêu đề overlay
+    return bool(hwnd and u32.PostMessageW(hwnd, SHOW_MSG, 0, 0))
+
+def accept_show(hwnd):
+    """App chạy quyền admin: cho bản không admin gửi SHOW_MSG tới cửa sổ này (UIPI chặn mặc định)."""
+    if WIN: u32.ChangeWindowMessageFilterEx(wt.HWND(hwnd), SHOW_MSG, 1, None)
+
 def relaunch_as_admin():
     """Mở lại GameSub với quyền admin (Windows hỏi UAC). -> True nếu đã mở."""
-    if getattr(sys, "frozen", False): exe, args = sys.executable, ""
-    else: exe, args = sys.executable, f'"{os.path.abspath(sys.argv[0])}"'
+    if getattr(sys, "frozen", False): exe, args = sys.executable, "--wait"
+    else: exe, args = sys.executable, f'"{os.path.abspath(sys.argv[0])}" --wait'
     return ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, os.getcwd(), 1) > 32
 
 def force_foreground(hwnd):

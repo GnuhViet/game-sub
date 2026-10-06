@@ -29,6 +29,20 @@ def pump(sec=0.3):
 a = A.App(q)
 msgs = []; a.tray.showMessage = lambda *x: msgs.append(x)
 a.check_update(); pump(); assert a.update_info is INFO and "v99.0" in msgs[0][1]     # tự kiểm tra: chỉ báo ở khay
+assert C.DEFAULTS["check_updates"] is False                                           # mặc định không tự kiểm tra
+a.ov.hide(); a.on_show_requested(); assert a.ov.isVisible() and msgs[-1][1] == A.tr("app.already_running")   # mở bản thứ 2 -> hiện overlay
+g0 = a.ov.geometry(); a.ov._set_bar(True); a.ov.resize(820, 170); pump(0.1); assert not a.ov.flow.hidden and a.ov.grip.isVisible()
+a.ov.resize(330, 170); pump(0.1); assert a.ov.btns["lock"] in a.ov.flow.hidden and a.ov.more.x() > 0     # hẹp -> dồn vào ☰
+a.ov._set_bar(False); assert not a.ov.grip.isVisible(); a.ov.setGeometry(g0)                             # không rê chuột -> ẩn nút đổi cỡ
+a.ov._hover_bar(True); assert a.ov.anim.state() == a.ov.anim.State.Running; a.ov._set_bar(False)          # có animation
+a.cfg["animations"] = False; a.ov._hover_bar(True); assert a.ov.bar.isVisible() and a.ov._exp == 1          # tắt -> hiện ngay
+a.ov._hover_bar(False); assert not a.ov.bar.isVisible() and a.ov._exp == 0; a.cfg["animations"] = True
+from PySide6.QtGui import QKeyEvent; from PySide6.QtCore import QEvent
+from gamesub.ui_dialogs import KeyCapture
+kc = KeyCapture("", hotkey=True)
+kc.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_R, Qt.ControlModifier | Qt.AltModifier)); assert kc.text() == "Ctrl+Alt+R", kc.text()
+kc.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Control, Qt.ControlModifier)); assert kc.text() == "Ctrl+Alt+R"     # chỉ phím bổ trợ -> bỏ qua
+kc.keyPressEvent(QKeyEvent(QEvent.KeyPress, Qt.Key_Backspace, Qt.NoModifier)); assert kc.text() == ""
 (C.DATA_DIR / "d.tsv").write_text("finally\tcuối cùng\nwake\tthức dậy\n", "utf-8")
 a.cfg["dict_files"] = [str(C.DATA_DIR / "d.tsv")]; a.dicts.load(a.cfg["dict_files"])
 a.db.add_subs("vh.csv", [("Rover, you finally woke up.", "Rover, cuối cùng anh cũng tỉnh rồi.")]); a.rebuild_index()

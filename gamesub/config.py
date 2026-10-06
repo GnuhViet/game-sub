@@ -49,11 +49,12 @@ DEFAULTS = {
     "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
     "ui_lang": "",                                    # ngôn ngữ giao diện: "" = theo Windows / vi / en (đổi cần mở lại app)
     "unlock_key": "Alt",                              # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
-    "check_updates": True,                            # khởi động: hỏi GitHub có bản mới không (báo ở khay)
+    "check_updates": False,                           # khởi động: hỏi GitHub có bản mới không (báo ở khay); mặc định tắt
     "run_as_admin": False,                            # game chạy quyền admin -> GameSub cũng phải admin thì hotkey/giữ phím mới tới
     "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "show_region", "subs", "glossary", "vocab", "lock"],
     "toolbar_known": [],                              # nút toolbar đã có lúc lưu cài đặt: nút mới ra sau đó tự hiện (bỏ tick rồi thì thôi)
     "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)
+    "animations": True,                               # rê chuột vào overlay: nền giãn ra / toolbar hiện dần; False = hiện / ẩn ngay
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
     "click_through": False,                           # chuột xuyên qua overlay (bật/tắt bằng hotkey)
     "overlay_geom": None, "bg": "#101418", "fg": "#f2f2f2", "src_fg": "#9fb3c8", "accent": "#e8c26a",

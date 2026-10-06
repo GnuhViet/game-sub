@@ -7,7 +7,7 @@ import qtawesome
 from fontTools import subset
 
 NAMES = ["account", "arrow-down", "arrow-up", "book-open-variant", "camera", "close", "cog", "eraser", "folder-open",
-         "information-outline", "lock", "lock-open-variant", "pause", "play", "refresh", "selection-drag", "selection-search",
+         "information-outline", "lock", "lock-open-variant", "menu", "pause", "play", "refresh", "selection-drag", "selection-search",
          "skip-next", "skip-previous", "tag", "translate", "translate-off", "window-minimize"]
 
 SRC = Path(qtawesome.__file__).parent / "fonts"

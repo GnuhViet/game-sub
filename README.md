@@ -37,8 +37,8 @@ and lets you click any word to look it up and save it for review.
 The exe ships with **Windows OCR** (needs the English language pack, usually already installed). RapidOCR and Tesseract can be downloaded in Settings → OCR.
 
 ## Updating
-Game Sub checks for a new version on startup and shows a tray notification (turn this off in Settings → Appearance).
-You can also click **Check for updates** at the bottom of Settings or in the tray menu.
+Click **Check for updates** at the bottom of Settings or in the tray menu. To be notified automatically,
+turn on "Check for updates on startup" in Settings → Appearance (off by default).
 **Update** downloads the release, verifies its SHA256, closes the app, replaces the program files and reopens it.
 `data\` (settings, subtitle packs, glossary, vocabulary) and `engines\` (downloaded OCR) are never touched.
 
@@ -55,8 +55,9 @@ You can also click **Check for updates** at the bottom of Settings or in the tra
 | `Ctrl+Alt+L` | Lock the overlay; hold **Alt** to use it while locked |
 | `Ctrl+Alt+X` | Clear the overlay |
 
-Hotkeys can be changed in Settings → Hotkeys. The toolbar appears when you hover the overlay: drag the background to move it,
-drag the bottom-right corner to resize it, and use ◀ ▶ to go back through previous lines. You can also select a **speaker name area**.
+To change a hotkey, click its field in Settings → Hotkeys and press the new combination. The toolbar appears when you hover the overlay:
+drag the background to move it, drag the bottom-right corner to resize it, and use ◀ ▶ to go back through previous lines.
+Buttons that don't fit on a narrow overlay move into the ☰ menu. Only one copy of Game Sub runs at a time. You can also select a **speaker name area**.
 
 ## How translation works
 ```
