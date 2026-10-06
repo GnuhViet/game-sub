@@ -123,6 +123,12 @@ def test_pick_model():
     assert T.pick_model(["gemini-3.1-pro", "gemini-3.1-flash-lite-preview", "gemini-3-flash-lite", "gemini-3-flash"]) == "gemini-3-flash-lite"
     assert T.pick_model(["gemini-2.5-pro", "gemini-2.5-flash"]) == "gemini-2.5-flash" and T.pick_model([]) == ""
 
+def test_config_reset():
+    c = Config(T / "reset.json"); c["region"] = {"x": 1, "y": 2, "w": 3, "h": 4}; c["gemini_key"] = "k"; c["font_size"] = 30; c["hotkeys"]["region"] = "F9"
+    c.reset(); assert c["font_size"] == 17 and c["hotkeys"]["region"] == "Ctrl+Alt+R" and c["region"]["w"] == 3 and c["gemini_key"] == "k"
+    c.reset(keep=False); assert c["region"] is None and c["gemini_key"] == ""
+    c["hotkeys"]["toggle"] = "F8"; assert Config(T / "x.json")["hotkeys"]["toggle"] == "Ctrl+Alt+T"     # DEFAULTS không bị sửa theo
+
 def test_updater():
     import hashlib, io, zipfile
     from gamesub import updater as U, __version__

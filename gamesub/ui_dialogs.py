@@ -171,7 +171,15 @@ class SettingsDialog(QDialog):
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
         ver = QLabel(f"Game Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới
         self.btn_update = QPushButton(tr("updater.check_button"))                         # app.check_update nối vào
-        foot = QHBoxLayout(); foot.addWidget(ver); foot.addWidget(self.btn_update); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
+        self.reset = False; btn_reset = QPushButton(tr("settings.reset.button")); btn_reset.clicked.connect(self._reset)
+        foot = QHBoxLayout(); foot.addWidget(ver); foot.addWidget(self.btn_update); foot.addWidget(btn_reset); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
+
+    def _reset(self):
+        """Khôi phục cài đặt gốc -> đóng hộp thoại; app mở lại để áp dụng hết (app.open_settings xem self.reset)."""
+        box = QMessageBox(QMessageBox.Question, tr("settings.reset.button"), tr("settings.reset.confirm"), QMessageBox.Yes | QMessageBox.No, self)
+        keep = QCheckBox(tr("settings.reset.keep")); keep.setChecked(True); box.setCheckBox(keep)
+        if box.exec() != QMessageBox.Yes: return
+        self.cfg.reset(keep.isChecked()); self.reset = True; QDialog.reject(self)     # không qua self.reject: nó trả lại màu/khung cũ
 
     LIVE = ("opacity", "bg", "fg", "src_fg", "accent", "show_frame", "text_outline", "text_valign", "line_gap")
 

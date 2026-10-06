@@ -253,4 +253,11 @@ a.cfg["region"] = {"x": 10, "y": 40, "w": 300, "h": 60}; a.cfg["speaker_region"]
 a.on_action("show_region"); assert len(a.flash) == 2 and all(w.isVisible() for w in a.flash)
 a.on_action("show_region"); assert not a.flash
 a.on_action("show_region"); a.flash_t.start(50); pump(0.2); assert not a.flash
+# khôi phục cài đặt gốc: giữ vùng thoại (tick mặc định), các thứ khác về mặc định, hộp thoại đóng với cờ reset
+from PySide6.QtWidgets import QMessageBox as _MB
+a.cfg["font_size"] = 33; reg = dict(a.cfg["region"]); sd = SettingsDialog(a.cfg)
+_exec = _MB.exec; _MB.exec = lambda self: _MB.Yes
+try: sd._reset()
+finally: _MB.exec = _exec
+assert sd.reset and a.cfg["font_size"] == 17 and a.cfg["region"] == reg
 a.quit(); print("UI SMOKE OK")

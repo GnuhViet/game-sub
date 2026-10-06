@@ -383,7 +383,9 @@ class App:
         d.btn_show.clicked.connect(lambda: (self._flash_off(), self.show_regions()))
         d.btn_update.clicked.connect(lambda: self.check_update(manual=True, parent=d))
         self.hk.register({})                      # nhả hotkey khi mở Cài đặt: bấm tổ hợp vào ô hotkey không kích hoạt hành động
-        if not d.exec(): self._register_hotkeys(); return
+        if not d.exec():
+            if d.reset: self.restart(); return                  # khôi phục cài đặt gốc -> mở lại app (ngôn ngữ, hotkey, vị trí overlay…)
+            self._register_hotkeys(); return
         d.apply(); self.noted.clear()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:

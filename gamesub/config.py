@@ -67,6 +67,8 @@ OLD_HOTKEYS = {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan":
 
 OLD_TOOLBAR = ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"]
 
+KEEP_ON_RESET = ("region", "speaker_region", "gemini_key")   # khôi phục mặc định nhưng giữ vùng đã chọn + API key (tùy chọn)
+
 class Config(dict):
     def __init__(self, path=None):
         super().__init__(copy.deepcopy(DEFAULTS)); self.path = Path(path or CFG_PATH)
@@ -86,6 +88,11 @@ class Config(dict):
                         if k in known or k in tb: continue
                         tb.insert(max((tb.index(x) + 1 for x in order[:order.index(k)] if x in tb), default=0), k)
             except Exception as e: print("settings.json lỗi, dùng mặc định:", e)
+
+    def reset(self, keep=True):
+        """Về cài đặt gốc (DEFAULTS). Bộ sub / glossary / sổ từ nằm trong gamesub.db, không bị ảnh hưởng."""
+        kept = {k: copy.deepcopy(self[k]) for k in KEEP_ON_RESET} if keep else {}
+        self.clear(); self.update(copy.deepcopy(DEFAULTS)); self.update(kept)
 
     def save(self):
         self["toolbar_known"] = list(DEFAULTS["toolbar"])
