@@ -15,6 +15,28 @@ DIALOG_ENGINES = {"google": "Google Translate (nhanh, free)", "gemini_google": "
 SCAN_ENGINES = {"ocr_google": "OCR + Google Translate", "ocr_gemini": "OCR + Gemini AI (lỗi thì Google)",
                 "gemini_image": "Gemini AI đọc thẳng ảnh (chính xác nhất; lỗi thì OCR + Google)"}
 
+OCR_TIPS = {
+    "ocr_engine": "Bộ nhận dạng chữ. Windows OCR có sẵn trong Windows, nhanh và nhẹ, đủ tốt cho thoại game. "
+                  "RapidOCR chạy offline, đọc chuẩn hơn với chữ nhỏ / nền rối nhưng nặng hơn. RapidOCR và Tesseract phải tải ở mục bên dưới.",
+    "ocr_lang": "Ngôn ngữ chữ trong game. Windows OCR dùng mã en-US, ja, zh-Hans-CN, ko… và cần gói ngôn ngữ đó trong Windows "
+                "(Settings → Time & Language → Language). Tesseract dùng mã eng, jpn, chi_sim… RapidOCR bỏ qua ô này.",
+    "ocr_scale": "Phóng to ảnh vùng thoại trước khi OCR. Chữ nhỏ (màn hình độ phân giải thấp) hay bị đọc sai thì thử 1.5–2. "
+                 "Càng lớn càng chậm. 1 = giữ nguyên.",
+    "interval_ms": "Cứ bao lâu chụp vùng thoại một lần để xem chữ có đổi không. Nhỏ hơn = bắt câu mới nhanh hơn nhưng tốn CPU hơn. "
+                   "Chỉ khi ảnh thay đổi mới chạy OCR.",
+    "stable_ms": "Ảnh vùng thoại phải đứng yên bao lâu mới OCR. Game hiện chữ dần từng ký tự: chờ chữ hiện hết rồi mới đọc để không dịch câu dở dang. "
+                 "Câu bị cắt nửa thì tăng lên; muốn hiện nhanh hơn thì giảm.",
+    "diff_threshold": "Ảnh vùng thoại phải khác lần chụp trước bao nhiêu mới tính là có thay đổi (độ lệch sáng trung bình, thang 0–255). "
+                      "Nền game động (nước, lửa, hiệu ứng) làm OCR chạy liên tục thì tăng lên; câu mới mà không được nhận thì giảm xuống.",
+    "dedupe_ratio": "Câu OCR ra giống câu vừa dịch từ mức này trở lên thì bỏ qua, không dịch lại (mỗi lần OCR có thể lệch vài ký tự). "
+                    "100 = chỉ bỏ qua khi giống hệt.",
+    "target_app": "Chỉ chụp & dịch khi cửa sổ app này đang được chọn; chuyển sang app khác thì tạm ngưng (đỡ tốn CPU, không dịch nhầm). "
+                  "Wuthering Waves là client-win64-shipping.exe. Bấm «Làm mới» để cập nhật danh sách app đang mở.",
+    "clear_on_empty": "Hết thoại (vùng thoại không còn chữ) thì xóa chữ trên overlay. Tắt thì câu cuối vẫn giữ đến khi có câu mới.",
+    "fix_spacing": "OCR đôi khi đọc dính các từ vào nhau. Bật để tự tách lại trước khi dịch; tên riêng trong bộ sub / glossary được giữ nguyên.",
+}
+SNAP_TIP = "Lưu ảnh vùng thoại đang chụp ra file để xem OCR thực sự nhìn thấy gì (vùng có lệch không, ảnh có bị đen không)."
+
 class SettingsDialog(QDialog):
     def __init__(self, cfg, parent=None, on_preview=None):
         super().__init__(parent); self.cfg = cfg; self.on_preview = on_preview; self.w = {}; self._snap = {k: cfg[k] for k in self.LIVE}; self.setWindowTitle("Cài đặt"); self.resize(620, 560)
@@ -36,6 +58,8 @@ class SettingsDialog(QDialog):
         self._check(f, "fix_spacing", "Tự tách từ bị dính (youfinallywoke → you finally woke)")
         f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút Chọn vùng thoại / Chọn vùng tên nhân vật trên overlay.</i>"))
         self.btn_snap = QPushButton("Lưu ảnh vùng hiện tại để kiểm tra"); f.addRow(self.btn_snap)
+        for k, t in OCR_TIPS.items(): self._tip(f, hb if k == "target_app" else self.w[k][0], t)
+        self.btn_snap.setToolTip(f"<p>{SNAP_TIP}</p>")
         # quản lý OCR engine tải thêm: trạng thái + dung lượng, Tải / Xóa
         self.installed = False; self.eng_rows = {}
         g = self._group(f, "OCR engine tải thêm (Windows OCR có sẵn, không cần tải)")
@@ -88,28 +112,35 @@ class SettingsDialog(QDialog):
         a.clicked.connect(self._add_dict); d.clicked.connect(lambda: [self.dicts.takeItem(self.dicts.row(i)) for i in self.dicts.selectedItems()])
         f.addRow(QLabel("<i>Hỗ trợ StarDict (.ifo + .idx + .dict/.dict.dz), TSV/CSV (từ⇥nghĩa), JSON {từ: nghĩa}.</i>"))
         # --- Giao diện
-        f = self._tab(tabs, "Giao diện")
+        tab = self._tab(tabs, "Giao diện")
+        # khung / màu / độ trong suốt / viền chữ: đổi là overlay + ô xem trước cập nhật ngay; Cancel thì trả lại
+        self.prev = _Preview(cfg); tab.addRow(self.prev)
+        f = self._group(tab, "Chữ")
         self._spin(f, "font_size", "Cỡ chữ bản dịch", 8, 48); self._spin(f, "src_font_size", "Cỡ chữ câu gốc", 8, 40)
-        # khung / màu / độ trong suốt: đổi là overlay + ô xem trước cập nhật ngay; Cancel thì trả lại
-        self.prev = _Preview(cfg); f.addRow(self.prev)
-        c = self._check(f, "show_frame", "Hiện khung nền"); c.toggled.connect(lambda on: self._live("show_frame", on))
+        self._combo(f, "display", "Hiển thị", {"both": "2 ngôn ngữ (câu gốc + bản dịch)", "vi": "Chỉ bản dịch",
+                                                "vi_hover": "Chỉ bản dịch — rê chuột vào hiện câu gốc", "src_hover": "Chỉ câu gốc — rê chuột vào hiện bản dịch"})
         s = self._spin(f, "text_outline", "Độ dày viền chữ (px, 0 = tắt)", 0, 4); s.valueChanged.connect(lambda v: self._live("text_outline", v))
+        self._check(f, "show_speaker", "Hiện tên nhân vật")
+        f = self._group(tab, "Khung && màu")
+        c = self._check(f, "show_frame", "Hiện khung nền"); c.toggled.connect(lambda on: self._live("show_frame", on))
         sl = QSlider(Qt.Horizontal); sl.setRange(0, 95); sl.setValue(round((1 - float(cfg["opacity"])) * 100))
         pct = QLabel(f"{sl.value()}%"); pct.setMinimumWidth(44)
         sl.valueChanged.connect(lambda t: (pct.setText(f"{t}%"), self._live("opacity", round(1 - t / 100, 2))))
         hb = QHBoxLayout(); hb.addWidget(sl, 1); hb.addWidget(pct); f.addRow("Độ trong suốt khung", hb)
         self.w["opacity"] = (sl, lambda: round(1 - sl.value() / 100, 2))
-        for k, n in [("bg", "Màu khung"), ("fg", "Màu chữ dịch"), ("src_fg", "Màu câu gốc"), ("accent", "Màu nhấn (tên, viền popup)")]: self._color(f, k, n)
+        cols = QHBoxLayout(); cf = [QFormLayout(), QFormLayout()]; cols.addLayout(cf[0]); cols.addSpacing(16); cols.addLayout(cf[1]); f.addRow(cols)
+        for i, (k, n) in enumerate([("bg", "Màu khung"), ("fg", "Màu chữ dịch"), ("src_fg", "Màu câu gốc"), ("accent", "Màu nhấn")]): self._color(cf[i % 2], k, n)
+        self._tip(cf[1], self.w["accent"][0], "Tên nhân vật, viền popup tra từ, icon khi rê chuột.")
         g = QGroupBox("Nút trên toolbar (Cài đặt, Ẩn, Thoát luôn ghim bên phải)"); gl = QGridLayout(g); tb = {}
         for i, (k, icon) in enumerate(TOOLBAR):
-            cb = QCheckBox(TIPS[k].split(' (')[0].replace("&", "&&")); cb.setIcon(qta.icon(icon, color=cb.palette().windowText().color())); cb.setChecked(k in cfg["toolbar"]); gl.addWidget(cb, i // 2, i % 2); tb[k] = cb
-        f.addRow(g); self.w["toolbar"] = (g, lambda: [k for k, _ in TOOLBAR if tb[k].isChecked()])
-        self._check(f, "hide_from_capture", "Overlay vô hình với ảnh chụp: đặt đè lên vùng OCR được (quay/stream/chụp màn hình cũng không thấy overlay)")
+            cb = QCheckBox(TIPS[k].split(' (')[0].replace("&", "&&")); cb.setIcon(qta.icon(icon, color=cb.palette().windowText().color())); cb.setChecked(k in cfg["toolbar"]); gl.addWidget(cb, i // 3, i % 3); tb[k] = cb
+        tab.addRow(g); self.w["toolbar"] = (g, lambda: [k for k, _ in TOOLBAR if tb[k].isChecked()])
+        f = self._group(tab, "Hành vi")
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
-        self._combo(f, "display", "Hiển thị", {"both": "2 ngôn ngữ (câu gốc + bản dịch)", "vi": "Chỉ bản dịch",
-                                                "vi_hover": "Chỉ bản dịch — rê chuột vào hiện câu gốc", "src_hover": "Chỉ câu gốc — rê chuột vào hiện bản dịch"})
-        uk = KeyCapture(cfg["unlock_key"]); f.addRow("Khi khóa overlay, giữ phím này để bấm/tra từ", uk); self.w["unlock_key"] = (uk, uk.text)
-        self._check(f, "show_speaker", "Hiện tên nhân vật")
+        uk = KeyCapture(cfg["unlock_key"]); f.addRow("Giữ phím để bấm khi đã khóa", uk); self.w["unlock_key"] = (uk, uk.text)
+        self._tip(f, uk, "Khi khóa overlay, chuột xuyên qua overlay xuống game. Giữ phím / tổ hợp / nút chuột này để tạm bấm, kéo và tra từ trên overlay. Bấm vào ô rồi nhấn phím để đổi; Backspace = tắt.")
+        c = self._check(f, "hide_from_capture", "Ẩn overlay khỏi ảnh chụp màn hình")
+        self._tip(f, c, "Overlay vẫn hiện trên màn hình nhưng vô hình với mọi ảnh chụp: đặt đè lên vùng thoại mà OCR không đọc lại bản dịch; quay video / stream / chụp màn hình cũng không thấy overlay.")
         # --- Hotkey
         f = self._tab(tabs, "Hotkey"); self.hk = {}
         for k, n in [("toggle", "Ẩn/hiện overlay"), ("region", "Chọn vùng"), ("pause", "Tạm dừng"), ("rescan", "Quét lại"), ("clickthrough", "Click-through"), ("clear", "Xóa chữ"), ("translate", "Bật/tắt dịch"), ("scan", "Chụp & dịch 1 vùng"), ("lock", "Khóa/mở overlay")]:
@@ -138,6 +169,16 @@ class SettingsDialog(QDialog):
             if col.isValid(): show(col.name()); self._live(k, col.name())
         show(self.cfg[k]); b.clicked.connect(pick); f.addRow(label, b); self.w[k] = (b, b.text)
 
+    def _tip(self, f, field, text):
+        """Icon ⓘ ngay sau nhãn của dòng (hoặc sau ô tick), rê chuột vào hiện giải thích (rich text để tự xuống dòng)."""
+        info = QLabel(); info.setPixmap(qta.icon("mdi6.information-outline", color=self.palette().placeholderText().color()).pixmap(15, 15))
+        info.setToolTip(f"<p>{html.escape(text)}</p>"); info.setCursor(Qt.WhatsThisCursor)
+        row, role = (f.getWidgetPosition if isinstance(field, QWidget) else f.getLayoutPosition)(field)
+        old = f.labelForField(field) if role == QFormLayout.FieldRole else field      # dòng có nhãn -> gắn sau nhãn; ô tick (cả dòng) -> sau ô tick
+        box = QWidget(); hb = QHBoxLayout(box); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(5)
+        f.removeWidget(old); hb.addWidget(old); hb.addWidget(info); hb.addStretch(1)
+        f.setWidget(row, QFormLayout.LabelRole if role == QFormLayout.FieldRole else role, box)
+
     def _tab(self, tabs, name):
         w = QWidget(); f = QFormLayout(w); tabs.addTab(w, name); return f
     def _group(self, f, title):
@@ -149,7 +190,7 @@ class SettingsDialog(QDialog):
     def _spin(self, f, k, label, lo, hi):
         s = QSpinBox(); s.setRange(lo, hi); s.setValue(int(self.cfg[k])); f.addRow(label, s); self.w[k] = (s, s.value); return s
     def _dspin(self, f, k, label, lo, hi, step):
-        s = QDoubleSpinBox(); s.setRange(lo, hi); s.setSingleStep(step); s.setValue(float(self.cfg[k])); f.addRow(label, s); self.w[k] = (s, s.value)
+        s = QDoubleSpinBox(); s.setRange(lo, hi); s.setSingleStep(step); s.setValue(float(self.cfg[k])); f.addRow(label, s); self.w[k] = (s, s.value); return s
     def _check(self, f, k, label):
         c = QCheckBox(label); c.setChecked(bool(self.cfg[k])); f.addRow(c); self.w[k] = (c, c.isChecked); return c
     def _combo(self, f, k, label, opts):
