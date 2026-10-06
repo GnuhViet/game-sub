@@ -13,7 +13,7 @@ from .spacing import Spacer
 from .capture import CaptureWorker
 from .hotkeys import Hotkeys
 from .ui_overlay import Overlay, WordPopup
-from .ui_region import RegionSelector
+from .ui_region import RegionSelector, RegionFlash, to_logical
 from .ui_scan import ScanWindow
 from . import winapp
 from .capture import open_sct, grab
@@ -55,6 +55,7 @@ class App:
         self.inflight = set()                     # tra từ đang chờ kết quả -> không gửi trùng
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(lambda w, p: self._hover_from(None, w, p)); self.ov.word_click.connect(lambda w, p: self._click_from(None, w, p))
         self.scan_win = ScanWindow(cfg); self.scan = {"src": "", "vi": ""}
+        self.flash = []; self.flash_t = QTimer(singleShot=True, interval=3000, timeout=self._flash_off)   # viền "Xem vùng đang chọn"
         self.scan_win.word_hover.connect(lambda w, p: self._hover_from(self.scan, w, p)); self.scan_win.word_click.connect(lambda w, p: self._click_from(self.scan, w, p))
         self.scan_win.action.connect(self.on_action)
         self.ov.phrase_action.connect(lambda act, ph: (setattr(self, "lookup_ctx", None), self.on_phrase(act, ph))); self.pop.act.connect(self.on_pop_action)
@@ -270,6 +271,7 @@ class App:
         elif k == "clear": self.ov.show_line("", "", "", ""); self.pop.close_pop()
         elif k == "retranslate" and self.history: self.resolve(self.history[self.pos], machine=True)
         elif k in ("region", "speaker", "scan"): self.select_region(k)
+        elif k == "show_region": self.show_regions()
         elif k == "scan_retranslate" and self.scan["src"]: self.scan_translate(machine=True)
         elif k == "toggle": self.auto_hidden = False; self.ov.setVisible(not self.ov.isVisible()); self.pop.hide()
         elif k == "clickthrough":
@@ -283,6 +285,21 @@ class App:
         elif k == "relaunch_admin":
             if winapp.relaunch_as_admin(): self.quit()
         elif k == "quit": self.quit()
+
+    def show_regions(self):
+        """Viền sáng quanh vùng thoại + vùng tên nhân vật trong 3 giây; bấm lần nữa thì tắt."""
+        if self.flash: self._flash_off(); return
+        c = self.cfg
+        self.flash = [RegionFlash(to_logical(r), name, col) for r, name, col in
+                      [(c["region"], "Vùng thoại", c["accent"]), (c["speaker_region"], "Vùng tên nhân vật", "#6ab7e8")] if r]
+        if not self.flash: self._toast("Chưa chọn vùng thoại — bấm nút chọn vùng (" + c["hotkeys"]["region"] + ")"); return
+        for w in self.flash: w.show()
+        self.flash_t.start()
+
+    def _flash_off(self):
+        self.flash_t.stop()
+        for w in self.flash: w.close(); w.deleteLater()
+        self.flash = []
 
     def select_region(self, kind):
         ov_vis, scan_vis = self.ov.isVisible() or kind != "scan", self.scan_win.isVisible()
@@ -348,6 +365,7 @@ class App:
         c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens", "translate")}
         d = on_top(SettingsDialog(c, on_preview=lambda: (self.ov.apply_style(), self.pop.apply_style())))   # đổi màu/khung -> overlay đổi ngay
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
+        d.btn_show.clicked.connect(lambda: (self._flash_off(), self.show_regions()))
         if not d.exec(): return
         d.apply(); self.noted.clear()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True

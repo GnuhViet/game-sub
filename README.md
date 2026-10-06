@@ -21,6 +21,7 @@ Game để **Borderless/Windowed**, ngôn ngữ text **English**, tắt Auto-pla
 |---|---|
 | Chọn vùng / `Ctrl+Alt+R` | Chọn vùng thoại (màn hình dưới con trỏ) |
 | Chọn vùng tên | Chọn vùng tên nhân vật (Esc để bỏ) |
+| Xem vùng | Hiện viền quanh vùng thoại + vùng tên nhân vật đang chọn trong 3 giây (cũng có ở Cài đặt → OCR) |
 | Tạm dừng / `Ctrl+Alt+P` | Tạm dừng |
 | Quét lại / `Ctrl+Alt+S` | Quét lại |
 | `Ctrl+Alt+T` | Ẩn/hiện overlay (hoặc click icon khay) |

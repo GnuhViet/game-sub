@@ -2,7 +2,7 @@ import ctypes, html, sys
 from PySide6.QtCore import Qt, Signal, QTimer, QPoint, QRect, QEvent, QSize
 from PySide6.QtGui import QColor, QPainter, QCursor, QFont, QFontDatabase
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout, QToolButton, QSizeGrip, QFrame, QMenu,
-                               QPushButton, QApplication, QComboBox, QGraphicsEffect, QLayout)
+                               QPushButton, QApplication, QComboBox, QGraphicsEffect, QLayout, QSpacerItem, QSizePolicy)
 import qtawesome as qta
 from .textnorm import WORD_RE
 from .dictionary import LANGS
@@ -37,7 +37,7 @@ class OutlineEffect(QGraphicsEffect):
 # (nút, icon qtawesome — Material Design Icons); chọn hiện/ẩn trong Cài đặt
 TOOLBAR = [("prev", "mdi6.skip-previous"), ("next", "mdi6.skip-next"), ("pause", "mdi6.pause"), ("translate", "mdi6.translate"),
            ("rescan", "mdi6.refresh"), ("clear", "mdi6.eraser"), ("scan", "mdi6.camera"), ("region", "mdi6.selection-drag"),
-           ("speaker", "mdi6.account"), ("subs", "mdi6.folder-open"), ("glossary", "mdi6.tag"), ("vocab", "mdi6.book-open-variant"), ("lock", "mdi6.lock")]
+           ("speaker", "mdi6.account"), ("show_region", "mdi6.selection-search"), ("subs", "mdi6.folder-open"), ("glossary", "mdi6.tag"), ("vocab", "mdi6.book-open-variant"), ("lock", "mdi6.lock")]
 ICON_ON = {"pause": "mdi6.play", "translate": "mdi6.translate-off", "lock": "mdi6.lock-open-variant"}   # icon khi đang dừng / tắt dịch / đang khóa
 RIGHT_BTNS = [("settings", "mdi6.cog"), ("hide", "mdi6.window-minimize"), ("quit", "mdi6.close")]     # luôn hiện, ghim phải
 CAPTION = {"hide": "", "quit": ""}       # ChromeMinimize / ChromeClose: nét giống nút cửa sổ Windows (máy thiếu font -> icon mdi)
@@ -49,7 +49,7 @@ def caption_font():
 # tooltip toolbar; hotkey (nếu có) được ghép vào lúc apply_style
 TIPS = {"prev": "Câu trước", "next": "Câu sau", "pause": "Tạm dừng / tiếp tục nhận dạng", "translate": "Bật/tắt dịch (tắt = chỉ câu gốc để tra từ)",
         "rescan": "Quét lại vùng thoại", "clear": "Xóa chữ trên overlay", "scan": "Chụp & dịch 1 vùng (thư, bảng…)",
-        "region": "Chọn vùng thoại", "speaker": "Chọn vùng tên nhân vật", "subs": "Bộ sub Việt hóa", "glossary": "Glossary (tên riêng, thuật ngữ)",
+        "region": "Chọn vùng thoại", "speaker": "Chọn vùng tên nhân vật", "show_region": "Xem vùng đang chọn (thoại + tên nhân vật)", "subs": "Bộ sub Việt hóa", "glossary": "Glossary (tên riêng, thuật ngữ)",
         "vocab": "Sổ từ", "lock": "Khóa overlay (chuột xuyên qua để chơi game)", "settings": "Cài đặt", "hide": "Ẩn overlay", "quit": "Thoát"}
 BUSY = ("Đang", "Lỗi", "Chưa", "Không khớp", "Không đọc")          # trạng thái luôn hiện ở góc (nguồn dịch chỉ hiện khi rê chuột)
 
@@ -108,7 +108,7 @@ class Overlay(QWidget):
         # toolbar
         # toolbar: nút tùy chọn (cfg["toolbar"]) xếp tự xuống dòng bên trái; Cài đặt / Ẩn / Thoát luôn ghim bên phải
         self.bar = QWidget(); hb = QHBoxLayout(self.bar); hb.setContentsMargins(0, 0, 0, 0); hb.setSpacing(6)
-        left = QWidget(); flow = FlowLayout(left); right = QHBoxLayout(); right.setSpacing(2)
+        left = QWidget(); self.flow = flow = FlowLayout(left); right = QHBoxLayout(); right.setSpacing(2)
         self.btns = {}
         for key, _ in TOOLBAR + RIGHT_BTNS:
             b = QToolButton(); b.setAutoRaise(True); b.setFixedSize(28, 26); b.setIconSize(QSize(18, 18))
@@ -130,7 +130,9 @@ class Overlay(QWidget):
         self.src_lbl.setContextMenuPolicy(Qt.CustomContextMenu); self.src_lbl.customContextMenuRequested.connect(self._menu)
         self.vi.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.vi.setContextMenuPolicy(Qt.CustomContextMenu); self.vi.customContextMenuRequested.connect(self._menu_vi)
-        v.addWidget(self.speaker); v.addWidget(self.src_lbl); v.addWidget(self.vi, 1)
+        # khoảng trống thừa của khung dồn vào sp_top / sp_bot (theo "Vị trí chữ"), không chen giữa câu gốc và bản dịch
+        self.sp_top, self.gap, self.sp_bot = (QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Fixed) for _ in range(3))
+        v.addItem(self.sp_top); v.addWidget(self.speaker); v.addWidget(self.src_lbl); v.addItem(self.gap); v.addWidget(self.vi); v.addItem(self.sp_bot)
         self.grip = QSizeGrip(self)
         self.status = QLabel("")                               # trạng thái (OCR đang dùng, tạm dừng…) ở góc trái dưới, hiện khi rê chuột
         foot = QHBoxLayout(); foot.setSpacing(10); foot.addWidget(self.status); foot.addWidget(self.tag); foot.addStretch(1); foot.addWidget(self.grip, 0, Qt.AlignBottom | Qt.AlignRight)
@@ -156,9 +158,11 @@ class Overlay(QWidget):
         self.tag.setStyleSheet(f"color:{c['src_fg']}; font-size:10px"); self.status.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
         w = int(c["text_outline"])
         for l in (self.speaker, self.src_lbl, self.vi, self.tag, self.status): l.setGraphicsEffect(OutlineEffect(w, l) if w > 0 else None)
-        self._apply_display(); self.update(); self._render_src()
+        self._apply_text_layout(); self._apply_display(); self.update(); self._render_src()
         self._icons()
         for k, _ in TOOLBAR: self.btns[k].setVisible(k in c["toolbar"])           # nút ghim trên toolbar (Cài đặt → Giao diện)
+        pos = {b: c["toolbar"].index(k) if k in c["toolbar"] else 99 for k, b in self.btns.items()}
+        self.flow.items.sort(key=lambda it: pos.get(it.widget(), 99)); self.flow.invalidate()     # xếp theo thứ tự đã chọn
         for k, b in self.btns.items():
             tip = TIPS.get(k, ""); hk = c["hotkeys"].get(k) or c["hotkeys"].get({"hide": "toggle"}.get(k, ""), "")
             if k == "translate": tip = "Đang dịch — bấm để tắt (chỉ câu gốc để tra từ)" if c["translate"] else "Đang TẮT dịch — bấm để bật"
@@ -270,13 +274,22 @@ class Overlay(QWidget):
         u32 = ctypes.windll.user32; hwnd = int(self.winId()); ex = u32.GetWindowLongW(hwnd, -20)
         u32.SetWindowLongW(hwnd, -20, (ex | 0x80020) if on else (ex & ~0x20))
 
+    def _apply_text_layout(self):
+        """Vị trí khối chữ trong khung (trên / giữa / dưới) + khoảng cách thêm giữa câu gốc và bản dịch."""
+        al = self.cfg["text_valign"]; grow = lambda on: QSizePolicy.Expanding if on else QSizePolicy.Fixed
+        self.sp_top.changeSize(0, 0, QSizePolicy.Minimum, grow(al in ("center", "bottom")))
+        self.sp_bot.changeSize(0, 0, QSizePolicy.Minimum, grow(al in ("center", "top")))
+        both = self.src_lbl.isVisibleTo(self) and self.vi.isVisibleTo(self)          # chỉ 1 dòng thì khỏi chừa khoảng
+        self.gap.changeSize(0, int(self.cfg["line_gap"]) if both else 0, QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.layout().invalidate()
+
     def _apply_display(self):
         """2 ngôn ngữ / chỉ bản dịch / chỉ 1 thứ, rê chuột vào overlay hiện thêm thứ còn lại."""
         c, h = self.cfg, self.bar.isVisible(); d, tr = c["display"], c["translate"]
         src = (not tr) or d in ("both", "src_hover") or (d == "vi_hover" and h)
         vi = tr and (d in ("both", "vi", "vi_hover") or (d == "src_hover" and h))
         if self.src_lbl.isVisibleTo(self) != src or self.vi.isVisibleTo(self) != vi:
-            self.src_lbl.setVisible(src); self.vi.setVisible(vi); self._fit()
+            self.src_lbl.setVisible(src); self.vi.setVisible(vi); self._apply_text_layout(); self._fit()
 
     def _set_bar(self, on):
         self.bar.setVisible(on); self.status.setVisible(on); self._tag_vis(); self._apply_display(); self.update()

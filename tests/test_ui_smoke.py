@@ -121,11 +121,17 @@ sd._test_key(); sd._key_job.wait(3000); pump(); assert "dùng được" in sd.ke
 assert sd.w["gemini_model"][1]() == "gemini-3.1-flash-lite" and "không còn" in sd.key_status.text()      # model cũ không có -> tự chọn
 sd.apply(); assert a.cfg["gemini_model"] == "gemini-3.1-flash-lite"; a.cfg["gemini_model"] = "gemini-2.5-flash-lite"
 # toolbar: bỏ ghim nút -> ẩn; ⚙ — ✕ luôn hiện và nằm bên phải
-sd = SettingsDialog(a.cfg); sd.w["toolbar"][0].findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QCheckBox)[0].setChecked(False); sd.apply()
+sd = SettingsDialog(a.cfg); sd.w["toolbar"][0].item(0).setCheckState(Qt.Unchecked); sd.apply()
 assert "prev" not in a.cfg["toolbar"]; a.ov.apply_style(); a.ov._set_bar(True); a.ov.show(); pump(0.05)
 assert a.ov.btns["prev"].isHidden() and not a.ov.btns["next"].isHidden() and not a.ov.btns["settings"].isHidden()
 assert a.ov.btns["quit"].mapTo(a.ov, QPoint(0, 0)).x() > a.ov.width() - 80                       # ✕ ở mép phải
 a.cfg["toolbar"].insert(0, "prev"); a.ov.apply_style(); a.ov._set_bar(False)
+# sắp xếp toolbar: nút ↑ trong Cài đặt đổi thứ tự -> overlay xếp theo
+sd = SettingsDialog(a.cfg); lst = sd.w["toolbar"][0]; k1 = lst.item(1).data(Qt.UserRole); lst.setCurrentRow(1)
+next(b for b in sd.findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QPushButton) if b.toolTip().startswith("Lên")).click(); sd.apply()
+assert a.cfg["toolbar"][0] == k1 and a.cfg["toolbar"][1] == "prev", a.cfg["toolbar"]
+a.ov.apply_style(); a.ov._set_bar(True); pump(0.05); assert a.ov.btns[k1].x() < a.ov.btns["prev"].x()
+a.cfg["toolbar"].remove(k1); a.cfg["toolbar"].insert(1, k1); a.ov.apply_style(); a.ov._set_bar(False)
 from wuwasub import __version__
 assert any(l.text() == f"WuWa Sub v{__version__}" for l in SettingsDialog(a.cfg).findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QLabel))
 # game chạy quyền admin, WuWaSub không -> cảnh báo 1 lần
@@ -220,4 +226,11 @@ a.pop.close_pop(); a.cfg["dict_mode"] = "llm"
 from PySide6.QtCore import Qt
 a.on_action("clickthrough"); assert a.cfg["click_through"] and a.ov.passthrough_wanted() and a.ov.isVisible() and a.ct_action.isChecked()
 a.on_action("clickthrough"); assert not a.ov.passthrough_wanted() and not a.ct_action.isChecked()
+
+# 10) xem vùng đang chọn: bật / bấm lại tắt / tự tắt
+a.cfg["region"] = a.cfg["speaker_region"] = None; a.on_action("show_region"); assert not a.flash
+a.cfg["region"] = {"x": 10, "y": 40, "w": 300, "h": 60}; a.cfg["speaker_region"] = {"x": 10, "y": 10, "w": 100, "h": 15}
+a.on_action("show_region"); assert len(a.flash) == 2 and all(w.isVisible() for w in a.flash)
+a.on_action("show_region"); assert not a.flash
+a.on_action("show_region"); a.flash_t.start(50); pump(0.2); assert not a.flash
 a.quit(); print("UI SMOKE OK")

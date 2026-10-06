@@ -4,7 +4,8 @@ from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient, QKeySequence
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox, QGridLayout)
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox, QGridLayout,
+    QListWidgetItem, QScrollArea, QFrame)
 import qtawesome as qta
 from . import importer, engines, hotkeys, __version__
 from .dictionary import LANGS
@@ -39,7 +40,7 @@ SNAP_TIP = "Lưu ảnh vùng thoại đang chụp ra file để xem OCR thực s
 
 class SettingsDialog(QDialog):
     def __init__(self, cfg, parent=None, on_preview=None):
-        super().__init__(parent); self.cfg = cfg; self.on_preview = on_preview; self.w = {}; self._snap = {k: cfg[k] for k in self.LIVE}; self.setWindowTitle("Cài đặt"); self.resize(620, 560)
+        super().__init__(parent); self.cfg = cfg; self.on_preview = on_preview; self.w = {}; self._snap = {k: cfg[k] for k in self.LIVE}; self.setWindowTitle("Cài đặt"); self.resize(760, 680)
         tabs = QTabWidget(); v = QVBoxLayout(self); v.addWidget(tabs)
         # --- OCR
         f = self._tab(tabs, "OCR")
@@ -57,7 +58,9 @@ class SettingsDialog(QDialog):
         self._check(f, "clear_on_empty", "Tự xóa chữ khi vùng thoại không còn chữ")
         self._check(f, "fix_spacing", "Tự tách từ bị dính (youfinallywoke → you finally woke)")
         f.addRow(QLabel("<i>Vùng dịch / vùng tên nhân vật chọn bằng nút Chọn vùng thoại / Chọn vùng tên nhân vật trên overlay.</i>"))
-        self.btn_snap = QPushButton("Lưu ảnh vùng hiện tại để kiểm tra"); f.addRow(self.btn_snap)
+        self.btn_snap = QPushButton("Lưu ảnh vùng hiện tại để kiểm tra"); self.btn_show = QPushButton("Xem vùng đang chọn")
+        self.btn_show.setToolTip("<p>Vẽ viền quanh vùng thoại và vùng tên nhân vật trên màn hình trong vài giây.</p>")
+        hb2 = QHBoxLayout(); hb2.addWidget(self.btn_show); hb2.addWidget(self.btn_snap, 1); f.addRow(hb2)
         for k, t in OCR_TIPS.items(): self._tip(f, hb if k == "target_app" else self.w[k][0], t)
         self.btn_snap.setToolTip(f"<p>{SNAP_TIP}</p>")
         # quản lý OCR engine tải thêm: trạng thái + dung lượng, Tải / Xóa
@@ -119,6 +122,11 @@ class SettingsDialog(QDialog):
         self._spin(f, "font_size", "Cỡ chữ bản dịch", 8, 48); self._spin(f, "src_font_size", "Cỡ chữ câu gốc", 8, 40)
         self._combo(f, "display", "Hiển thị", {"both": "2 ngôn ngữ (câu gốc + bản dịch)", "vi": "Chỉ bản dịch",
                                                 "vi_hover": "Chỉ bản dịch — rê chuột vào hiện câu gốc", "src_hover": "Chỉ câu gốc — rê chuột vào hiện bản dịch"})
+        self._combo(f, "text_valign", "Vị trí chữ trong khung", {"top": "Trên", "center": "Giữa", "bottom": "Dưới"})
+        cb = self.w["text_valign"][0]; cb.currentIndexChanged.connect(lambda _: self._live("text_valign", cb.currentData()))
+        self._tip(f, cb, "Khung cao hơn chữ thì khối chữ (câu gốc + bản dịch) nằm sát trên, ở giữa hay sát dưới khung. Câu gốc và bản dịch luôn đi liền nhau.")
+        s = self._spin(f, "line_gap", "Khoảng cách câu gốc – bản dịch (px)", 0, 40); s.valueChanged.connect(lambda v: self._live("line_gap", v))
+        self._tip(f, s, "Khoảng cách thêm giữa câu gốc và bản dịch. 0 = sát nhau.")
         s = self._spin(f, "text_outline", "Độ dày viền chữ (px, 0 = tắt)", 0, 4); s.valueChanged.connect(lambda v: self._live("text_outline", v))
         self._check(f, "show_speaker", "Hiện tên nhân vật")
         f = self._group(tab, "Khung && màu")
@@ -131,10 +139,25 @@ class SettingsDialog(QDialog):
         cols = QHBoxLayout(); cf = [QFormLayout(), QFormLayout()]; cols.addLayout(cf[0]); cols.addSpacing(16); cols.addLayout(cf[1]); f.addRow(cols)
         for i, (k, n) in enumerate([("bg", "Màu khung"), ("fg", "Màu chữ dịch"), ("src_fg", "Màu câu gốc"), ("accent", "Màu nhấn")]): self._color(cf[i % 2], k, n)
         self._tip(cf[1], self.w["accent"][0], "Tên nhân vật, viền popup tra từ, icon khi rê chuột.")
-        g = QGroupBox("Nút trên toolbar (Cài đặt, Ẩn, Thoát luôn ghim bên phải)"); gl = QGridLayout(g); tb = {}
-        for i, (k, icon) in enumerate(TOOLBAR):
-            cb = QCheckBox(TIPS[k].split(' (')[0].replace("&", "&&")); cb.setIcon(qta.icon(icon, color=cb.palette().windowText().color())); cb.setChecked(k in cfg["toolbar"]); gl.addWidget(cb, i // 3, i % 3); tb[k] = cb
-        tab.addRow(g); self.w["toolbar"] = (g, lambda: [k for k, _ in TOOLBAR if tb[k].isChecked()])
+        g = QGroupBox("Nút trên toolbar — tick để hiện, kéo thả (hoặc ↑ ↓) để sắp xếp"); gl = QHBoxLayout(g)
+        lst = QListWidget(); lst.setDragDropMode(QAbstractItemView.InternalMove); lst.setDefaultDropAction(Qt.MoveAction)
+        col, icons = lst.palette().text().color(), dict(TOOLBAR)
+        for k in list(cfg["toolbar"]) + [k for k, _ in TOOLBAR if k not in cfg["toolbar"]]:     # nút đang hiện theo thứ tự đã xếp, nút ẩn xuống cuối
+            if k not in icons: continue
+            it = QListWidgetItem(qta.icon(icons[k], color=col), TIPS[k].split(" (")[0]); it.setData(Qt.UserRole, k)
+            it.setFlags((it.flags() | Qt.ItemIsUserCheckable) & ~Qt.ItemIsDropEnabled)      # không thả đè lên item (mất item)
+            it.setCheckState(Qt.Checked if k in cfg["toolbar"] else Qt.Unchecked); lst.addItem(it)
+        lst.setFixedHeight(lst.sizeHintForRow(0) * lst.count() + 2 * lst.frameWidth() + 2)
+        def move(d):
+            r = lst.currentRow(); n = r + d
+            if r < 0 or not 0 <= n < lst.count(): return
+            lst.insertItem(n, lst.takeItem(r)); lst.setCurrentRow(n)
+        bv = QVBoxLayout()
+        for ic, d, tip in (("mdi6.arrow-up", -1, "Lên (sang trái trên toolbar)"), ("mdi6.arrow-down", 1, "Xuống (sang phải trên toolbar)")):
+            b = QPushButton(qta.icon(ic, color=col), ""); b.setToolTip(tip); b.clicked.connect(lambda _=0, d=d: move(d)); bv.addWidget(b)
+        bv.addStretch(1); bv.addWidget(QLabel("<i>Cài đặt / Ẩn / Thoát\nluôn ghim bên phải</i>".replace("\n", "<br>")))
+        gl.addWidget(lst, 1); gl.addLayout(bv)
+        tab.addRow(g); self.w["toolbar"] = (lst, lambda: [lst.item(i).data(Qt.UserRole) for i in range(lst.count()) if lst.item(i).checkState() == Qt.Checked])
         f = self._group(tab, "Hành vi")
         self._dspin(f, "auto_hide_s", "Tự ẩn khi hết thoại sau (s, 0 = tắt)", 0, 60, 0.5)
         uk = KeyCapture(cfg["unlock_key"]); f.addRow("Giữ phím để bấm khi đã khóa", uk); self.w["unlock_key"] = (uk, uk.text)
@@ -150,7 +173,7 @@ class SettingsDialog(QDialog):
         ver = QLabel(f"WuWa Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới
         foot = QHBoxLayout(); foot.addWidget(ver); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
 
-    LIVE = ("opacity", "bg", "fg", "src_fg", "accent", "show_frame", "text_outline")
+    LIVE = ("opacity", "bg", "fg", "src_fg", "accent", "show_frame", "text_outline", "text_valign", "line_gap")
 
     def _live(self, k, v):
         self.cfg[k] = v; self.prev.update()
@@ -180,7 +203,9 @@ class SettingsDialog(QDialog):
         f.setWidget(row, QFormLayout.LabelRole if role == QFormLayout.FieldRole else role, box)
 
     def _tab(self, tabs, name):
-        w = QWidget(); f = QFormLayout(w); tabs.addTab(w, name); return f
+        """Tab cuộn được: màn hình thấp (laptop 768p) vẫn thấy hết."""
+        w = QWidget(); f = QFormLayout(w); sa = QScrollArea(); sa.setWidgetResizable(True); sa.setFrameShape(QFrame.NoFrame)
+        sa.setWidget(w); tabs.addTab(sa, name); return f
     def _group(self, f, title):
         g = QGroupBox(title); gf = QFormLayout(g); f.addRow(g); return gf
     def _line(self, f, k, label, ph="", password=False):

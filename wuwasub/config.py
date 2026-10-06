@@ -44,10 +44,13 @@ DEFAULTS = {
     "popup_trigger": "click",                         # click: bấm vào từ mới hiện nghĩa / hover: rê chuột là hiện
     # overlay
     "font_size": 17, "src_font_size": 13, "opacity": 0.82, "show_frame": True, "locked": False, "hide_from_capture": True, "show_speaker": True,
+    "text_valign": "center",                          # vị trí chữ trong khung khi khung cao hơn chữ: top / center / bottom
+    "line_gap": 0,                                    # khoảng cách thêm giữa câu gốc và bản dịch (px)
     "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
     "unlock_key": "Alt",                              # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
     "run_as_admin": False,                            # game chạy quyền admin -> WuWaSub cũng phải admin thì hotkey/giữ phím mới tới
-    "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"],
+    "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "show_region", "subs", "glossary", "vocab", "lock"],
+    "toolbar_known": [],                              # nút toolbar đã có lúc lưu cài đặt: nút mới ra sau đó tự hiện (bỏ tick rồi thì thôi)
     "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)
     "auto_hide_s": 0,                                 # tự ẩn khi hết thoại sau N giây (0 = tắt)
     "click_through": False,                           # chuột xuyên qua overlay (bật/tắt bằng hotkey)
@@ -58,6 +61,8 @@ DEFAULTS = {
 
 OLD_HOTKEYS = {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan": "Alt+S", "clickthrough": "Alt+C",
                "clear": "Alt+X", "translate": "Alt+D", "scan": "Alt+Q", "lock": "Alt+L"}
+
+OLD_TOOLBAR = ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"]
 
 class Config(dict):
     def __init__(self, path=None):
@@ -71,8 +76,15 @@ class Config(dict):
                     elif k in DEFAULTS: self[k] = v
                 if "display" not in data and data.get("show_source") is False: self["display"] = "vi"     # cài đặt cũ
                 if "unlock_key" not in data and data.get("alt_unlock") is False: self["unlock_key"] = ""
+                if "toolbar" in data:
+                    known = data.get("toolbar_known") or OLD_TOOLBAR
+                    tb, order = self["toolbar"], DEFAULTS["toolbar"]
+                    for k in order:                               # nút mới chèn ngay sau nút đứng trước nó (theo mặc định) đang hiện
+                        if k in known or k in tb: continue
+                        tb.insert(max((tb.index(x) + 1 for x in order[:order.index(k)] if x in tb), default=0), k)
             except Exception as e: print("settings.json lỗi, dùng mặc định:", e)
 
     def save(self):
+        self["toolbar_known"] = list(DEFAULTS["toolbar"])
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(self, ensure_ascii=False, indent=2), "utf-8")
