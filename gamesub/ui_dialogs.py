@@ -32,7 +32,7 @@ OCR_TIPS = {
 SNAP_TIP = N_("settings.ocr.snap_tip")
 
 class SettingsDialog(QDialog):
-    def __init__(self, cfg, parent=None, on_preview=None):
+    def __init__(self, cfg, parent=None, on_preview=None, subs=None):
         super().__init__(parent); self.cfg = cfg; self.on_preview = on_preview; self.w = {}; self._snap = {k: cfg[k] for k in self.LIVE}; self.setWindowTitle(tr("settings.title")); self.resize(760, 680)
         tabs = QTabWidget(); v = QVBoxLayout(self); v.addWidget(tabs)
         # --- OCR
@@ -69,7 +69,6 @@ class SettingsDialog(QDialog):
         tab = self._tab(tabs, "settings.tab.translate")
         f = self._group(tab, "settings.translate.group.dialogue_translation_overlay")
         self._check(f, "translate", "settings.translate.translate")
-        self._check(f, "use_subs", "settings.translate.use_subs"); self._spin(f, "fuzzy_threshold", "settings.translate.fuzzy_threshold", 50, 100)
         self._combo(f, "dialog_engine", "settings.translate.dialog_engine", DIALOG_ENGINES)
         f = self._group(tab, "settings.translate.group.captured_area_translation")
         self._combo(f, "scan_engine", "settings.translate.scan_engine", SCAN_ENGINES)
@@ -87,6 +86,18 @@ class SettingsDialog(QDialog):
         self._spin(f, "gemini_thinking_budget", "settings.translate.gemini_thinking_budget", -1, 8192)
         self._spin(f, "timeout_s", "settings.translate.timeout_s", 3, 120); self._spin(f, "cooldown_s", "settings.translate.cooldown_s", 0, 3600)
         self._src_lang = self._line(f, "src_lang", "settings.translate.src_lang")
+        # --- Bộ sub Việt hóa
+        f = self._tab(tabs, "settings.tab.subs")
+        self._check(f, "use_subs", "settings.translate.use_subs")
+        sl = QSlider(Qt.Horizontal); sl.setRange(50, 100); sl.setValue(int(cfg["fuzzy_threshold"]))
+        pct = QLabel(); pct.setMinimumWidth(110)
+        def th_text(t): pct.setText(f"{t}%" + (" — " + tr("settings.subs.exact_only") if t == 100 else ""))
+        sl.valueChanged.connect(th_text); th_text(sl.value())
+        hb = QHBoxLayout(); hb.addWidget(sl, 1); hb.addWidget(pct); f.addRow(tr("settings.translate.fuzzy_threshold"), hb)
+        self.w["fuzzy_threshold"] = (sl, sl.value); self._tip(f, hb, "settings.subs.tip.fuzzy_threshold")
+        if subs:
+            self.subs_panel = SubsPanel(*subs, threshold=sl.value); f.addRow(self.subs_panel)
+            sl.valueChanged.connect(lambda _: self.subs_panel.test.text() and self.subs_panel._test())
         # --- Prompt
         t = QWidget(); tv = QVBoxLayout(t); tabs.addTab(t, tr("settings.tab.prompt"))
         tv.addWidget(QLabel(tr("settings.prompt.variables") + " {src_lang} {player} {gender} {keep_rule} {glossary}"))
@@ -493,10 +504,13 @@ class ReviewDialog(QDialog):
         else: super().keyPressEvent(e)
 
 
-class SubsDialog(QDialog):
-    def __init__(self, db, index, cfg, on_changed, parent=None):
+class SubsPanel(QWidget):
+    """Quản lý bộ sub: nhập / xóa file + thử khớp. Dùng trong SubsDialog và tab Bộ sub của Cài đặt."""
+    def __init__(self, db, index, cfg, on_changed, threshold=None, parent=None):
         super().__init__(parent); self.db, self.index, self.cfg, self.on_changed = db, index, cfg, on_changed
-        self.setWindowTitle(tr("subs.subtitle_pack")); self.resize(860, 600); v = QVBoxLayout(self)
+        self.threshold = threshold or (lambda: self.cfg["fuzzy_threshold"])        # Cài đặt truyền giá trị đang chỉnh (chưa lưu)
+        v = QVBoxLayout(self); v.setContentsMargins(0, 0, 0, 0)
+        self.count_lbl = QLabel(); v.addWidget(self.count_lbl)
         v.addWidget(QLabel(tr("subs.imported_files_later_imports_win")))
         self.files = QListWidget(); self.files.setMaximumHeight(120); v.addWidget(self.files)
         hb = QHBoxLayout(); b1 = QPushButton(tr("subs.choose_subtitle_file")); b2 = QPushButton(tr("subs.remove_imported_file")); hb.addWidget(b1); hb.addWidget(b2); hb.addStretch(1)
@@ -506,7 +520,7 @@ class SubsDialog(QDialog):
         cb = QHBoxLayout(); self.src_c = QComboBox(); self.vi_c = QComboBox()
         cb.addWidget(QLabel(tr("subs.source_column_en"))); cb.addWidget(self.src_c, 1); cb.addWidget(QLabel(tr("subs.translation_column"))); cb.addWidget(self.vi_c, 1)
         self.imp_b = QPushButton(tr("subs.import")); self.imp_b.setEnabled(False); self.imp_b.clicked.connect(self._import); cb.addWidget(self.imp_b); v.addLayout(cb)
-        self.t = _table([]); self.t.setEditTriggers(QAbstractItemView.NoEditTriggers); v.addWidget(self.t, 1)
+        self.t = _table([]); self.t.setEditTriggers(QAbstractItemView.NoEditTriggers); self.t.setMinimumHeight(140); v.addWidget(self.t, 1)
         # test
         tb = QHBoxLayout(); self.test = QLineEdit(); self.test.setPlaceholderText(tr("subs.test_matching_paste_english_line"))
         self.test.returnPressed.connect(self._test); tb.addWidget(self.test); v.addLayout(tb)
@@ -517,7 +531,7 @@ class SubsDialog(QDialog):
         self.files.clear()
         for f, n in self.db.sub_files():
             it = QListWidgetItem(tr("subs.file_n_lines", file=f, n=f"{n:,}")); it.setData(Qt.UserRole, f); self.files.addItem(it)
-        self.setWindowTitle(tr("subs.subtitle_pack_n_lines_indexed", n=f"{len(self.index):,}"))
+        self.count_lbl.setText(tr("subs.subtitle_pack_n_lines_indexed", n=f"{len(self.index):,}"))
 
     def _open(self):
         p, _ = QFileDialog.getOpenFileName(self, tr("subs.choose_subtitle_pack"), "", "Sub (*.csv *.tsv *.txt *.xlsx *.json);;" + tr("subs.all_files") + " (*)")
@@ -546,5 +560,15 @@ class SubsDialog(QDialog):
         self.on_changed(); self._files()
 
     def _test(self):
-        m = self.index.match(self.test.text(), self.cfg["fuzzy_threshold"])
-        self.test_out.setText(f"<b>{m.score:.1f}%</b> — {html.escape(m.src)}<br>→ {html.escape(m.vi)}" if m else "<i>" + tr("subs.no_line_matches_above_threshold") + "</i>")
+        """Hiện câu gần nhất kể cả khi dưới ngưỡng -> biết nên hạ ngưỡng bao nhiêu."""
+        th = self.threshold(); m = self.index.match(self.test.text(), 0) if self.test.text().strip() else None
+        if not m: self.test_out.setText("<i>" + tr("subs.no_line_matches_above_threshold") + "</i>"); return
+        ok = m.score >= th
+        head = f"<b style='color:{'#3fb950' if ok else '#e8a33a'}'>{m.score:.1f}%</b> " + (tr("subs.test_used") if ok else tr("subs.test_below_threshold", th=th))
+        self.test_out.setText(f"{head} — {html.escape(m.src)}<br>→ {html.escape(m.vi)}")
+
+
+class SubsDialog(QDialog):
+    def __init__(self, db, index, cfg, on_changed, parent=None):
+        super().__init__(parent); self.setWindowTitle(tr("subs.subtitle_pack")); self.resize(860, 600)
+        self.panel = SubsPanel(db, index, cfg, on_changed); v = QVBoxLayout(self); v.addWidget(self.panel)

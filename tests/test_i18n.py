@@ -39,7 +39,7 @@ from gamesub.ui_dialogs import SettingsDialog
 from gamesub.ui_overlay import Overlay
 cfg = config.Config(ROOT / "tests" / "_nonexistent.json")
 sd = SettingsDialog(cfg); tabs = sd.findChild(QTabWidget)
-assert [tabs.tabText(i) for i in range(tabs.count())] == ["OCR", "Translation", "Prompt", "Characters", "Dictionary", "Appearance", "Hotkeys"]
+assert [tabs.tabText(i) for i in range(tabs.count())] == ["OCR", "Translation", "Subtitles", "Prompt", "Characters", "Dictionary", "Appearance", "Hotkeys"]
 assert sd.windowTitle() == "Settings" and sd.w["display"][0].itemText(0) == "Both (source + translation)"
 ov = Overlay(dict(cfg)); assert ov.btns["prev"].toolTip().startswith("Previous line")
 i18n.set_lang("vi")

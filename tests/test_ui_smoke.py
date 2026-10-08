@@ -162,7 +162,11 @@ W.self_elevated, W.foreground, W.elevated = _orig
 # lý do Gemini lỗi chỉ báo 1 lần
 assert a._note("Gemini lỗi: API key sai") == " · Gemini lỗi: API key sai" and a._note("Gemini lỗi: API key sai") == "" and a._note("") == ""
 assert (C.DATA_DIR / "settings.json").exists()
-sub = SubsDialog(a.db, a.index, a.cfg, a.rebuild_index); sub.test.setText("Rover you finally woke up"); sub._test(); assert "100" in sub.test_out.text() or "%" in sub.test_out.text()
+subd = SubsDialog(a.db, a.index, a.cfg, a.rebuild_index); sub = subd.panel; sub.test.setText("Rover you finally woke up"); sub._test(); assert "100" in sub.test_out.text() or "%" in sub.test_out.text()
+# tab Bộ sub trong Cài đặt: thanh trượt ngưỡng + ô thử khớp dùng ngưỡng đang chỉnh (chưa lưu)
+sd = SettingsDialog(a.cfg, subs=(a.db, a.index, a.cfg, a.rebuild_index)); sp = sd.subs_panel; sl = sd.w["fuzzy_threshold"][0]
+sp.test.setText("Rover you finaly woke up"); sl.setValue(100); assert "#e8a33a" in sp.test_out.text()      # sai 1 chữ: dưới 100% -> không dùng
+sl.setValue(80); assert "#3fb950" in sp.test_out.text(); sd.apply(); assert a.cfg["fuzzy_threshold"] == 80
 gd = GlossaryDialog(a.db, a.cfg); gd._row("Resonator", "Cộng Minh Giả", "translate"); gd._save(); assert any(g["term"] == "Resonator" for g in a.db.glossary())
 ReviewDialog(a.db, a.db.vocab()).show(); pump(0.05)
 

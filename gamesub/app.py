@@ -378,7 +378,7 @@ class App:
 
     def open_settings(self):
         c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens", "translate", "ui_lang")}
-        d = on_top(SettingsDialog(c, on_preview=lambda: (self.ov.apply_style(), self.pop.apply_style())))   # đổi màu/khung -> overlay đổi ngay
+        d = on_top(SettingsDialog(c, on_preview=lambda: (self.ov.apply_style(), self.pop.apply_style()), subs=(self.db, self.index, c, self.rebuild_index)))   # đổi màu/khung -> overlay đổi ngay
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
         d.btn_show.clicked.connect(lambda: (self._flash_off(), self.show_regions()))
         d.btn_update.clicked.connect(lambda: self.check_update(manual=True, parent=d))
