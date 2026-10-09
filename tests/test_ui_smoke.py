@@ -216,6 +216,15 @@ def gem_fail(png, p=None): raise RuntimeError("429")
 a.tr.read_image = gem_fail; a.scan_capture({"x": 0, "y": 0, "w": 40, "h": 20}); pump()
 assert a.scan_win.src.startswith("Dear Rover, thank you") and "Gemini đọc ảnh lỗi: 429" in a.scan_win.tag.text(), a.scan_win.tag.text()
 a.cfg.update(scan_engine="ocr_google", gemini_key="")
+# 10c) vùng chụp khớp bộ sub từng câu: câu khớp lấy bản sub, phần còn lại dịch máy (câu khớp làm ngữ cảnh)
+_Eng.recognize = lambda self, img: ["Rover, you finally woke up. Thank you for your help."]
+seen = []; a.tr.translate = lambda src, spk, ctx, p=None, engine=None: (seen.append((src, ctx)), ("Cảm ơn đã giúp.", "google"))[1]
+a.scan_capture({"x": 0, "y": 0, "w": 10, "h": 10}); pump()
+assert a.scan_win.vi_view.toPlainText() == "Rover, cuối cùng anh cũng tỉnh rồi. Cảm ơn đã giúp.", a.scan_win.vi_view.toPlainText()
+assert seen[0][0] == "Thank you for your help." and seen[0][1][0][2].startswith("Rover, cuối") and a.scan_win.tag.text().startswith("Bộ sub 1/2")
+a.cfg["scan_use_subs"] = False; seen.clear(); a.scan_capture({"x": 0, "y": 0, "w": 10, "h": 10}); pump()
+assert seen[0][0] == "Rover, you finally woke up. Thank you for your help." and a.scan_win.vi_view.toPlainText() == "Cảm ơn đã giúp."
+a.cfg["scan_use_subs"] = True; a.tr.translate = fake_tr
 # 11) nguồn dịch chỉ hiện khi rê chuột; khóa overlay; khung tự giãn; tooltip có hotkey; 1/2 ngôn ngữ
 a.ov.show_line("", "Hi.", "Xin chào.", "Google Translate"); assert a.ov.tag.text() == ""
 a.ov._set_bar(True); assert a.ov.tag.text() == "Google Translate"; a.ov._set_bar(False)

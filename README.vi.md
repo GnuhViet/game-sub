@@ -22,7 +22,7 @@ Bấm vào từ bất kỳ để tra nghĩa và lưu vào sổ từ để ôn.
 - **Glossary**: giữ nguyên tên riêng / thuật ngữ hoặc ép cách dịch; dịch bằng Google cũng được bảo vệ thuật ngữ.
 - **Bấm từ để tra**: từ điển offline StarDict / TSV, Google, dictionaryapi.dev, hoặc AI giải nghĩa theo ngữ cảnh câu.
 - **Sổ từ**: lưu từ kèm câu gốc, ôn bằng flashcard, xuất CSV / Anki.
-- **Chụp & dịch** 1 vùng bất kỳ (thư, menu, mô tả vật phẩm) ra cửa sổ riêng.
+- **Chụp & dịch** 1 vùng bất kỳ (thư, menu, mô tả vật phẩm) ra cửa sổ riêng; câu nào khớp bộ sub Việt hóa thì lấy bản sub, còn lại mới dịch máy.
 - **Overlay không vướng víu**: click-through, khóa, tự ẩn khi hết thoại, ẩn khỏi ảnh chụp màn hình, đổi màu / cỡ chữ tùy ý.
 - **Tự cập nhật**: 1 cú bấm là tải bản mới, giữ nguyên dữ liệu.
 - Giao diện **Tiếng Việt** và **English**; thêm ngôn ngữ chỉ cần 1 file JSON.

@@ -52,3 +52,19 @@ class SubIndex:
             if all(parts):
                 return Match(" ".join(p.vi for p in parts), min(p.score for p in parts), " ".join(p.src for p in parts))
         return None
+
+    def match_parts(self, text, threshold=86):
+        """Vùng chụp (thư, bảng…): khớp từng đoạn, không được thì từng câu.
+        -> [[(câu gốc, Match | None), …] mỗi đoạn]; câu không khớp liền nhau gộp 1 phần để dịch máy theo cụm."""
+        out = []
+        for para in (p.strip() for p in text.split("\n")):
+            if not para: continue
+            m = self.match(para, threshold) if self.items else None
+            if m: out.append([(para, m)]); continue
+            row = []
+            for s in split_sentences(para):
+                m = self._best(s, threshold) if self.items else None
+                if not m and row and row[-1][1] is None: row[-1] = (row[-1][0] + " " + s, None)
+                else: row.append((s, m))
+            out.append(row)
+        return out

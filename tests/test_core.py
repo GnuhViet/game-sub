@@ -39,6 +39,10 @@ def test_matcher():
     m = ix.match("The Tacet Discord is coming!"); assert m and m.vi == "Tacet Discord đang tới!", m
     m = ix.match("Let's go to Jinzhou. Be careful."); assert m and m.vi == "Đi tới Jinzhou thôi. Cẩn thận đấy.", m   # gộp 2 câu
     assert ix.match("Completely unrelated sentence here.") is None
+    parts = ix.match_parts("The Tacet Discord is coming! Some new line. Another one.\nLet's go to Jinzhou. Be careful.")   # vùng chụp: từng câu
+    assert [[(s, m and m.vi) for s, m in row] for row in parts] == [
+        [("The Tacet Discord is coming!", "Tacet Discord đang tới!"), ("Some new line. Another one.", None)],
+        [("Let's go to Jinzhou. Be careful.", "Đi tới Jinzhou thôi. Cẩn thận đấy.")]]
 
 def test_importer():
     (T / "a.csv").write_text("id,english,vietnamese\n1,Hello there,Xin chào\n2,Be careful.,Cẩn thận đấy.\n", "utf-8")

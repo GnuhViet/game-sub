@@ -31,6 +31,7 @@ DEFAULTS = {
     "dialog_engine": "google",                        # thoại: google / gemini_google / gemini
     "scan_engine": "ocr_google",                      # vùng chụp 📷: ocr_google / ocr_gemini / gemini_image
     "use_subs": True, "fuzzy_threshold": 86,
+    "scan_use_subs": True,                            # vùng chụp 📷 cũng khớp bộ sub theo từng câu, câu không khớp mới dịch máy
     "gemini_key": "", "gemini_model": "gemini-2.5-flash-lite", "gemini_thinking_budget": 0,
     "stream": True, "context_lines": 4, "prompt": DEFAULT_PROMPT, "explain_prompt": EXPLAIN_PROMPT,
     "keep_terms": True,                               # không dịch tên riêng/thuật ngữ

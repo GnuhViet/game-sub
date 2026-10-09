@@ -22,7 +22,7 @@ and lets you click any word to look it up and save it for review.
 - **Glossary**: keep names and terms as-is or force a translation; terms are protected with Google Translate too.
 - **Click-to-look-up**: click or select any word in the source line. Offline StarDict / TSV dictionaries, Google, dictionaryapi.dev, or an AI explanation in context.
 - **Vocabulary book**: save words with their sentence, review them as flashcards, export to CSV / Anki.
-- **Capture & translate** any area once (letters, menus, item descriptions) in a separate window.
+- **Capture & translate** any area once (letters, menus, item descriptions) in a separate window; sentences that match the subtitle pack use it, the rest are machine-translated.
 - **Overlay that stays out of the way**: click-through, lock, auto-hide when dialogue ends, hidden from screenshots, restylable.
 - **Self-updating**: one click downloads the new release and keeps all your data.
 - UI in **English** and **Tiếng Việt**; adding a language is a single JSON file.

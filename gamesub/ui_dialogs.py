@@ -88,7 +88,9 @@ class SettingsDialog(QDialog):
         self._src_lang = self._line(f, "src_lang", "settings.translate.src_lang")
         # --- Bộ sub Việt hóa
         f = self._tab(tabs, "settings.tab.subs")
-        self._check(f, "use_subs", "settings.translate.use_subs")
+        us = self._check(f, "use_subs", "settings.translate.use_subs")
+        ss = self._check(f, "scan_use_subs", "settings.subs.scan_use_subs"); self._tip(f, ss, "settings.subs.tip.scan_use_subs")
+        ss.setEnabled(us.isChecked()); us.toggled.connect(ss.setEnabled)
         sl = QSlider(Qt.Horizontal); sl.setRange(50, 100); sl.setValue(int(cfg["fuzzy_threshold"]))
         pct = QLabel(); pct.setMinimumWidth(110)
         def th_text(t): pct.setText(f"{t}%" + (" — " + tr("settings.subs.exact_only") if t == 100 else ""))

@@ -355,7 +355,10 @@ class App:
         def done(res):
             kind, text, extra = res
             if kind == "gemini":
-                self.scan = {"src": text, "vi": extra}; self.scan_win.show_result(text, extra, tr("app.gemini_image_reading_model", model=c["gemini_model"])); return
+                vi, tag = self._scan_subs_over(text, extra), tr("app.gemini_image_reading_model", model=c["gemini_model"])
+                if vi != extra:
+                    vs = vi.split("\n"); tag = tr("app.subtitle_pack_n_of_m", n=sum(a != b for a, b in zip(vs, extra.split("\n"))), m=len(vs)) + " · " + tag
+                self.scan = {"src": text, "vi": vi}; self.scan_win.show_result(text, vi, tag); return
             note = tr("app.gemini_image_reading_failed_e", e=extra) if extra else ""
             if c["fix_spacing"]: text = self.spacer.fix(text)
             self.scan = {"src": text, "vi": "", "note": note}
@@ -367,14 +370,47 @@ class App:
     def scan_translate(self, machine=False):
         c, sc = self.cfg, self.scan; src = sc["src"]
         if not c["translate"] and not machine: self.scan_win.show_result(src, "", tr("app.not_translating_source_text_only")); return
-        m = self.index.match(src, c["fuzzy_threshold"]) if c["use_subs"] and not machine else None
+        subs = c["use_subs"] and c["scan_use_subs"] and not machine
+        m = self.index.match(src, c["fuzzy_threshold"]) if subs else None
         if m: sc["vi"] = m.vi; self.scan_win.show_result(src, m.vi, tr("app.subtitle_pack_p_match", p=f"{m.score:.0f}")); return
+        parts = self.index.match_parts(src, c["fuzzy_threshold"]) if subs else []
+        hits = [(s, m) for row in parts for s, m in row if m]
+        if hits: self._scan_mixed(parts, hits); return
         self.scan_win.show_result(src, "", tr("app.translating"))
         def partial(t): self.scan_win.show_result(src, t, tr("app.translating"))
         def done(res):
             sc["vi"] = res[0]
             self.scan_win.show_result(src, res[0], self.tr.label(res[1]) + self._note(sc.get("note", "")) + self._note(res[2] if len(res) > 2 else ""))
         run(lambda p: self.tr.translate(src, "", [], p, engine=c["scan_engine"]), done, lambda e: self.scan_win.show_result(src, "", tr("app.translation_error_e", e=e)), partial)
+
+    def _scan_mixed(self, parts, hits):
+        """Vùng chụp khớp bộ sub một phần: câu khớp lấy bản sub, các cụm câu không khớp gửi dịch máy 1 lần (câu khớp làm ngữ cảnh)."""
+        c, sc = self.cfg, self.scan; src = sc["src"]
+        todo = [s for row in parts for s, m in row if not m]
+        def build(vis):
+            it = iter(vis); return "\n".join(" ".join(m.vi if m else next(it, "…") for _, m in row) for row in parts)
+        tag = tr("app.subtitle_pack_n_of_m", n=len(hits), m=sum(len(row) for row in parts))
+        if not todo: sc["vi"] = build([]); self.scan_win.show_result(src, sc["vi"], tag); return
+        self.scan_win.show_result(src, build([]), tag + " · " + tr("app.translating"))
+        ctx = [("", s, m.vi) for s, m in hits[-6:]]
+        def work(_):
+            res = self.tr.translate("\n".join(todo), "", ctx, None, engine=c["scan_engine"])
+            vis = [x.strip() for x in res[0].split("\n") if x.strip()]
+            if len(vis) != len(todo):                          # bản dịch không giữ đúng số dòng -> dịch từng cụm
+                vis = [self.tr.translate(t, "", ctx, None, engine=c["scan_engine"])[0] for t in todo]
+            return vis, res
+        def done(r):
+            vis, res = r; sc["vi"] = build(vis)
+            self.scan_win.show_result(src, sc["vi"], tag + " · " + self.tr.label(res[1]) + self._note(sc.get("note", "")) + self._note(res[2] if len(res) > 2 else ""))
+        run(work, done, lambda e: self.scan_win.show_result(src, build([]), tag + " · " + tr("app.translation_error_e", e=e)))
+
+    def _scan_subs_over(self, src, vi):
+        """Gemini đọc ảnh: đoạn nào khớp trọn bộ sub thì thay bằng bản sub (chỉ khi số đoạn gốc/dịch bằng nhau)."""
+        c = self.cfg
+        if not (c["use_subs"] and c["scan_use_subs"]): return vi
+        ps, vs = src.split("\n"), vi.split("\n")
+        if len(ps) != len(vs): return vi
+        return "\n".join(m.vi if (m := self.index.match(p, c["fuzzy_threshold"])) else v for p, v in zip(ps, vs))
 
     def open_settings(self):
         c = self.cfg; old = {k: (list(c[k]) if isinstance(c[k], list) else c[k]) for k in ("ocr_engine", "ocr_lang", "dict_files", "gender", "player_name", "name_tokens", "translate", "ui_lang")}
