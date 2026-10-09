@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS cache(k TEXT PRIMARY KEY, v TEXT);
 
 class DB:
     def __init__(self, path):
-        self.lock = threading.RLock()
+        self.lock = threading.RLock(); self.path = path
         self.c = sqlite3.connect(str(path), check_same_thread=False)
         self.c.execute("PRAGMA journal_mode=WAL"); self.c.execute("PRAGMA synchronous=NORMAL")   # ít fsync khi lưu cache tra từ
         self.c.executescript(SCHEMA); self.c.commit()
@@ -33,6 +33,11 @@ class DB:
     def sub_files(self): return self.q("SELECT file, COUNT(*) FROM subs GROUP BY file ORDER BY MIN(id)")
     def del_sub_file(self, file): self.x("DELETE FROM subs WHERE file=?", (file,))
     def all_subs(self): return self.q("SELECT src, vi FROM subs ORDER BY id")
+
+    def reader(self):
+        """Kết nối chỉ đọc riêng (WAL cho đọc song song): xem / tìm bộ sub không giữ self.lock của luồng khớp câu."""
+        from pathlib import Path
+        return sqlite3.connect(Path(self.path).resolve().as_uri() + "?mode=ro", uri=True, check_same_thread=False)
 
     # ---- glossary
     def glossary(self):

@@ -1,11 +1,11 @@
-import random, html, time
+import random, html, time, threading
 from pathlib import Path
-from PySide6.QtCore import Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer, QAbstractTableModel, QModelIndex
 from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient, QKeySequence
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox,
-    QListWidgetItem, QScrollArea, QFrame)
+    QListWidgetItem, QScrollArea, QFrame, QTableView, QApplication)
 from .icons import icon as mdi
 from . import importer, engines, hotkeys, __version__
 from .dictionary import LANGS
@@ -513,8 +513,10 @@ class SubsPanel(QWidget):
         self.count_lbl = QLabel(); v.addWidget(self.count_lbl)
         v.addWidget(QLabel(tr("subs.imported_files_later_imports_win")))
         self.files = QListWidget(); self.files.setMaximumHeight(120); v.addWidget(self.files)
-        hb = QHBoxLayout(); b1 = QPushButton(tr("subs.choose_subtitle_file")); b2 = QPushButton(tr("subs.remove_imported_file")); hb.addWidget(b1); hb.addWidget(b2); hb.addStretch(1)
-        b1.clicked.connect(self._open); b2.clicked.connect(self._del); v.addLayout(hb)
+        hb = QHBoxLayout(); b1 = QPushButton(tr("subs.choose_subtitle_file")); b2 = QPushButton(tr("subs.remove_imported_file")); b3 = QPushButton(tr("subs.browse_data"))
+        hb.addWidget(b1); hb.addWidget(b2); hb.addWidget(b3); hb.addStretch(1)
+        b1.clicked.connect(self._open); b2.clicked.connect(self._del); b3.clicked.connect(lambda: self._browse())
+        self.files.itemDoubleClicked.connect(lambda it: self._browse(it.data(Qt.UserRole))); self.files.setToolTip(tr("subs.double_click_to_browse")); v.addLayout(hb)
         # preview
         self.prev_lbl = QLabel(""); v.addWidget(self.prev_lbl)
         cb = QHBoxLayout(); self.src_c = QComboBox(); self.vi_c = QComboBox()
@@ -552,12 +554,23 @@ class SubsPanel(QWidget):
         s, v = self.src_c.currentIndex(), self.vi_c.currentIndex()
         if s == v: QMessageBox.warning(self, tr("subs.error"), tr("subs.source_and_translation_columns_must")); return
         pairs = importer.extract_pairs(self.rows, s, v)
-        self.db.add_subs(Path(self.path).name, pairs); self.on_changed(); self._files(); self.imp_b.setEnabled(False)
+        self.db.add_subs(Path(self.path).name, pairs); self.on_changed(); self._files(); self.imp_b.setEnabled(False); self._browser_reload()
         QMessageBox.information(self, tr("subs.imported"), tr("subs.imported_n_line_pairs_from", n=f"{len(pairs):,}", file=Path(self.path).name))
 
     def _del(self):
         for it in self.files.selectedItems(): self.db.del_sub_file(it.data(Qt.UserRole))
-        self.on_changed(); self._files()
+        self.on_changed(); self._files(); self._browser_reload()
+
+    def _browse(self, file=None):
+        b = getattr(self, "browser", None)
+        if b is None or not b.isVisible(): self.browser = b = SubsBrowser(self.db, on_pick=self._pick, parent=self)
+        b.set_file(file); b.show(); b.raise_(); b.activateWindow()
+
+    def _browser_reload(self):
+        b = getattr(self, "browser", None)
+        if b is not None and b.isVisible(): b.reload_files()
+
+    def _pick(self, src): self.test.setText(src); self._test()
 
     def _test(self):
         """Hiện câu gần nhất kể cả khi dưới ngưỡng -> biết nên hạ ngưỡng bao nhiêu."""
@@ -572,3 +585,116 @@ class SubsDialog(QDialog):
     def __init__(self, db, index, cfg, on_changed, parent=None):
         super().__init__(parent); self.setWindowTitle(tr("subs.subtitle_pack")); self.resize(860, 600)
         self.panel = SubsPanel(db, index, cfg, on_changed); v = QVBoxLayout(self); v.addWidget(self.panel)
+
+
+class _SubsQuery(QObject):
+    """Đọc bảng subs ở luồng nền bằng kết nối chỉ đọc riêng: sqlite nhả GIL khi quét, không giữ khóa DB
+    -> khớp câu OCR (luồng UI, dùng chỉ mục SubIndex trong RAM) không bị chậm khi đang tìm."""
+    page = Signal(int, list, bool)                 # gen, rows, hết dữ liệu
+    count = Signal(int, int)                       # gen, tổng số câu khớp bộ lọc
+
+    def __init__(self, db):
+        super().__init__(); self.db, self.gen, self.where, self.args = db, 0, "", ()
+
+    def set_filter(self, text, file):
+        self.gen += 1; w, a = [], []
+        if file: w.append("file=?"); a.append(file)
+        for t in text.split():                     # mọi từ đều phải có (ở cột gốc hoặc cột dịch)
+            t = "%" + t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+            w.append("(src LIKE ? ESCAPE '\\' OR vi LIKE ? ESCAPE '\\')"); a += [t, t]
+        self.where, self.args = " AND ".join(w), tuple(a)
+        self._bg(self._count, self.gen, self.where, self.args)
+
+    def fetch(self, after_id, n=300): self._bg(self._page, self.gen, self.where, self.args, after_id, n)
+
+    @staticmethod
+    def _bg(fn, *a): threading.Thread(target=fn, args=a, daemon=True).start()
+
+    def _run(self, sql, args):
+        c = self.db.reader()
+        try: return c.execute(sql, args).fetchall()
+        finally: c.close()
+
+    def _page(self, gen, where, args, after_id, n):
+        try: rows = self._run(f"SELECT id, src, vi, file FROM subs WHERE id>? {'AND ' + where if where else ''} ORDER BY id LIMIT ?", (after_id, *args, n))
+        except Exception: rows = []
+        self.page.emit(gen, rows, len(rows) < n)
+
+    def _count(self, gen, where, args):
+        try: n = self._run(f"SELECT COUNT(*) FROM subs {'WHERE ' + where if where else ''}", args)[0][0]
+        except Exception: n = 0
+        self.count.emit(gen, n)
+
+
+class SubsModel(QAbstractTableModel):
+    """Bảng ảo: cuộn tới cuối mới nạp thêm 300 dòng (keyset theo id), không đọc cả bộ sub vào RAM."""
+    def __init__(self, query, parent=None):
+        super().__init__(parent); self.qr, self.rows, self.done, self.busy = query, [], True, False
+        self.hdr = [tr("subs.col_source"), tr("subs.col_translation"), tr("subs.col_file")]
+        query.page.connect(self._got)
+
+    def reset(self):
+        self.beginResetModel(); self.rows, self.done, self.busy = [], False, False; self.endResetModel(); self.fetchMore()
+
+    def rowCount(self, p=QModelIndex()): return 0 if p.isValid() else len(self.rows)
+    def columnCount(self, p=QModelIndex()): return 0 if p.isValid() else 3
+    def headerData(self, s, o, role=Qt.DisplayRole):
+        if role == Qt.DisplayRole: return self.hdr[s] if o == Qt.Horizontal else str(s + 1)
+    def data(self, i, role=Qt.DisplayRole):
+        if role in (Qt.DisplayRole, Qt.ToolTipRole): return self.rows[i.row()][i.column() + 1]
+    def canFetchMore(self, p=QModelIndex()): return not p.isValid() and not self.done and not self.busy
+    def fetchMore(self, p=QModelIndex()):
+        if self.canFetchMore(p): self.busy = True; self.qr.fetch(self.rows[-1][0] if self.rows else 0)
+
+    def _got(self, gen, rows, done):
+        if gen != self.qr.gen: return                                   # kết quả của bộ lọc cũ
+        if rows:
+            self.beginInsertRows(QModelIndex(), len(self.rows), len(self.rows) + len(rows) - 1); self.rows += rows; self.endInsertRows()
+        self.done, self.busy = done, False
+
+
+class SubsBrowser(QDialog):
+    """Xem dữ liệu bộ sub đã nhập: tìm theo từ (cột gốc hoặc dịch), lọc theo file. Nhấp đúp 1 dòng -> thử khớp câu đó."""
+    def __init__(self, db, on_pick=None, parent=None):
+        super().__init__(parent); self.db, self.on_pick = db, on_pick
+        self.setWindowTitle(tr("subs.browse_title")); self.resize(980, 620); self.setAttribute(Qt.WA_DeleteOnClose)
+        v = QVBoxLayout(self); hb = QHBoxLayout()
+        self.q = QLineEdit(); self.q.setPlaceholderText(tr("subs.search_placeholder")); self.q.setClearButtonEnabled(True)
+        self.file_c = QComboBox(); hb.addWidget(self.q, 1); hb.addWidget(self.file_c); v.addLayout(hb)
+        self.qr = _SubsQuery(db); self.model = SubsModel(self.qr, self)
+        self.view = QTableView(); self.view.setModel(self.model); self.view.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.view.setEditTriggers(QAbstractItemView.NoEditTriggers); self.view.setWordWrap(False); self.view.setAlternatingRowColors(True)
+        self.view.verticalHeader().setDefaultSectionSize(self.view.fontMetrics().height() + 8)
+        hh = self.view.horizontalHeader(); hh.setSectionResizeMode(QHeaderView.Interactive)
+        hh.resizeSection(0, 400); hh.resizeSection(1, 400); hh.setStretchLastSection(True)
+        self.view.doubleClicked.connect(self._pick); v.addWidget(self.view, 1)
+        self.status = QLabel(); self.status.setStyleSheet("color:gray"); v.addWidget(self.status)
+        self.timer = QTimer(self, singleShot=True, interval=250); self.timer.timeout.connect(self._apply)   # gõ xong mới tìm
+        self.q.textChanged.connect(lambda _: self.timer.start()); self.qr.count.connect(self._count)
+        self.reload_files(); self.file_c.currentIndexChanged.connect(lambda _: self._apply())
+
+    def reload_files(self):
+        cur = self.file_c.currentData(); self.file_c.blockSignals(True); self.file_c.clear(); self.file_c.addItem(tr("subs.all_files"), None)
+        for f, n in self.db.sub_files(): self.file_c.addItem(f"{f} ({n:,})", f)
+        self.file_c.setCurrentIndex(max(0, self.file_c.findData(cur))); self.file_c.blockSignals(False); self._apply()
+
+    def set_file(self, file):
+        i = self.file_c.findData(file) if file else 0
+        if i >= 0 and i != self.file_c.currentIndex(): self.file_c.setCurrentIndex(i)
+
+    def _apply(self):
+        self.timer.stop(); self.qr.set_filter(self.q.text(), self.file_c.currentData())
+        self.status.setText(tr("subs.searching")); self.model.reset()
+
+    def _count(self, gen, n):
+        if gen == self.qr.gen: self.status.setText(tr("subs.n_lines_found", n=f"{n:,}") + ("  ·  " + tr("subs.double_click_to_test") if self.on_pick else ""))
+
+    def _pick(self, i):
+        if self.on_pick: self.on_pick(self.model.rows[i.row()][1])
+
+    def keyPressEvent(self, e):
+        if e.matches(QKeySequence.Copy):                                    # Ctrl+C: "gốc<TAB>dịch" mỗi dòng chọn
+            rows = sorted({i.row() for i in self.view.selectionModel().selectedRows()})
+            QApplication.clipboard().setText("\n".join(f"{self.model.rows[r][1]}\t{self.model.rows[r][2]}" for r in rows)); return
+        if e.key() in (Qt.Key_Return, Qt.Key_Enter): self._apply(); return  # Enter = tìm ngay, không đóng hộp thoại
+        super().keyPressEvent(e)

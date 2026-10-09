@@ -167,6 +167,20 @@ subd = SubsDialog(a.db, a.index, a.cfg, a.rebuild_index); sub = subd.panel; sub.
 sd = SettingsDialog(a.cfg, subs=(a.db, a.index, a.cfg, a.rebuild_index)); sp = sd.subs_panel; sl = sd.w["fuzzy_threshold"][0]
 sp.test.setText("Rover you finaly woke up"); sl.setValue(100); assert "#e8a33a" in sp.test_out.text()      # sai 1 chữ: dưới 100% -> không dùng
 sl.setValue(80); assert "#3fb950" in sp.test_out.text(); sd.apply(); assert a.cfg["fuzzy_threshold"] == 80
+# xem dữ liệu bộ sub: tìm ở luồng nền (kết nối chỉ đọc riêng), nạp dần theo trang, nhấp đúp -> thử khớp
+a.db.add_subs("big.csv", [(f"Line {i} 50%_off", f"Câu {i}") for i in range(700)])
+def wait_br(b, cond):
+    end = time.time() + 3
+    while not cond() and time.time() < end: q.processEvents(); time.sleep(0.01)
+    assert cond()
+sub._browse(); br = sub.browser; wait_br(br, lambda: br.model.rowCount() == 300 and "701" in br.status.text())   # 1 + 700, trang đầu 300
+br.model.fetchMore(); wait_br(br, lambda: br.model.rowCount() == 600)
+br.q.setText("rover WOKE"); br._apply(); wait_br(br, lambda: br.model.rowCount() == 1 and br.model.done)          # nhiều từ, không phân biệt hoa thường
+br.q.setText("50%_"); br._apply(); wait_br(br, lambda: br.model.rowCount() == 300 and "700" in br.status.text())  # % _ là ký tự thường
+br.q.setText("0%_"); br.set_file("vh.csv"); wait_br(br, lambda: br.model.done and br.model.rowCount() == 0)
+br.q.setText(""); br._apply(); wait_br(br, lambda: br.model.rowCount() == 1)
+br._pick(br.model.index(0, 0)); assert sub.test.text() == "Rover, you finally woke up." and "100" in sub.test_out.text()
+br.close(); a.db.del_sub_file("big.csv")
 gd = GlossaryDialog(a.db, a.cfg); gd._row("Resonator", "Cộng Minh Giả", "translate"); gd._save(); assert any(g["term"] == "Resonator" for g in a.db.glossary())
 ReviewDialog(a.db, a.db.vocab()).show(); pump(0.05)
 
