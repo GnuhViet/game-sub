@@ -324,6 +324,8 @@ QTest.keyClick(ed, Qt.Key_1); assert ed.items[0].rect.x() == 400 and ed.items[1]
 drag(ed, QPoint(410, 310), QPoint(430, 320)); assert ed.items[0].rect.topLeft() == QPoint(420, 310)    # kéo vùng = di chuyển
 QTest.keyClick(ed, Qt.Key_Right, Qt.ShiftModifier); assert ed.items[0].rect.x() == 430
 b = next(r for k, _, r in ed._label_box(ed.items[1])[1] if k == "yield"); QTest.mouseClick(ed, Qt.LeftButton, Qt.NoModifier, b.center()); assert ed.items[1].meta["yield"] is False
+assert ed._tip(ed.items[1], "yield").startswith("▶ Đang LUÔN ĐỌC") and ed._tip(ed.items[0], "yield").startswith("⏸ Đang NHƯỜNG") and ed.msg.startswith("▶")
+ed.grab()                                                                       # vẽ cả dòng chú thích icon không lỗi
 assert dict((k, n) for k, n, _ in ed._label_box(ed.items[1])[1])["yield"] == "mdi6.play-circle-outline" and dict((k, n) for k, n, _ in ed._label_box(ed.items[0])[1])["yield"] == "mdi6.pause-circle-outline"
 ed.btn_spk.setChecked(True); drag(ed, QPoint(10, 10), QPoint(110, 25)); assert ed.spk and ed.spk.rect.width() == 101 and not ed.draw_spk
 drag(ed, QPoint(50, 200), QPoint(150, 250)); drag(ed, QPoint(50, 500), QPoint(150, 550)); assert len(ed.items) == 3 and ed.msg       # tối đa 3

@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt, Signal, QRect, QPoint, QTimer
 from PySide6.QtGui import QPainter, QColor, QPen, QCursor, QFont, QFontMetrics, QImage
-from PySide6.QtWidgets import QWidget, QApplication, QHBoxLayout, QPushButton, QFrame, QMenu, QInputDialog
+from PySide6.QtWidgets import QWidget, QApplication, QHBoxLayout, QPushButton, QFrame, QMenu, QInputDialog, QToolTip
 from .i18n import tr, N_
 
 class RegionSelector(QWidget):
@@ -76,7 +76,7 @@ class RegionEditor(QWidget):
     def __init__(self, regions, speaker=None, accent="#e8c26a", max_regions=6, draw_speaker=False):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.scr = QApplication.screenAt(QCursor.pos()) or QApplication.primaryScreen()
-        self.bg = self.scr.grabWindow(0); self.setGeometry(self.scr.geometry()); self.setMouseTracking(True)
+        self.bg = self.scr.grabWindow(0); self.setGeometry(self.scr.geometry()); self.setMouseTracking(True); self.setAttribute(Qt.WA_AlwaysShowToolTips)
         self.accent, self.max = QColor(accent), max_regions
         self.items = [self._item(r) for r in regions]; self.spk = self._item(speaker, True) if speaker else None
         self.sel = self.drag = None; self.draw_spk = draw_speaker; self.msg = ""; self._seq = 0; self._req = {}
@@ -138,6 +138,14 @@ class RegionEditor(QWidget):
         return [("up", "mdi6.arrow-up"), ("down", "mdi6.arrow-down"), ("yield", "mdi6.pause-circle-outline" if it.meta.get("yield", True) else "mdi6.play-circle-outline"),
                 ("on", "mdi6.eye" if it.meta.get("on", True) else "mdi6.eye-off"), ("close", "mdi6.close")]
 
+    def _tip(self, it, k):
+        """Chữ giải thích khi rê chuột vào nút trên nhãn vùng."""
+        if k == "up": return tr("regions.tip.up")
+        if k == "down": return tr("regions.tip.down")
+        if k == "yield": return tr("regions.tip.yield_on") if it.meta.get("yield", True) else tr("regions.tip.yield_off")
+        if k == "on": return tr("regions.tip.on") if it.meta.get("on", True) else tr("regions.tip.off")
+        return tr("regions.tip.delete")
+
     def _label_box(self, it):
         """Nhãn trên vùng (hoặc ngay trong mép trên nếu vùng sát đỉnh màn hình) + toạ độ các nút trên nhãn."""
         r = it.rect.normalized(); w = QFontMetrics(_font(9, True)).horizontalAdvance(self._label(it)); bts = self._buttons(it)
@@ -183,6 +191,23 @@ class RegionEditor(QWidget):
         box = p.fontMetrics().boundingRect(hint).adjusted(-10, -4, 10, 4); box.moveCenter(QPoint(self.width() // 2, self.bar.geometry().bottom() + 20))
         p.setPen(Qt.NoPen); p.setBrush(QColor(16, 20, 24, 220)); p.drawRoundedRect(box, 6, 6)
         p.setPen(QColor(self.accent) if self.msg else QColor("white")); p.drawText(box, Qt.AlignCenter, hint)
+        if not self.draw_spk: self._draw_legend(p, box.bottom() + 8)
+
+    LEGEND = [(("mdi6.arrow-up", "mdi6.arrow-down"), N_("regions.legend.priority")), (("mdi6.pause-circle-outline",), N_("regions.legend.yield")),
+              (("mdi6.play-circle-outline",), N_("regions.legend.always")), (("mdi6.eye", "mdi6.eye-off"), N_("regions.legend.on")),
+              (("mdi6.close",), N_("regions.legend.delete"))]
+
+    def _draw_legend(self, p, top):
+        """Chú thích icon trên nhãn vùng, luôn hiện dưới dòng hướng dẫn."""
+        from .icons import icon
+        p.setFont(_font(9)); fm = p.fontMetrics(); ic, gap, col = 16, 18, self.accent.name()
+        parts = [(names, tr(t), len(names) * ic + 4 + fm.horizontalAdvance(tr(t))) for names, t in self.LEGEND]
+        box = QRect(0, top, sum(w for *_, w in parts) + gap * (len(parts) - 1) + 20, 24); box.moveLeft((self.width() - box.width()) // 2)
+        p.setPen(Qt.NoPen); p.setBrush(QColor(16, 20, 24, 200)); p.drawRoundedRect(box, 6, 6)
+        x = box.left() + 10; p.setPen(QColor("#ccc"))
+        for names, t, w in parts:
+            for n, name in enumerate(names): icon(name, col).paint(p, QRect(x + n * ic, top + 4, ic, ic))
+            p.drawText(QRect(x + len(names) * ic + 4, top, w, 24), Qt.AlignVCenter | Qt.AlignLeft, t); x += w + gap
 
     def _draw_preview(self, p, it, r):
         """Kết quả OCR thử ngay dưới vùng (sát đáy màn hình thì nằm trong vùng)."""
@@ -227,7 +252,10 @@ class RegionEditor(QWidget):
         pos = e.position().toPoint()
         if not self.drag:
             h = None if self.draw_spk else self._hit(pos)
-            if not h and self._sugg_at(pos): self.setCursor(Qt.PointingHandCursor); return
+            if not h and self._sugg_at(pos): self.setCursor(Qt.PointingHandCursor); QToolTip.hideText(); return
+            tip = self._tip(h[1], h[2]) if h and h[0] == "btn" else ""
+            if tip: QToolTip.showText(e.globalPosition().toPoint(), tip, self)
+            else: QToolTip.hideText()
             self.setCursor(Qt.CrossCursor if not h else Qt.PointingHandCursor if h[0] == "btn" else self.CURSORS[h[2]] if h[0] == "handle" else Qt.SizeAllCursor)
             return
         kind, p0, r0 = self.drag[:3]; d = pos - p0; snap = not (e.modifiers() & Qt.AltModifier)
@@ -310,7 +338,7 @@ class RegionEditor(QWidget):
         if k == "up": self.move_to(it, self.items.index(it) - 1)
         elif k == "down": self.move_to(it, self.items.index(it) + 1)
         elif k in ("on", "yield"): it.meta[k] = not it.meta.get(k, True)
-        if k == "yield": self.msg = tr("regions.yield_on") if it.meta["yield"] else tr("regions.yield_off")
+        if k == "yield": self.msg = tr("regions.tip.yield_on") if it.meta["yield"] else tr("regions.tip.yield_off")
         self.sel = it; self.update()
 
     def _clamp(self, r):
