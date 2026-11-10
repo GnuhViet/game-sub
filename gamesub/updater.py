@@ -16,8 +16,14 @@ EXE = "GameSub.exe"
 TMP = Path(tempfile.gettempdir()) / "GameSub-update"
 
 def ver(tag):
-    """'v0.2.10' -> (0, 2, 10) để so sánh."""
-    return tuple(int(x) for x in re.findall(r"\d+", tag or ""))
+    """Khóa so sánh: 'v0.2.10' -> ((0, 2, 10), 1, ()); 'v0.3.0-beta.1' -> ((0, 3, 0), 0, (1,)) — beta đứng trước bản chính thức cùng số."""
+    main, _, pre = (tag or "").strip().lstrip("vV").partition("-")
+    return tuple(int(x) for x in re.findall(r"\d+", main)), 0 if pre else 1, tuple(int(x) for x in re.findall(r"\d+", pre))
+
+def is_beta(tag):
+    """Bản thử nghiệm: tag có hậu tố sau dấu '-' (v0.3.0-beta.1). Tự cập nhật không bao giờ đưa lên bản này.
+    Bản beta đặt file tải là GameSub-beta.zip (không phải GameSub.zip) để các bản cũ — chỉ tìm GameSub.zip — cũng bỏ qua."""
+    return "-" in (tag or "").strip()
 
 def can_install():
     """Chỉ bản exe trên Windows tự cập nhật được (chạy từ source thì git pull)."""
@@ -25,13 +31,13 @@ def can_install():
 
 def check():
     """-> {"tag", "name", "notes", "url", "size", "digest", "page"} của bản mới nhất nếu mới hơn bản đang chạy, không thì None.
-    Lấy danh sách releases (không dùng /latest: bỏ qua pre-release)."""
+    Lấy danh sách releases (không dùng /latest: các bản chính thức cũng đang gắn cờ pre-release); bỏ draft và bản beta."""
     r = net.session().get(API, params={"per_page": 20}, headers={"Accept": "application/vnd.github+json"}, timeout=15)
     if r.status_code != 200: raise RuntimeError(f"GitHub {r.status_code}: {r.json().get('message', '') if r.content else ''}")
     best = None
     for rel in r.json():
         a = next((a for a in rel.get("assets", []) if a["name"] == ASSET), None)
-        if rel.get("draft") or not a: continue
+        if rel.get("draft") or not a or is_beta(rel["tag_name"]): continue
         if best is None or ver(rel["tag_name"]) > ver(best["tag"]):
             best = {"tag": rel["tag_name"], "name": rel.get("name") or rel["tag_name"], "notes": (rel.get("body") or "").strip(),
                     "url": a["browser_download_url"], "size": a.get("size", 0), "digest": a.get("digest") or "", "page": rel.get("html_url") or PAGE}

@@ -153,6 +153,7 @@ def test_updater():
     from gamesub import updater as U, __version__
     from gamesub.engines import Cancelled
     assert U.ver("v0.2.10") > U.ver("v0.2.9") > U.ver("0.2") and U.ver(__version__)
+    assert U.ver("v0.3.0") > U.ver("v0.3.0-beta.2") > U.ver("v0.3.0-beta.1") > U.ver("v0.2.9") and U.is_beta("v0.3.0-beta.1") and not U.is_beta("v0.3.0")
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z: z.writestr("GameSub/GameSub.exe", "x"); z.writestr("GameSub/_internal/a.txt", "y")
     data = buf.getvalue(); dig = "sha256:" + hashlib.sha256(data).hexdigest()
@@ -169,7 +170,8 @@ def test_updater():
     real = U.net.session; U.net.session = lambda: S()
     try:
         S.rels = [rel("v0.0.1"), rel("v999.0", draft=True), rel("v998.0", name="other.zip")]; assert U.check() is None     # draft / không có GameSub.zip -> bỏ
-        S.rels = [rel("v0.0.1"), rel("v100.2.10"), rel("v100.2.9")]; info = U.check(); assert info["tag"] == "v100.2.10" and info["digest"] == dig
+        S.rels = [rel("v0.0.1"), rel("v999.0-beta.1")]; assert U.check() is None                                           # bản beta: không tự cập nhật lên
+        S.rels = [rel("v0.0.1"), rel("v100.2.10"), rel("v100.2.9"), rel("v100.3.0-beta.1")]; info = U.check(); assert info["tag"] == "v100.2.10" and info["digest"] == dig
         U.TMP = T / "upd"; new = U.download(info, lambda t, p: True); assert (new / "GameSub.exe").read_text() == "x" and new.name == "GameSub"
         try: U.download(dict(info, digest="sha256:00"), lambda t, p: True); assert False
         except RuntimeError: pass
