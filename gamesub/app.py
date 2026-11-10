@@ -20,7 +20,7 @@ from . import winapp, updater, __version__
 from .capture import open_sct, grab
 from . import ocr
 from .textnorm import paragraphs, join_lines
-from .ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog, _Job
+from .ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog, VersionDialog, _Job
 from .i18n import tr, N_
 
 class _Sig(QObject):
@@ -488,6 +488,7 @@ class App:
         d.btn_snap.clicked.connect(lambda: setattr(self.worker, "snapshot_req", str(DATA_DIR / "region_snapshot.png")))
         d.btn_show.clicked.connect(lambda: (self._flash_off(), self.show_regions()))
         d.btn_update.clicked.connect(lambda: self.check_update(manual=True, parent=d))
+        d.btn_versions.clicked.connect(lambda: self.choose_version(parent=d))
         self.hk.register({})                      # nhả hotkey khi mở Cài đặt: bấm tổ hợp vào ô hotkey không kích hoạt hành động
         if not d.exec():
             if d.reset: self.restart(); return                  # khôi phục cài đặt gốc -> mở lại app (ngôn ngữ, hotkey, vị trí overlay…)
@@ -519,6 +520,18 @@ class App:
         def err(e):
             if manual: QMessageBox.warning(parent, tr("updater.title"), tr("updater.check_failed_e", e=e))
         run(lambda _: updater.check(), done, err)
+
+    def choose_version(self, parent=None):
+        """Chọn phiên bản: liệt kê mọi bản trên GitHub (kể cả beta) -> cài bản được chọn; bản cũ hơn thì hỏi lại."""
+        def done(rels):
+            if not rels: QMessageBox.information(parent, tr("updater.title"), tr("updater.no_releases")); return
+            d = on_top(VersionDialog(rels, updater.is_current, updater.can_install(), parent))
+            if not d.exec() or not d.chosen: return
+            r = d.chosen
+            if updater.ver(r["tag"]) < updater.ver(__version__) and QMessageBox.question(
+                    parent, tr("updater.title"), tr("updater.downgrade_q", tag=r["tag"], ver=__version__)) != QMessageBox.Yes: return
+            self._install_update(r, parent)
+        run(lambda _: updater.releases(beta=True), done, lambda e: QMessageBox.warning(parent, tr("updater.title"), tr("updater.check_failed_e", e=e)))
 
     def ask_update(self, info, parent=None):
         self.update_info = None

@@ -366,4 +366,14 @@ sd.apply(); r = a.cfg["regions"]
 assert [x["name"] for x in r] == ["Lời dẫn", "A"] and r[0]["yield"] is False and r[1]["on"] is False and a.cfg["speaker_region"] is None, r
 sd = SettingsDialog(a.cfg); sd.reg_tbl.setCurrentCell(0, 0); sd._reg_del(); assert sd.reg_tbl.rowCount() == 1; sd.reject(); assert len(a.cfg["regions"]) == 2
 sd = SettingsDialog(a.cfg); sd._reg_edit(); assert sd.edit_regions and sd.result() == 1
+
+# 15) Chọn phiên bản: bản đang dùng không cài lại được, beta có ghi chú, chạy từ source thì không cài được
+from gamesub.ui_dialogs import VersionDialog
+rels = [{"tag": "v9.0-beta.1", "name": "B", "notes": "**beta** notes", "page": "p", "date": "2026-11-10", "beta": True},
+        {"tag": "v1.0", "name": "S", "notes": "stable", "page": "p", "date": "2026-10-01", "beta": False}]
+vd = VersionDialog(rels, lambda t: t == "v1.0", True)
+assert "beta" in vd.lst.item(0).text() and "đang dùng" in vd.lst.item(1).text() and vd.install.isEnabled() and "beta" in vd.notes.toPlainText() and vd.hint.text()
+vd.lst.setCurrentRow(1); assert not vd.install.isEnabled(); vd._go(); assert vd.chosen is None
+vd.lst.setCurrentRow(0); vd._go(); assert vd.chosen["tag"] == "v9.0-beta.1"
+vd = VersionDialog(rels, lambda t: False, False); assert not vd.install.isEnabled() and "git pull" in vd.hint.text()
 a.quit(); print("UI SMOKE OK")

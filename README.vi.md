@@ -20,6 +20,7 @@ Bấm vào từ bất kỳ để tra nghĩa và lưu vào sổ từ để ôn.
 - **Nhiều vùng chụp, có ưu tiên**: vd hộp thoại + lời dẫn giữa màn hình. Overlay hiện vùng ưu tiên cao nhất đang có chữ; lúc đó vùng thấp hơn tạm dừng OCR nên thêm vùng gần như không tốn thêm.
 - **Ưu tiên bộ sub Việt hóa**: nhập CSV / TSV / TXT / XLSX / JSON, chọn cột gốc và cột dịch. Khớp chính xác → gần đúng → từng câu; hỗ trợ placeholder tên nhân vật và macro theo giới tính.
 - **Dịch máy dự phòng**: Google Translate (miễn phí) hoặc Gemini (key miễn phí), có ngữ cảnh các câu trước, hiện chữ dần khi đang dịch, hết quota tự chuyển.
+- **Cập nhật**: Cài đặt → Kiểm tra cập nhật, hoặc **Chọn phiên bản…** để cài bản bất kỳ (kể cả bản beta, hoặc quay về bản cũ).
 - **Glossary**: giữ nguyên tên riêng / thuật ngữ hoặc ép cách dịch; dịch bằng Google cũng được bảo vệ thuật ngữ.
 - **Bấm từ để tra**: từ điển offline StarDict / TSV, Google, dictionaryapi.dev, hoặc AI giải nghĩa theo ngữ cảnh câu.
 - **Sổ từ**: lưu từ kèm câu gốc, ôn bằng flashcard, xuất CSV / Anki.

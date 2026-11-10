@@ -20,6 +20,7 @@ and lets you click any word to look it up and save it for review.
 - **Several capture areas with priority**: e.g. the dialogue box plus mid-screen narration. The overlay shows the highest-priority area that has text; lower areas pause OCR while it is busy, so extra areas cost almost nothing.
 - **Your subtitle pack first**: import CSV / TSV / TXT / XLSX / JSON and pick the source and translation columns. Exact → fuzzy → per-sentence matching, with player-name placeholders and gendered macros.
 - **Machine translation fallback**: Google Translate (free) or Gemini (free API key), with previous lines as context, streaming output and automatic fallback on quota errors.
+- **Updates**: Settings → Check for updates, or **Choose version…** to install any release (including betas, or roll back).
 - **Glossary**: keep names and terms as-is or force a translation; terms are protected with Google Translate too.
 - **Click-to-look-up**: click or select any word in the source line. Offline StarDict / TSV dictionaries, Google, dictionaryapi.dev, or an AI explanation in context.
 - **Vocabulary book**: save words with their sentence, review them as flashcards, export to CSV / Anki.

@@ -171,6 +171,9 @@ def test_updater():
     try:
         S.rels = [rel("v0.0.1"), rel("v999.0", draft=True), rel("v998.0", name="other.zip")]; assert U.check() is None     # draft / không có GameSub.zip -> bỏ
         S.rels = [rel("v0.0.1"), rel("v999.0-beta.1")]; assert U.check() is None                                           # bản beta: không tự cập nhật lên
+        S.rels = [rel("v0.2.8"), rel("v0.3.0-beta.1", name="GameSub-beta.zip"), rel("v0.1.0"), rel("v0.4.0-beta.1", name="x.zip")]     # Chọn phiên bản
+        rs = U.releases(beta=True); assert [r["tag"] for r in rs] == ["v0.3.0-beta.1", "v0.2.8", "v0.1.0"] and rs[0]["beta"] and not rs[1]["beta"]
+        assert [r["tag"] for r in U.releases()] == ["v0.2.8", "v0.1.0"] and U.is_current("v" + __version__)
         S.rels = [rel("v0.0.1"), rel("v100.2.10"), rel("v100.2.9"), rel("v100.3.0-beta.1")]; info = U.check(); assert info["tag"] == "v100.2.10" and info["digest"] == dig
         U.TMP = T / "upd"; new = U.download(info, lambda t, p: True); assert (new / "GameSub.exe").read_text() == "x" and new.name == "GameSub"
         try: U.download(dict(info, digest="sha256:00"), lambda t, p: True); assert False

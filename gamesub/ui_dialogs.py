@@ -1,7 +1,7 @@
 import random, html, time, threading
 from pathlib import Path
-from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer, QAbstractTableModel, QModelIndex
-from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient, QKeySequence
+from PySide6.QtCore import Qt, QThread, Signal, QObject, QTimer, QAbstractTableModel, QModelIndex, QUrl
+from PySide6.QtGui import QPainter, QColor, QFont, QLinearGradient, QKeySequence, QDesktopServices
 from PySide6.QtWidgets import (QDialog, QTabWidget, QWidget, QFormLayout, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinBox,
     QDoubleSpinBox, QCheckBox, QComboBox, QPlainTextEdit, QDialogButtonBox, QPushButton, QListWidget, QFileDialog, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QAbstractItemView, QProgressDialog, QSlider, QColorDialog, QGroupBox,
@@ -181,8 +181,9 @@ class SettingsDialog(QDialog):
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel); bb.accepted.connect(self.accept); bb.rejected.connect(self.reject)
         ver = QLabel(f"Game Sub v{__version__}"); ver.setStyleSheet("color:gray")          # phiên bản bản build, góc trái dưới
         self.btn_update = QPushButton(tr("updater.check_button"))                         # app.check_update nối vào
+        self.btn_versions = QPushButton(tr("updater.choose_button"))                      # app.choose_version nối vào
         self.reset = False; btn_reset = QPushButton(tr("settings.reset.button")); btn_reset.clicked.connect(self._reset)
-        foot = QHBoxLayout(); foot.addWidget(ver); foot.addWidget(self.btn_update); foot.addWidget(btn_reset); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
+        foot = QHBoxLayout(); foot.addWidget(ver); foot.addWidget(self.btn_update); foot.addWidget(self.btn_versions); foot.addWidget(btn_reset); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
 
     def _regions_group(self, f):
         """Danh sách vùng thoại (thứ tự = ưu tiên): đổi tên, bật/tắt, nhường, xếp lại, xóa. Vẽ / chỉnh khung: nút Sửa trên màn hình."""
@@ -392,6 +393,43 @@ class SettingsDialog(QDialog):
         c["hotkeys"] = {k: e.text().strip() for k, e in self.hk.items()}
         c["regions"] = [dict(r) for r in self._reg_read()]; c["speaker_region"] = self.spk_region
         c.save()
+
+
+class VersionDialog(QDialog):
+    """Chọn phiên bản để cài (kể cả beta, kể cả bản cũ hơn): danh sách bản trên GitHub + ghi chú từng bản. Chọn xong -> self.chosen."""
+    def __init__(self, rels, current, can_install, parent=None):
+        super().__init__(parent); self.setWindowTitle(tr("updater.choose_title")); self.resize(820, 480); self.rels, self.chosen = rels, None
+        from PySide6.QtWidgets import QTextBrowser, QSplitter
+        self.lst = QListWidget(); self.notes = QTextBrowser(); self.notes.setOpenExternalLinks(True)
+        for r in rels:
+            txt = f"{r['tag']}   {r['date']}" + (f"   · {tr('updater.beta')}" if r["beta"] else "") + (f"   · {tr('updater.current')}" if current(r["tag"]) else "")
+            it = QListWidgetItem(txt)
+            if r["beta"]: it.setForeground(QColor("#e8a33a"))
+            if current(r["tag"]): f = it.font(); f.setBold(True); it.setFont(f)
+            self.lst.addItem(it)
+        sp = QSplitter(); sp.addWidget(self.lst); sp.addWidget(self.notes); sp.setSizes([330, 490])
+        self.install = QPushButton(tr("updater.install_this")); self.install.setDefault(True); page = QPushButton(tr("updater.open_page"))
+        close = QPushButton(tr("updater.close")); self.hint = QLabel(); self.hint.setWordWrap(True); self.hint.setStyleSheet("color:#e8a33a")
+        self.install.clicked.connect(self._go); close.clicked.connect(self.reject)
+        page.clicked.connect(lambda: self._cur() and QDesktopServices.openUrl(QUrl(self._cur()["page"])))
+        self.can_install, self.current = can_install, current
+        hb = QHBoxLayout(); hb.addWidget(self.hint, 1); hb.addWidget(page); hb.addWidget(self.install); hb.addWidget(close)
+        v = QVBoxLayout(self); v.addWidget(sp, 1); v.addLayout(hb)
+        self.lst.currentRowChanged.connect(self._show); self.lst.itemDoubleClicked.connect(lambda _: self._go())
+        self.lst.setCurrentRow(0)
+
+    def _cur(self):
+        i = self.lst.currentRow(); return self.rels[i] if 0 <= i < len(self.rels) else None
+
+    def _show(self, _=0):
+        r = self._cur()
+        if not r: return
+        self.notes.setMarkdown(f"### {r['name']}\n\n" + (r["notes"] or "")); cur = self.current(r["tag"])
+        self.install.setEnabled(self.can_install and not cur)
+        self.hint.setText(tr("updater.from_source") if not self.can_install else tr("updater.beta_note") if r["beta"] else "")
+
+    def _go(self):
+        if self.install.isEnabled() and self._cur(): self.chosen = self._cur(); self.accept()
 
 
 class KeyCapture(QLineEdit):

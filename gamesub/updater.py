@@ -11,7 +11,7 @@ from .i18n import tr
 REPO = "GnuhViet/game-sub"
 PAGE = f"https://github.com/{REPO}/releases"
 API = f"https://api.github.com/repos/{REPO}/releases"
-ASSET = "GameSub.zip"
+ASSET, BETA_ASSET = "GameSub.zip", "GameSub-beta.zip"
 EXE = "GameSub.exe"
 TMP = Path(tempfile.gettempdir()) / "GameSub-update"
 
@@ -29,19 +29,28 @@ def can_install():
     """Chỉ bản exe trên Windows tự cập nhật được (chạy từ source thì git pull)."""
     return getattr(sys, "frozen", False) and sys.platform == "win32"
 
-def check():
-    """-> {"tag", "name", "notes", "url", "size", "digest", "page"} của bản mới nhất nếu mới hơn bản đang chạy, không thì None.
-    Lấy danh sách releases (không dùng /latest: các bản chính thức cũng đang gắn cờ pre-release); bỏ draft và bản beta."""
-    r = net.session().get(API, params={"per_page": 20}, headers={"Accept": "application/vnd.github+json"}, timeout=15)
+def releases(beta=False):
+    """Các bản cài được, mới nhất trước: [{"tag", "name", "notes", "url", "size", "digest", "page", "date", "beta"}].
+    Lấy danh sách releases (không dùng /latest: các bản chính thức cũng đang gắn cờ pre-release); bỏ draft; beta=False bỏ bản beta.
+    Bản chính thức dùng file GameSub.zip, bản beta GameSub-beta.zip (hoặc GameSub.zip)."""
+    r = net.session().get(API, params={"per_page": 50}, headers={"Accept": "application/vnd.github+json"}, timeout=15)
     if r.status_code != 200: raise RuntimeError(f"GitHub {r.status_code}: {r.json().get('message', '') if r.content else ''}")
-    best = None
+    out = []
     for rel in r.json():
-        a = next((a for a in rel.get("assets", []) if a["name"] == ASSET), None)
-        if rel.get("draft") or not a or is_beta(rel["tag_name"]): continue
-        if best is None or ver(rel["tag_name"]) > ver(best["tag"]):
-            best = {"tag": rel["tag_name"], "name": rel.get("name") or rel["tag_name"], "notes": (rel.get("body") or "").strip(),
-                    "url": a["browser_download_url"], "size": a.get("size", 0), "digest": a.get("digest") or "", "page": rel.get("html_url") or PAGE}
-    return best if best and ver(best["tag"]) > ver(__version__) else None
+        b = is_beta(rel["tag_name"]); names = (BETA_ASSET, ASSET) if b else (ASSET,)
+        a = next((a for n in names for a in rel.get("assets", []) if a["name"] == n), None)
+        if rel.get("draft") or not a or (b and not beta): continue
+        out.append({"tag": rel["tag_name"], "name": rel.get("name") or rel["tag_name"], "notes": (rel.get("body") or "").strip(),
+                    "url": a["browser_download_url"], "size": a.get("size", 0), "digest": a.get("digest") or "", "page": rel.get("html_url") or PAGE,
+                    "date": (rel.get("published_at") or rel.get("created_at") or "")[:10], "beta": b})
+    return sorted(out, key=lambda x: ver(x["tag"]), reverse=True)
+
+def is_current(tag): return ver(tag) == ver(__version__)
+
+def check(beta=False):
+    """-> bản mới nhất (dict như releases()) nếu mới hơn bản đang chạy, không thì None. beta=True: tính cả bản beta."""
+    rels = releases(beta)
+    return rels[0] if rels and ver(rels[0]["tag"]) > ver(__version__) else None
 
 def download(info, progress):
     """Tải + kiểm SHA256 + giải nén vào TMP. progress(text, percent) -> False để hủy. -> thư mục chứa GameSub.exe bản mới."""
