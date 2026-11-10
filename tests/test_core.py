@@ -127,6 +127,14 @@ def test_pick_model():
     assert T.pick_model(["gemini-3.1-pro", "gemini-3.1-flash-lite-preview", "gemini-3-flash-lite", "gemini-3-flash"]) == "gemini-3-flash-lite"
     assert T.pick_model(["gemini-2.5-pro", "gemini-2.5-flash"]) == "gemini-2.5-flash" and T.pick_model([]) == ""
 
+def test_ocr_blocks():
+    from gamesub.ocr import blocks
+    L = [(1701, 34, 84, 16, "HP 1200"), (700, 404, 398, 20, "Three days later..."), (400, 886, 651, 26, "You shouldn't be here,"),
+         (402, 926, 474, 28, "is spreading faster."), (1000, 1000, 30, 12, "ok"), (400, 1040, 300, 60, "BIG TITLE")]
+    b = blocks(L)
+    assert [x[4] for x in b] == ["You shouldn't be here, is spreading faster.", "BIG TITLE", "Three days later...", "HP 1200"], b   # khối to trước; "ok" < 4 ký tự; chữ khác cỡ tách khối
+    assert b[0][:4] == (400, 886, 651, 68)
+
 def test_config_reset():
     c = Config(T / "reset.json"); c["regions"] = [{"x": 1, "y": 2, "w": 3, "h": 4}]; c["gemini_key"] = "k"; c["font_size"] = 30; c["hotkeys"]["region"] = "F9"
     c.reset(); assert c["font_size"] == 17 and c["hotkeys"]["region"] == "Ctrl+Alt+R" and c["regions"][0]["w"] == 3 and c["gemini_key"] == "k"

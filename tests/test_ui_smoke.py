@@ -330,4 +330,17 @@ ed.remove(ed.items[1]); ed.add(QRect(100, 100, 50, 20)); QTest.keyClick(ed, Qt.K
 assert [r["w"] for r in a.cfg["regions"]] == [10, 50] and not a.worker.paused and a.ov.isVisible()
 a.on_action("speaker"); pump(0.3); assert a.sel.draw_spk; QTest.keyClick(a.sel, Qt.Key_Escape); assert a.sel.isVisible(); QTest.keyClick(a.sel, Qt.Key_Escape)
 assert not a.sel.isVisible() and [r["w"] for r in a.cfg["regions"]] == [10, 50] and not a.worker.paused
+
+# 13) gợi ý vùng: khối chữ nằm gọn trong vùng có sẵn bị bỏ; bấm khối gợi ý = thêm vùng; kéo vùng gần mép khối chữ thì bám vào
+ed = RegionEditor([C.region({"x": 100, "y": 100, "w": 300, "h": 80})], None); asked = []; ed.suggest_req.connect(lambda img: asked.append(img.shape)); ed.start()
+ed.ask_suggest(); assert ed.busy and asked and asked[0][2] == 3 and not ed.btn_suggest.isEnabled()
+ed.set_suggestions([(110, 110, 200, 30, "inside existing"), (400, 400, 300, 40, "Narration text here")])          # màn offscreen 800px
+assert len(ed.sugg) == 1 and ed.sugg[0][0] == QRect(390, 390, 320, 60) and not ed.busy, ed.sugg
+QTest.mouseClick(ed, Qt.LeftButton, Qt.NoModifier, QPoint(500, 410)); assert len(ed.items) == 2 and ed.items[1].rect == QRect(390, 390, 320, 60) and not ed.sugg
+ed.remove(ed.items[1]); ed.set_suggestions([(500, 300, 100, 20, "snap me")]); assert ed.sugg[0][0].left() == 495
+drag(ed, QPoint(200, 140), QPoint(200 + 391, 140)); assert ed.items[0].rect.left() == 495, ed.items[0].rect      # lệch 4px -> bám mép khối chữ
+QTest.keyClick(ed, Qt.Key_Escape); assert not ed.sugg and ed.isVisible(); QTest.keyClick(ed, Qt.Key_Escape); assert not ed.isVisible()
+a._suggest_ocr = lambda img: [(10, 10, 100, 20, "auto suggested")]
+a.cfg["regions"] = []; a.on_action("region"); pump(0.5); assert a.sel.sugg and a.sel.sugg[0][1] == "auto suggested"       # chưa có vùng: tự gợi ý
+QTest.keyClick(a.sel, Qt.Key_Escape); QTest.keyClick(a.sel, Qt.Key_Escape)
 a.quit(); print("UI SMOKE OK")

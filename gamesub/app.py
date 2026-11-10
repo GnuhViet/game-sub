@@ -369,17 +369,26 @@ class App:
             ed.saved.connect(saved); ed.cancelled.connect(end)
             ed.preview.connect(lambda seq, img: run(lambda _: self._preview_ocr(img), lambda t: ed.set_preview(seq, t),
                                                     lambda e: ed.set_preview(seq, tr("app.ocr_error_e", e=e))))
+            ed.suggest_req.connect(lambda img: run(lambda _: self._suggest_ocr(img), ed.set_suggestions,
+                                                   lambda e: ed.set_suggestions([], tr("app.ocr_error_e", e=e))))
             ed.start()
         QTimer.singleShot(180, go)
+
+    def _pv_engine(self):
+        c = self.cfg; key = (c["ocr_engine"], c["ocr_lang"])
+        if self._pv_eng is None or self._pv_eng[0] != key: self._pv_eng = (key, ocr.create(*key))
+        return self._pv_eng[1]
 
     def _preview_ocr(self, img):
         """OCR thử trong chế độ sửa vùng (thread pool). 1 engine dùng chung, lần lượt từng ảnh."""
         with self._pv_lock:
-            c = self.cfg; key = (c["ocr_engine"], c["ocr_lang"])
-            if self._pv_eng is None or self._pv_eng[0] != key: self._pv_eng = (key, ocr.create(*key))
-            s = float(c["ocr_scale"] or 1)
+            s = float(self.cfg["ocr_scale"] or 1)
             if abs(s - 1) > 0.01: img = ocr._resize(img, s)
-            return join_lines(self._pv_eng[1].recognize(img))
+            return join_lines(self._pv_engine().recognize(img))
+
+    def _suggest_ocr(self, img):
+        """Gợi ý vùng: OCR cả màn hình đóng băng 1 lần -> khối chữ."""
+        with self._pv_lock: return ocr.blocks(self._pv_engine().boxes(img), min_chars=6)[:8]      # khối to nhất, bỏ chữ lẻ (HP, nút…)
 
     # ---------------- chụp & dịch 1 vùng
     def scan_capture(self, r):

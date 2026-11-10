@@ -41,7 +41,18 @@ class RegionSelector(QWidget):
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape: self.close(); self.cancelled.emit()
 
-SPK_COLOR = "#6ab7e8"
+SPK_COLOR, SUGG_COLOR = "#6ab7e8", "#7fd4a8"
+
+def _area(r): return max(0, r.width()) * max(0, r.height()) if r.isValid() else 0
+
+def _snap_shift(vals, edges, dist):
+    """Độ dời nhỏ nhất (|d| <= dist) để 1 trong các giá trị vals trùng 1 mép; không có thì 0."""
+    best = None
+    for v in vals:
+        for e in edges:
+            d = e - v
+            if abs(d) <= dist and (best is None or abs(d) < abs(best)): best = d
+    return best or 0
 
 def _font(pt, bold=False):
     f = QFont(); f.setPointSize(pt); f.setBold(bold); return f
@@ -54,11 +65,13 @@ class RegionEditor(QWidget):
     """Chế độ sửa vùng: đóng băng màn hình, hiện mọi vùng thoại (thứ tự = ưu tiên) + vùng tên nhân vật.
     Kéo chỗ trống = thêm vùng; kéo vùng = di chuyển; kéo ô ở góc/cạnh = đổi cỡ; nút trên nhãn: ▲▼ ưu tiên, ⏸ nhường, 👁 bật/tắt, ✕ xóa.
     Phím: Del xóa, mũi tên dịch 1px (Shift 10px), 1-9 đặt ưu tiên, Tab chọn vùng kế, F2 đổi tên, Enter lưu, Esc hủy.
-    Vùng nào đổi xong thì OCR thử trên ảnh đóng băng (signal preview -> app chạy OCR -> set_preview)."""
+    Vùng nào đổi xong thì OCR thử trên ảnh đóng băng (signal preview -> app chạy OCR -> set_preview).
+    Gợi ý: OCR cả màn hình đóng băng 1 lần, khối chữ tìm được hiện nét đứt, bấm vào = thêm vùng; mép vùng bám vào khối chữ / vùng khác (giữ Alt = không bám)."""
     saved = Signal(list, object)           # regions (pixel vật lý + name/on/yield), speaker_region | None
     cancelled = Signal()
     preview = Signal(int, object)          # mã yêu cầu, ảnh RGB (numpy) cần OCR thử
-    H, TAB_H, BTN = 5, 22, 18              # nửa cạnh ô kéo, cao nhãn, cỡ nút trên nhãn
+    suggest_req = Signal(object)           # ảnh RGB cả màn hình -> app trả set_suggestions([(x, y, w, h, text)] theo pixel ảnh)
+    H, TAB_H, BTN, SNAP = 5, 22, 18, 7     # nửa cạnh ô kéo, cao nhãn, cỡ nút trên nhãn, khoảng bám mép
 
     def __init__(self, regions, speaker=None, accent="#e8c26a", max_regions=6, draw_speaker=False):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
@@ -67,6 +80,7 @@ class RegionEditor(QWidget):
         self.accent, self.max = QColor(accent), max_regions
         self.items = [self._item(r) for r in regions]; self.spk = self._item(speaker, True) if speaker else None
         self.sel = self.drag = None; self.draw_spk = draw_speaker; self.msg = ""; self._seq = 0; self._req = {}
+        self.sugg = []; self.busy = False      # khối chữ gợi ý [(QRect, text)]
         self.pv_t = QTimer(self, singleShot=True, interval=300, timeout=lambda: self.sel and self._ask_preview(self.sel))   # dịch bằng phím: đợi xong mới OCR
         self._toolbar()
 
@@ -96,7 +110,7 @@ class RegionEditor(QWidget):
                           "QPushButton:hover{background:#39404a}QPushButton:checked{background:#3d5a73;border-color:%s}" % SPK_COLOR)
         self.btn_spk = QPushButton(icon("mdi6.account-plus", SPK_COLOR), tr("regions.speaker_area")); self.btn_spk.setCheckable(True)
         self.btn_spk.setChecked(self.draw_spk); self.btn_spk.toggled.connect(lambda v: (setattr(self, "draw_spk", v), self.update()))
-        self.btn_suggest = QPushButton(icon("mdi6.auto-fix", self.accent.name()), tr("regions.suggest")); self.btn_suggest.hide()
+        self.btn_suggest = QPushButton(icon("mdi6.auto-fix", self.accent.name()), tr("regions.suggest")); self.btn_suggest.clicked.connect(self.ask_suggest)
         ok = QPushButton(icon("mdi6.check", "#8fd18f"), tr("regions.save")); ok.clicked.connect(self.save)
         no = QPushButton(icon("mdi6.close"), tr("regions.cancel")); no.clicked.connect(self.cancel)
         for b in (self.btn_spk, self.btn_suggest, ok, no): b.setFocusPolicy(Qt.NoFocus); b.setCursor(Qt.ArrowCursor); lay.addWidget(b)
@@ -108,6 +122,7 @@ class RegionEditor(QWidget):
         self.show(); self.activateWindow(); self.raise_(); self.setFocus()
         from .winapp import force_foreground; force_foreground(int(self.winId()))
         for it in self.all_items(): self._ask_preview(it)
+        if not self.items: self.ask_suggest()            # chưa có vùng nào: gợi ý luôn
 
     def _col(self, it):
         if it.spk: return QColor(SPK_COLOR)
@@ -143,6 +158,9 @@ class RegionEditor(QWidget):
     def paintEvent(self, e):
         from .icons import icon
         p = QPainter(self); p.drawPixmap(self.rect(), self.bg); p.fillRect(self.rect(), QColor(0, 0, 0, 130))
+        for r, t in self.sugg:                                          # khối chữ gợi ý: nét đứt, bấm để thêm
+            p.drawPixmap(r, self.bg, self._src(r)); p.setPen(QPen(QColor(SUGG_COLOR), 1.5, Qt.DashLine)); p.setBrush(Qt.NoBrush); p.drawRect(r)
+            p.setFont(_font(8, True)); p.setPen(QColor(SUGG_COLOR)); p.drawText(r.topLeft() + QPoint(2, -4), "+ " + p.fontMetrics().elidedText(t, Qt.ElideRight, max(60, r.width() - 14)))
         draw = [it for it in reversed(self.items) if it.rect is not None] + ([self.spk] if self.spk and self.spk.rect is not None else [])
         if self.sel in draw: draw.remove(self.sel); draw.append(self.sel)         # vùng đang chọn vẽ trên cùng
         if self.drag and self.drag[0] == "new": draw.append(_Item({}, QRect(self.drag[1], self.drag[2]).normalized(), self.draw_spk))
@@ -199,6 +217,8 @@ class RegionEditor(QWidget):
             return
         if e.button() != Qt.LeftButton: return
         if h and h[0] == "btn": self._button(h[1], h[2]); return
+        s = None if h else self._sugg_at(pos)
+        if s: self.sugg.remove(s); self.add(QRect(s[0]), self.draw_spk); return
         if h and not self.draw_spk: self.sel = h[1]; self.drag = (h[0], pos, QRect(h[1].rect.normalized()), h[2])
         else: self.sel = None; self.drag = ("new", pos, pos)
         self.update()
@@ -207,19 +227,34 @@ class RegionEditor(QWidget):
         pos = e.position().toPoint()
         if not self.drag:
             h = None if self.draw_spk else self._hit(pos)
+            if not h and self._sugg_at(pos): self.setCursor(Qt.PointingHandCursor); return
             self.setCursor(Qt.CrossCursor if not h else Qt.PointingHandCursor if h[0] == "btn" else self.CURSORS[h[2]] if h[0] == "handle" else Qt.SizeAllCursor)
             return
-        kind, p0, r0 = self.drag[:3]; d = pos - p0
+        kind, p0, r0 = self.drag[:3]; d = pos - p0; snap = not (e.modifiers() & Qt.AltModifier)
         if kind == "new": self.drag = ("new", p0, pos)
-        elif kind == "body": self.sel.rect = self._clamp(r0.translated(d))
+        elif kind == "body":
+            r = r0.translated(d)
+            if snap:
+                xs, ys = self._edges(self.sel)
+                r.translate(_snap_shift((r.left(), r.right() + 1), xs, self.SNAP), _snap_shift((r.top(), r.bottom() + 1), ys, self.SNAP))
+            self.sel.rect = self._clamp(r)
         else:
-            i, j = self.drag[3]; r = QRect(r0)
-            if i == 0: r.setLeft(min(r0.left() + d.x(), r0.right() - 8))
-            if i == 2: r.setRight(max(r0.right() + d.x(), r0.left() + 8))
-            if j == 0: r.setTop(min(r0.top() + d.y(), r0.bottom() - 8))
-            if j == 2: r.setBottom(max(r0.bottom() + d.y(), r0.top() + 8))
+            i, j = self.drag[3]; r = QRect(r0); xs, ys = self._edges(self.sel) if snap else ([], [])
+            sn = lambda v, es: v + _snap_shift((v,), es, self.SNAP)
+            if i == 0: r.setLeft(min(sn(r0.left() + d.x(), xs), r0.right() - 8))
+            if i == 2: r.setRight(max(sn(r0.right() + 1 + d.x(), xs) - 1, r0.left() + 8))
+            if j == 0: r.setTop(min(sn(r0.top() + d.y(), ys), r0.bottom() - 8))
+            if j == 2: r.setBottom(max(sn(r0.bottom() + 1 + d.y(), ys) - 1, r0.top() + 8))
             self.sel.rect = r.intersected(self.rect())
         self.update()
+
+    def _edges(self, skip):
+        """Mép để bám: cạnh màn hình, khối chữ gợi ý, các vùng khác (toạ độ mép phải/dưới tính kiểu exclusive)."""
+        rs = [r for r, _ in self.sugg] + [it.rect.normalized() for it in self.all_items() if it is not skip and it.rect is not None]
+        return ([0, self.width()] + [x for r in rs for x in (r.left(), r.right() + 1)],
+                [0, self.height()] + [y for r in rs for y in (r.top(), r.bottom() + 1)])
+
+    def _sugg_at(self, pos): return next((s for s in self.sugg if s[0].contains(pos)), None)
 
     def mouseReleaseEvent(self, e):
         if not self.drag or e.button() != Qt.LeftButton: return
@@ -283,7 +318,11 @@ class RegionEditor(QWidget):
 
     def keyPressEvent(self, e):
         k, it = e.key(), self.sel
-        if k == Qt.Key_Escape: (self.btn_spk.setChecked(False) if self.draw_spk else self.cancel()); return
+        if k == Qt.Key_Escape:
+            if self.draw_spk: self.btn_spk.setChecked(False)
+            elif self.sugg: self.sugg = []; self.msg = ""; self.update()
+            else: self.cancel()
+            return
         if k in (Qt.Key_Return, Qt.Key_Enter): self.save(); return
         if k == Qt.Key_Tab:
             its = [x for x in self.all_items() if x.rect is not None]
@@ -314,6 +353,28 @@ class RegionEditor(QWidget):
         it = self._req.pop(seq, None)
         if it is None or any(x is it for x in self._req.values()): return      # vùng này còn yêu cầu mới hơn đang chờ
         it.preview = text; self.update()
+
+    # ---------- gợi ý vùng
+    def full_image(self):
+        return self.crop(self.rect())
+
+    def ask_suggest(self):
+        if self.busy: return
+        self.busy = True; self.btn_suggest.setEnabled(False); self.msg = tr("regions.suggest_busy"); self.update()
+        self.suggest_req.emit(self.full_image())
+
+    def set_suggestions(self, blocks, err=""):
+        """blocks: [(x, y, w, h, text)] theo pixel ảnh full_image(). Bỏ khối đã nằm gọn trong vùng có sẵn."""
+        self.busy = False; self.btn_suggest.setEnabled(True)
+        sx, sy = self.bg.width() / max(1, self.width()), self.bg.height() / max(1, self.height()); out = []
+        for x, y, w, h, t in blocks:
+            pad = max(4, round(min(h / sy, 40) * 0.25))
+            r = QRect(round(x / sx) - pad, round(y / sy) - pad, round(w / sx) + 2 * pad, round(h / sy) + 2 * pad).intersected(self.rect())
+            area = max(1, r.width() * r.height())
+            if any(it.rect is not None and _area(it.rect.normalized().intersected(r)) > 0.6 * area for it in self.all_items()): continue
+            out.append((r, t))
+        self.sugg = out
+        self.msg = err or (tr("regions.suggest_found_n", n=len(out)) if out else tr("regions.suggest_none")); self.update()
 
     # ---------- xong
     def save(self):
