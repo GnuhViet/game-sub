@@ -376,4 +376,10 @@ assert "beta" in vd.lst.item(0).text() and "đang dùng" in vd.lst.item(1).text(
 vd.lst.setCurrentRow(1); assert not vd.install.isEnabled(); vd._go(); assert vd.chosen is None
 vd.lst.setCurrentRow(0); vd._go(); assert vd.chosen["tag"] == "v9.0-beta.1"
 vd = VersionDialog(rels, lambda t: False, False); assert not vd.install.isEnabled() and "git pull" in vd.hint.text()
+
+# 16) lịch sử giữ đúng 30 câu (bằng số câu menu Lịch sử hiện)
+a.cfg["translate"] = False
+import random as _r
+for n in range(40): a.on_text("", f"Line{n} " + " ".join("".join(_r.Random(n * 9 + k).choices("abcdefghij", k=5)) for k in range(6)))     # câu khác hẳn nhau (không bị chống trùng)
+assert len(a.history) == a.HISTORY_N == 30 and a.history[-1]["src"].startswith("Line39 ") and a.pos == 29, (len(a.history), a.history[-1]["src"])
 a.quit(); print("UI SMOKE OK")

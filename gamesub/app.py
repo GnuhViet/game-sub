@@ -148,7 +148,7 @@ class App:
         else: self.render()
 
     def _trim(self, cur):
-        self.history = self.history[-300:]
+        self.history = self.history[-self.HISTORY_N:]
         self.pos = next((k for k, l in enumerate(self.history) if l is cur), len(self.history) - 1)
 
     def reset_regions(self):
@@ -327,7 +327,7 @@ class App:
             if winapp.relaunch_as_admin(): self.quit()
         elif k == "quit": self.quit()
 
-    HISTORY_N = 30
+    HISTORY_N = 30                         # lịch sử giữ đúng số câu menu Lịch sử hiện
 
     def show_history(self):
         """Nút Lịch sử: menu các câu gần nhất (mới nhất trên cùng), bấm = xem lại câu đó; trên cùng là Về câu mới nhất."""
@@ -335,7 +335,7 @@ class App:
         if not h: self.ov.pick_from([("", tr("app.history_empty"), "", False)]); return
         multi = len(active_regions(self.cfg)) > 1
         rows = [(last, tr("app.history_latest"), "", False), (None, "", "", False)] if self.pos != last else []
-        for i in range(last, max(-1, last - self.HISTORY_N), -1):
+        for i in range(last, -1, -1):
             l = h[i]; text = (self.region_name(l.get("reg", 0)) + " · " if multi else "") + (l["vi"] or l["src"])
             rows.append((i, text, l["src"] + ("\n" + l["vi"] if l["vi"] else ""), i == self.pos))
         k = self.ov.pick_from(rows)
