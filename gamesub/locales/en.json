@@ -448,12 +448,12 @@
   "vocab.translated_line": "Translated line",
   "vocab.vocabulary": "Vocabulary",
   "vocab.word": "Word",
-  "settings.appearance.term_mark": "Underline glossary terms in the translation",
-  "settings.appearance.term_mark.hold": "Only while holding the key",
-  "settings.appearance.term_mark.always": "Always",
-  "settings.appearance.term_mark.off": "Off",
-  "settings.appearance.tip.term_mark": "Glossary terms (by translation or source text) are underlined in the translation; click one to see its note. \"Only while holding the key\": the line looks normal until you hold the key below, then terms are underlined and clickable (even when the overlay is locked / click-through).",
-  "settings.appearance.term_key": "Hold key to show terms",
   "app.term_no_note": "No note for this term yet (add one in Glossary, Note column).",
-  "app.glossary_note_source": "Glossary"
+  "app.glossary_note_source": "Glossary",
+  "settings.tab.glossary": "Glossary",
+  "settings.glossary.term_mark": "Underline glossary terms in the translation",
+  "settings.glossary.term_mark.hover": "When the overlay is clickable (mouse over it)",
+  "settings.glossary.term_mark.always": "Always",
+  "settings.glossary.term_mark.off": "Off",
+  "settings.glossary.tip.term_mark": "Glossary terms (by translation or source text) are underlined in the translation; click one to see its note. \"When the overlay is clickable\": the line looks normal until you move the mouse over the overlay (when locked, hold the unlock key, Alt by default). Names kept as-is without a note are not underlined."
 }

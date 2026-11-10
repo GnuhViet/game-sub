@@ -523,7 +523,7 @@ class App:
             if d.reset: self.restart(); return                  # khôi phục cài đặt gốc -> mở lại app (ngôn ngữ, hotkey, vị trí overlay…)
             self._register_hotkeys(); return
         regs_old = (repr(c["regions"]), repr(c["speaker_region"]))
-        d.apply(); self.noted.clear()
+        d.apply(); self.noted.clear(); self._known_words()      # tab Glossary có thể vừa đổi thuật ngữ
         if (repr(c["regions"]), repr(c["speaker_region"])) != regs_old: self.reset_regions()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:

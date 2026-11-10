@@ -448,12 +448,12 @@
   "vocab.translated_line": "Câu dịch",
   "vocab.vocabulary": "Sổ từ",
   "vocab.word": "Từ",
-  "settings.appearance.term_mark": "Gạch chân thuật ngữ trong bản dịch",
-  "settings.appearance.term_mark.hold": "Chỉ khi giữ phím",
-  "settings.appearance.term_mark.always": "Luôn gạch chân",
-  "settings.appearance.term_mark.off": "Tắt",
-  "settings.appearance.tip.term_mark": "Thuật ngữ có trong Glossary (theo cách dịch hoặc chữ gốc) được gạch chân trong bản dịch; bấm vào để xem ghi chú giải thích. \"Chỉ khi giữ phím\": bình thường chữ hiện như câu thường, giữ phím bên dưới mới gạch chân và bấm được (kể cả khi overlay đang khóa / click-through).",
-  "settings.appearance.term_key": "Phím giữ để hiện thuật ngữ",
   "app.term_no_note": "Chưa có ghi chú cho thuật ngữ này (thêm ở Glossary, cột Ghi chú).",
-  "app.glossary_note_source": "Glossary"
+  "app.glossary_note_source": "Glossary",
+  "settings.tab.glossary": "Glossary",
+  "settings.glossary.term_mark": "Gạch chân thuật ngữ trong bản dịch",
+  "settings.glossary.term_mark.hover": "Khi bấm được vào overlay (rê chuột vào)",
+  "settings.glossary.term_mark.always": "Luôn gạch chân",
+  "settings.glossary.term_mark.off": "Tắt",
+  "settings.glossary.tip.term_mark": "Thuật ngữ có trong Glossary (theo cách dịch hoặc chữ gốc) được gạch chân trong bản dịch; bấm vào để xem ghi chú giải thích. \"Khi bấm được vào overlay\": bình thường bản dịch hiện như câu thường, rê chuột vào overlay (đang khóa thì giữ phím mở khóa, mặc định Alt) mới gạch chân. Tên riêng giữ nguyên mà không có ghi chú thì không gạch chân."
 }

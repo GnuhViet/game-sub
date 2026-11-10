@@ -100,8 +100,7 @@ class Overlay(QWidget):
     def __init__(self, cfg):
         super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._alert = False; self._auto = False; self._alt = False
         self.alt_t = QTimer(self, interval=60, timeout=self._poll_alt)        # đang khóa: giữ phím mở khóa (mặc định Alt) -> overlay nhận chuột
-        self.term_spans = None; self._vi_text = ""; self._spans = []; self._term_held = False   # term_spans(text) -> [(đầu, cuối, mục glossary)] (App gán)
-        self.term_t = QTimer(self, interval=60, timeout=self._poll_term)      # term_mark = hold: dò phím term_key để gạch chân thuật ngữ
+        self.term_spans = None; self._vi_text = ""; self._spans = []   # term_spans(text) -> [(đầu, cuối, mục glossary)] (App gán)
         self.setAttribute(Qt.WA_TranslucentBackground); self.setMouseTracking(True)
         self.setAttribute(Qt.WA_AlwaysShowToolTips)          # cửa sổ Tool không focus: Windows mặc định không hiện tooltip
         self.setWindowTitle("Game Sub"); self.setMinimumSize(320, 90)
@@ -204,34 +203,21 @@ class Overlay(QWidget):
         self._vi_text = vi or ""; self._update_terms()
         self._tag = tag or ""; self._alert = alert; self._tag_vis(); self._fit(); self.update()
 
-    # ---- thuật ngữ trong bản dịch: gạch chân (luôn / khi giữ term_key), bấm vào -> App hiện ghi chú glossary
+    # ---- thuật ngữ trong bản dịch: gạch chân (luôn / khi overlay đang bấm được), bấm vào -> App hiện ghi chú glossary
     def _update_terms(self):
-        mode = self.cfg["term_mark"]
-        self._spans = self.term_spans(self._vi_text) if self.term_spans and mode != "off" else []
-        self._term_vks = held_vks(self.cfg["term_key"] or "") or []
-        if self._spans and mode == "hold" and self._term_vks: self.term_t.start()
-        else: self.term_t.stop(); self._set_term_held(False, render=False)
+        self._spans = self.term_spans(self._vi_text) if self.term_spans and self.cfg["term_mark"] != "off" else []
         self._render_vi()
 
     def _render_vi(self):
-        """Không gạch chân thì hiện y như câu thường (plain text); gạch chân thì mỗi thuật ngữ là link t:<số thứ tự>."""
-        marked = self._spans and (self.cfg["term_mark"] == "always" or self._term_held)
+        """Không gạch chân thì hiện y như câu thường (plain text); gạch chân thì mỗi thuật ngữ là link t:<số thứ tự>.
+        term_mark = hover: chỉ gạch chân khi overlay đang tương tác được (rê chuột vào hiện toolbar; đang khóa thì giữ phím mở khóa)."""
+        marked = self._spans and (self.cfg["term_mark"] == "always" or (self.cfg["term_mark"] == "hover" and self.bar.isVisible()))
         if not marked: self.vi.setTextFormat(Qt.PlainText); self.vi.setText(self._vi_text); return
         t, out, i = self._vi_text, [], 0
         for n, (a, b, _) in enumerate(self._spans):
             out.append(esc(t[i:a])); out.append(f'<a href="t:{n}" style="color:{self.cfg["accent"]};text-decoration:underline">{esc(t[a:b])}</a>'); i = b
         out.append(esc(t[i:]))
         self.vi.setTextFormat(Qt.RichText); self.vi.setText(f"<div style='white-space:pre-wrap'>{''.join(out)}</div>")
-
-    def _poll_term(self):
-        if sys.platform == "win32": down = all(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in self._term_vks)
-        else: down = bool(QApplication.queryKeyboardModifiers() & Qt.AltModifier) and self.cfg["term_key"].lower() == "alt"
-        self._set_term_held(down)
-
-    def _set_term_held(self, down, render=True):
-        if down == self._term_held: return
-        self._term_held = down; self._apply_input()             # đang giữ: overlay nhận chuột để bấm thuật ngữ (kể cả khi khóa / click-through)
-        if render: self._render_vi()
 
     def _term_click(self, href):
         try: g = self._spans[int(href.split(":")[1])][2]
@@ -287,7 +273,7 @@ class Overlay(QWidget):
     def set_click_through(self, on): self.cfg["click_through"] = on; self._apply_input()
 
     def passthrough_wanted(self):
-        return bool(((self.cfg["locked"] and not self._alt) or self.cfg["click_through"]) and not (self._term_held and self._spans))
+        return bool((self.cfg["locked"] and not self._alt) or self.cfg["click_through"])
 
     def _apply_input(self):
         """Chuột xuyên qua overlay khi khóa (trừ lúc giữ phím mở khóa) hoặc bật click-through (không chắn chuột game)."""
@@ -355,7 +341,9 @@ class Overlay(QWidget):
         self.anim.stop(); self._apply_bar(on); self._set_exp(1.0 if on else 0.0)
 
     def _apply_bar(self, on):
-        self.bar.setVisible(on); self.status.setVisible(on); self.grip.setVisible(on and not self.cfg["locked"]); self._tag_vis(); self._apply_display(); self.update()
+        self.bar.setVisible(on); self.status.setVisible(on); self.grip.setVisible(on and not self.cfg["locked"]); self._tag_vis(); self._apply_display()
+        if self.cfg["term_mark"] == "hover": self._render_vi()      # gạch chân thuật ngữ theo trạng thái tương tác
+        self.update()
 
     def _hover_bar(self, on):
         """Rê chuột vào / ra: nền giãn ra / co lại, toolbar hiện / mờ dần. Ẩn hẳn (toolbar, nguồn dịch…) khi co xong."""

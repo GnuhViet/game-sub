@@ -189,7 +189,7 @@ br.q.setText("0%_"); br.set_file("vh.csv"); wait_br(br, lambda: br.model.done an
 br.q.setText(""); br._apply(); wait_br(br, lambda: br.model.rowCount() == 1)
 br._pick(br.model.index(0, 0)); assert sub.test.text() == "Rover, you finally woke up." and "100" in sub.test_out.text()
 br.close(); a.db.del_sub_file("big.csv")
-gd = GlossaryDialog(a.db, a.cfg); gd._row("Resonator", "Cộng Minh Giả", "translate"); gd._save(); assert any(g["term"] == "Resonator" for g in a.db.glossary())
+gd = GlossaryDialog(a.db, a.cfg); gd.panel._row("Resonator", "Cộng Minh Giả", "translate"); gd._save(); assert any(g["term"] == "Resonator" for g in a.db.glossary())
 ReviewDialog(a.db, a.db.vocab()).show(); pump(0.05)
 
 # 7) region selector + quy đổi DPI
@@ -410,12 +410,15 @@ a.db.set_term("Echo", "Thanh Hài", "translate", "Tần số đặc biệt bắt
 a.ov.show_line("", "src", "Thanh Hài ở Jinzhou.", ""); assert [g["term"] for *_, g in a.ov._spans] == ["Echo", "Jinzhou"]
 assert not a.db.term_spans("Yangyang")                     # tên giữ nguyên không ghi chú: không gạch chân
 assert a.ov.vi.textFormat() == Qt.PlainText and a.ov.vi.text() == "Thanh Hài ở Jinzhou."          # không giữ phím: như câu thường
-a.ov._set_term_held(True); assert 'href="t:0"' in a.ov.vi.text() and "underline" in a.ov.vi.text() and not a.ov.passthrough_wanted()
+a.ov._set_bar(True); assert 'href="t:0"' in a.ov.vi.text() and "underline" in a.ov.vi.text()          # rê chuột vào (overlay bấm được): gạch chân
 a.ov._term_click("t:0"); assert a.pop.isVisible() and a.pop.word == "Echo" and "Terminal" in a.pop.raw
-a.ov._set_term_held(False); assert a.ov.vi.text() == "Thanh Hài ở Jinzhou."; a.pop.close_pop()
+a.ov._set_bar(False); assert a.ov.vi.text() == "Thanh Hài ở Jinzhou."; a.pop.close_pop()
+sd = SettingsDialog(a.cfg, subs=(a.db, a.index, a.cfg, a.rebuild_index)); assert sd.gloss_panel.t.rowCount() == len(a.db.glossary())   # tab Glossary trong Cài đặt
+sd.w["term_mark"][0].setCurrentIndex(sd.w["term_mark"][0].findData("always")); sd.gloss_panel._row("Forte", "năng lực cộng hưởng", "translate"); sd.apply()
+assert a.cfg["term_mark"] == "always" and any(g["term"] == "Forte" for g in a.db.glossary()); a.cfg["term_mark"] = "hover"
 a.cfg["term_mark"] = "always"; a.ov._update_terms(); assert 'href="t:1"' in a.ov.vi.text()
 a.cfg["term_mark"] = "off"; a.ov._update_terms(); assert a.ov.vi.text() == "Thanh Hài ở Jinzhou." and not a.ov._spans
-a.cfg["term_mark"] = "hold"
+a.cfg["term_mark"] = "hover"
 (C.DATA_DIR / "g.csv").write_text("en,vi,note\nResonator,Cộng Hưởng Giả,Người có năng lực cộng hưởng\n", "utf-8-sig")
 assert a.db.import_glossary_csv(C.DATA_DIR / "g.csv") == 1 and a.db.term_spans("Một Cộng Hưởng Giả")[0][2]["mode"] == "translate"
 a.quit(); print("UI SMOKE OK")

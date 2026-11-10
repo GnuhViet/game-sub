@@ -50,8 +50,8 @@ DEFAULTS = {
     "line_gap": 0,                                    # khoảng cách thêm giữa câu gốc và bản dịch (px)
     "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
     "ui_lang": "",                                    # ngôn ngữ giao diện: "" = theo Windows / vi / en (đổi cần mở lại app)
-    "term_mark": "hold",                              # gạch chân thuật ngữ glossary trong bản dịch (bấm vào hiện ghi chú): hold = chỉ khi giữ term_key / always / off
-    "term_key": "Alt",                                # phím giữ để hiện thuật ngữ (term_mark = hold); đang giữ thì overlay nhận chuột để bấm
+    "term_mark": "hover",                             # gạch chân thuật ngữ glossary trong bản dịch (bấm vào hiện ghi chú): hover = chỉ khi overlay đang bấm được
+                                                      # (rê chuột vào; đang khóa thì giữ phím mở khóa) / always / off
     "unlock_key": "Alt",                            # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
     "check_updates": False,                           # khởi động: hỏi GitHub có bản mới không (báo ở khay); mặc định tắt
     "run_as_admin": False,                            # game chạy quyền admin -> GameSub cũng phải admin thì hotkey/giữ phím mới tới
@@ -104,6 +104,7 @@ class Config(dict):
                 self["regions"] = [region(r) for r in (self["regions"] or []) if isinstance(r, dict)][:MAX_REGIONS]
                 if "display" not in data and data.get("show_source") is False: self["display"] = "vi"     # cài đặt cũ
                 if "unlock_key" not in data and data.get("alt_unlock") is False: self["unlock_key"] = ""
+                if self["term_mark"] not in ("hover", "always", "off"): self["term_mark"] = "hover"   # v0.3.2: "hold" (phím riêng)
                 if "toolbar" in data:
                     known = data.get("toolbar_known") or OLD_TOOLBAR
                     order = DEFAULTS["toolbar"]; tb = self["toolbar"] = [k for k in self["toolbar"] if k in order]   # bỏ nút đã gỡ (speaker, prev/next -> history)

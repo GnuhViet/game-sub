@@ -22,7 +22,7 @@ and lets you click any word to look it up and save it for review.
 - **Machine translation fallback**: Google Translate (free) or Gemini (free API key), with previous lines as context, streaming output and automatic fallback on quota errors.
 - **Updates**: Settings → Check for updates, or **Choose version…** to install any release (including betas, or roll back).
 - **Glossary**: keep names and terms as-is or force a translation; terms are protected with Google Translate too.
-  Hold **Alt** to underline glossary terms in the translation and click one to see its note (Settings → Appearance: only while holding / always / off, configurable key). CSV import accepts a `term` or `en` column.
+  Move the mouse over the overlay (when locked, hold the unlock key, Alt by default) to underline glossary terms in the translation; click one to see its note. Settings → **Glossary**: the term table, CSV import / export (`term` or `en` column), underline mode (when the overlay is clickable / always / off).
 - **Click-to-look-up**: click or select any word in the source line. Offline StarDict / TSV dictionaries, Google, dictionaryapi.dev, or an AI explanation in context.
 - **Vocabulary book**: save words with their sentence, review them as flashcards, export to CSV / Anki.
 - **Capture & translate** any area once (letters, menus, item descriptions) in a separate window; sentences that match the subtitle pack use it, the rest are machine-translated.

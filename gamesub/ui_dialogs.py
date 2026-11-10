@@ -78,7 +78,7 @@ class SettingsDialog(QDialog):
         hb = QHBoxLayout(); hb.addWidget(bt); hb.addWidget(self.key_status, 1); f.addRow(hb)
         for k in ("dialog_engine", "scan_engine"): self.w[k][0].currentIndexChanged.connect(self._gem_warn)
         self.w["gemini_key"][0].textChanged.connect(self._gem_warn); self._gem_warn()
-        self._spin(f, "context_lines", "settings.translate.context_lines", 0, 20); self._check(f, "keep_terms", "settings.translate.keep_terms")
+        self._spin(f, "context_lines", "settings.translate.context_lines", 0, 20)
         self._check(f, "stream", "settings.translate.stream")
         self._spin(f, "gemini_thinking_budget", "settings.translate.gemini_thinking_budget", -1, 8192)
         self._spin(f, "timeout_s", "settings.translate.timeout_s", 3, 120); self._spin(f, "cooldown_s", "settings.translate.cooldown_s", 0, 3600)
@@ -97,6 +97,14 @@ class SettingsDialog(QDialog):
         if subs:
             self.subs_panel = SubsPanel(*subs, threshold=sl.value); f.addRow(self.subs_panel)
             sl.valueChanged.connect(lambda _: self.subs_panel.test.text() and self.subs_panel._test())
+        # --- Glossary: không dịch tên riêng, gạch chân thuật ngữ trong bản dịch, bảng thuật ngữ (nhập / xuất CSV)
+        f = self._tab(tabs, "settings.tab.glossary")
+        self._check(f, "keep_terms", "settings.translate.keep_terms")
+        tm = self._combo(f, "term_mark", "settings.glossary.term_mark", {"hover": "settings.glossary.term_mark.hover",
+                         "always": "settings.glossary.term_mark.always", "off": "settings.glossary.term_mark.off"})
+        self._tip(f, tm, "settings.glossary.tip.term_mark")
+        self.gloss_panel = GlossaryPanel(subs[0]) if subs else None
+        if self.gloss_panel: f.addRow(self.gloss_panel)
         # --- Prompt
         t = QWidget(); tv = QVBoxLayout(t); tabs.addTab(t, tr("settings.tab.prompt"))
         tv.addWidget(QLabel(tr("settings.prompt.variables") + " {src_lang} {player} {gender} {keep_rule} {glossary}"))
@@ -167,10 +175,6 @@ class SettingsDialog(QDialog):
         f = self._group(tab, "settings.appearance.group.behavior")
         self._dspin(f, "auto_hide_s", "settings.appearance.auto_hide_s", 0, 60, 0.5)
         self._check(f, "animations", "settings.appearance.animations")
-        tm = self._combo(f, "term_mark", "settings.appearance.term_mark", {"hold": "settings.appearance.term_mark.hold",
-                         "always": "settings.appearance.term_mark.always", "off": "settings.appearance.term_mark.off"})
-        self._tip(f, tm, "settings.appearance.tip.term_mark")
-        tk = KeyCapture(cfg["term_key"]); f.addRow(tr("settings.appearance.term_key"), tk); self.w["term_key"] = (tk, tk.text)
         uk = KeyCapture(cfg["unlock_key"]); f.addRow(tr("settings.appearance.hold_key_interact_while_locked"), uk); self.w["unlock_key"] = (uk, uk.text)
         self._tip(f, uk, "settings.appearance.tip.while_overlay_is_locked")
         c = self._check(f, "hide_from_capture", "settings.appearance.hide_from_capture")
@@ -396,6 +400,7 @@ class SettingsDialog(QDialog):
         c["dict_files"] = [self.dicts.item(i).text() for i in range(self.dicts.count())]
         c["hotkeys"] = {k: e.text().strip() for k, e in self.hk.items()}
         c["regions"] = [dict(r) for r in self._reg_read()]; c["speaker_region"] = self.spk_region
+        if self.gloss_panel: self.gloss_panel.save()
         c.save()
 
 
@@ -502,19 +507,18 @@ def _table(headers):
     t.setSelectionBehavior(QAbstractItemView.SelectRows); t.verticalHeader().setVisible(False); return t
 
 
-class GlossaryDialog(QDialog):
-    def __init__(self, db, cfg, parent=None):
-        super().__init__(parent); self.db, self.cfg = db, cfg; self.setWindowTitle(tr("glossary.glossary_names_terms")); self.resize(720, 520)
-        v = QVBoxLayout(self)
-        self.keep = QCheckBox(tr("glossary.dont_translate_names_terms_every")); self.keep.setChecked(cfg["keep_terms"]); v.addWidget(self.keep)
+class GlossaryPanel(QWidget):
+    """Bảng glossary (lọc, thêm, xóa, nhập / xuất CSV): dùng trong hộp thoại Glossary và tab Glossary của Cài đặt. save() ghi vào db."""
+    def __init__(self, db, parent=None):
+        super().__init__(parent); self.db = db
+        v = QVBoxLayout(self); v.setContentsMargins(0, 0, 0, 0)
         self.flt = QLineEdit(); self.flt.setPlaceholderText(tr("glossary.filter")); self.flt.textChanged.connect(self._filter); v.addWidget(self.flt)
-        self.t = _table([tr("glossary.term_source"), tr("glossary.translate_as"), tr("glossary.mode"), tr("glossary.note")]); v.addWidget(self.t)
+        self.t = _table([tr("glossary.term_source"), tr("glossary.translate_as"), tr("glossary.mode"), tr("glossary.note")]); self.t.setMinimumHeight(260); v.addWidget(self.t)
         hb = QHBoxLayout()
         for txt, fn in [(tr("glossary.add"), self._add), (tr("glossary.remove"), self._del), (tr("glossary.import_csv"), self._imp), (tr("glossary.export_csv"), self._exp)]:
             b = QPushButton(txt); b.clicked.connect(fn); hb.addWidget(b)
         hb.addStretch(1); v.addLayout(hb)
         v.addWidget(QLabel("<i>" + tr("glossary.only_applies_machine_translation_gemini") + "</i>"))
-        bb = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel); bb.accepted.connect(self._save); bb.rejected.connect(self.reject); v.addWidget(bb)
         self._load()
 
     def _row(self, term="", vi="", mode="keep", note=""):
@@ -538,15 +542,25 @@ class GlossaryDialog(QDialog):
         if p: n = self.db.import_glossary_csv(p); self._load(); QMessageBox.information(self, tr("glossary.imported_title"), tr("glossary.imported_n_entries_columns_term", n=n))
     def _exp(self):
         p, _ = QFileDialog.getSaveFileName(self, tr("glossary.export_title"), "glossary.csv", "CSV (*.csv)")
-        if p: self._save(close=False); self.db.export_csv("glossary", p)
-    def _save(self, close=True):
+        if p: self.save(); self.db.export_csv("glossary", p)
+    def save(self):
         for g in self.db.glossary(): self.db.del_term(g["term"])
         for r in range(self.t.rowCount()):
             term = (self.t.item(r, 0).text() if self.t.item(r, 0) else "").strip()
             if term: self.db.set_term(term, self.t.item(r, 1).text() if self.t.item(r, 1) else "", self.t.cellWidget(r, 2).currentData(),
                                       self.t.item(r, 3).text() if self.t.item(r, 3) else "")
-        self.cfg["keep_terms"] = self.keep.isChecked(); self.cfg.save()
-        if close: self.accept()
+
+
+class GlossaryDialog(QDialog):
+    def __init__(self, db, cfg, parent=None):
+        super().__init__(parent); self.db, self.cfg = db, cfg; self.setWindowTitle(tr("glossary.glossary_names_terms")); self.resize(720, 520)
+        v = QVBoxLayout(self)
+        self.keep = QCheckBox(tr("glossary.dont_translate_names_terms_every")); self.keep.setChecked(cfg["keep_terms"]); v.addWidget(self.keep)
+        self.panel = GlossaryPanel(db); v.addWidget(self.panel, 1); self.t = self.panel.t
+        bb = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel); bb.accepted.connect(self._save); bb.rejected.connect(self.reject); v.addWidget(bb)
+
+    def _save(self):
+        self.panel.save(); self.cfg["keep_terms"] = self.keep.isChecked(); self.cfg.save(); self.accept()
 
 
 class VocabDialog(QDialog):
