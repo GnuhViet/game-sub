@@ -55,6 +55,10 @@ click-through (`click_through`, Ctrl+Alt+C, menu khay), tương thích mss 10 (`
 Phiên 3 (Windows 11, Python 3.12, 1 màn 1920x1080 @100%): diag OK. Sửa `WindowsOcr`: pywinrt không có overload 5 tham số
 của `create_copy_from_buffer` → dùng 4 tham số. Windows OCR: 81ms, khớp 100%, chạy được trong QThread. Đăng ký hotkey OK.
 
+Phiên 5 (v0.3.0): nhiều vùng chụp theo ưu tiên (`cfg["regions"]`, `config.region()/active_regions()`): worker giữ trạng thái riêng từng vùng,
+vùng `yield` không OCR khi vùng trên còn chữ, nền động OCR rỗng giãn 2→4→8s; app hiện vùng ưu tiên cao nhất, câu vùng dưới vào lịch sử và dịch khi xem.
+Chế độ sửa vùng `RegionEditor` (Ctrl+Alt+R): kéo/đổi cỡ/xóa/xếp ưu tiên, OCR thử, Gợi ý vùng (`ocr.boxes()` + `ocr.blocks()`), bám mép. Cài đặt → OCR có bảng vùng.
+
 Phiên 4: build exe 1 file (`build.bat`, `--diag`). Nút tải OCR engine (`engines.py`): RapidOCR = giải nén wheel PyPI (bản ghim) vào `engines/py`
 (exe cần `--collect-submodules numpy`), Tesseract = bộ cài UB-Mannheim `/S /D=engines/tesseract` (CHƯA test, cần UAC).
 Popup tra từ: Google dịch tự động (`google_lookup`, dt=bd) + chọn ngôn ngữ đích (`target_lang`). EasyOCR: bỏ qua (PyTorch >1GB, chậm trên CPU).
@@ -76,7 +80,7 @@ zip ra `dist\GameSub.zip`. Bỏ onefile vì giải nén ~160MB ra %TEMP% mỗi l
 1. User chạy `diag.bat` + `run.bat` trên Windows, gửi `data/diag.txt` → sửa lỗi theo báo cáo.
 2. User gửi 1–2 dòng mẫu của **file sub riêng** → chỉnh `importer.guess_cols` và placeholder (`name_tokens`, regex giới tính) cho đúng định dạng.
 3. Tinh chỉnh `stable_ms`, `diff_threshold`, `fuzzy_threshold` với thoại game thật.
-4. Ý tưởng chưa làm: nhiều vùng OCR, gợi ý tự thêm tên riêng vào glossary, lọc OCR rác khi không có hộp thoại (ảnh cảnh nền).
+4. Ý tưởng chưa làm: gợi ý tự thêm tên riêng vào glossary, lọc OCR rác khi không có hộp thoại (ảnh cảnh nền).
 
 ## 7. Lệnh hữu ích
 ```

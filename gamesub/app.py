@@ -475,7 +475,9 @@ class App:
         if not d.exec():
             if d.reset: self.restart(); return                  # khôi phục cài đặt gốc -> mở lại app (ngôn ngữ, hotkey, vị trí overlay…)
             self._register_hotkeys(); return
+        regs_old = (repr(c["regions"]), repr(c["speaker_region"]))
         d.apply(); self.noted.clear()
+        if (repr(c["regions"]), repr(c["speaker_region"])) != regs_old: self.reset_regions()
         if d.installed or (c["ocr_engine"], c["ocr_lang"]) != (old["ocr_engine"], old["ocr_lang"]): self.worker.reload_engine = True
         if c["dict_files"] != old["dict_files"]:
             self.dicts.load(c["dict_files"])
@@ -485,7 +487,8 @@ class App:
         if c["translate"] != old["translate"] and self.history: self.resolve(self.history[self.pos])
         if c["ui_lang"] != old["ui_lang"] and QMessageBox.question(
                 None, "Game Sub", "Đổi ngôn ngữ cần mở lại app. Mở lại ngay?\nChanging the language requires restarting the app. Restart now?"   # no-i18n: song ngữ
-                ) == QMessageBox.Yes: self.restart()
+                ) == QMessageBox.Yes: self.restart(); return
+        if d.edit_regions: self.select_region("region")
 
     # ---------------- cập nhật (updater.py)
     def check_update(self, manual=False, parent=None):

@@ -17,6 +17,7 @@ and lets you click any word to look it up and save it for review.
 
 ## Features
 - **Live dialogue translation**: select the dialogue box once; new lines are OCR'd and translated automatically. Typewriter text is read only after it stops changing.
+- **Several capture areas with priority**: e.g. the dialogue box plus mid-screen narration. The overlay shows the highest-priority area that has text; lower areas pause OCR while it is busy, so extra areas cost almost nothing.
 - **Your subtitle pack first**: import CSV / TSV / TXT / XLSX / JSON and pick the source and translation columns. Exact → fuzzy → per-sentence matching, with player-name placeholders and gendered macros.
 - **Machine translation fallback**: Google Translate (free) or Gemini (free API key), with previous lines as context, streaming output and automatic fallback on quota errors.
 - **Glossary**: keep names and terms as-is or force a translation; terms are protected with Google Translate too.
@@ -31,7 +32,7 @@ and lets you click any word to look it up and save it for review.
 1. Download `GameSub.zip` from [Releases](https://github.com/GnuhViet/game-sub/releases) and **extract everything** to a writable folder (e.g. `D:\GameSub`, not Program Files).
 2. Run `GameSub\GameSub.exe`. It lives in the system tray.
 3. Set the game to **Borderless / Windowed** and turn off dialogue auto-play.
-4. Press `Ctrl+Alt+R` (or the region button) and drag a box around the dialogue text.
+4. Press `Ctrl+Alt+R` (or the region button) to open area editing: drag a box around the dialogue text, or press **Suggest areas** and click a detected text block. Each area shows a test OCR right away; Enter saves.
 5. Optional: import a subtitle pack (📂) and add a Gemini key in Settings → Translation.
 
 The exe ships with **Windows OCR** (needs the English language pack, usually already installed). RapidOCR and Tesseract can be downloaded in Settings → OCR.
@@ -45,7 +46,7 @@ turn on "Check for updates on startup" in Settings → Appearance (off by defaul
 ## Hotkeys
 | Hotkey | Action |
 |---|---|
-| `Ctrl+Alt+R` | Select the dialogue area |
+| `Ctrl+Alt+R` | Edit dialogue areas (add / move / delete / priority) |
 | `Ctrl+Alt+Q` | Capture & translate any area once |
 | `Ctrl+Alt+T` | Show / hide the overlay (or click the tray icon) |
 | `Ctrl+Alt+P` | Pause |
@@ -83,7 +84,7 @@ look it up, save it to the vocabulary book, add it to the glossary or ask the AI
 | AI in context | Gemini, cached |
 
 ## Troubleshooting
-- **Wrong area, black image, OCR not working, hotkeys ignored:** run `GameSub.exe --diag` and attach `data\diag.txt` + `data\diag_region.png` to an issue.
+- **Wrong area, black image, OCR not working, hotkeys ignored:** run `GameSub.exe --diag` and attach `data\diag.txt` + `data\diag_region1.png` to an issue.
 - **Small text:** raise "Upscale image before OCR" to 1.5–2 in Settings → OCR. "Save current region image for checking" shows exactly what is being read.
 - **Hotkeys don't work in game:** if the game runs as administrator, Game Sub has to as well (tray menu → Restart as administrator).
 

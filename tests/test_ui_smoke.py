@@ -343,4 +343,16 @@ QTest.keyClick(ed, Qt.Key_Escape); assert not ed.sugg and ed.isVisible(); QTest.
 a._suggest_ocr = lambda img: [(10, 10, 100, 20, "auto suggested")]
 a.cfg["regions"] = []; a.on_action("region"); pump(0.5); assert a.sel.sugg and a.sel.sugg[0][1] == "auto suggested"       # chưa có vùng: tự gợi ý
 QTest.keyClick(a.sel, Qt.Key_Escape); QTest.keyClick(a.sel, Qt.Key_Escape)
+
+# 14) Cài đặt -> OCR -> bảng vùng: đổi tên, tắt, xếp lại, xóa vùng tên; Hủy không đổi gì
+a.cfg["regions"] = [C.region({"x": 1, "y": 2, "w": 30, "h": 40, "name": "A"}), C.region({"x": 5, "y": 6, "w": 70, "h": 80})]; a.cfg["speaker_region"] = {"x": 0, "y": 0, "w": 9, "h": 9}
+sd = SettingsDialog(a.cfg); t = sd.reg_tbl
+assert t.rowCount() == 2 and t.item(0, 0).text() == "A" and t.item(1, 3).text() == "5,6  70×80" and sd.spk_del.isEnabled()
+t.item(1, 0).setText("Lời dẫn"); t.item(1, 2).setCheckState(Qt.Unchecked); t.setCurrentCell(1, 0); sd._reg_move(-1)
+assert t.item(0, 0).text() == "Lời dẫn" and t.currentRow() == 0
+t.item(1, 1).setCheckState(Qt.Unchecked); sd.spk_del.click(); assert sd.spk_lbl.text() and not sd.spk_del.isEnabled()
+sd.apply(); r = a.cfg["regions"]
+assert [x["name"] for x in r] == ["Lời dẫn", "A"] and r[0]["yield"] is False and r[1]["on"] is False and a.cfg["speaker_region"] is None, r
+sd = SettingsDialog(a.cfg); sd.reg_tbl.setCurrentCell(0, 0); sd._reg_del(); assert sd.reg_tbl.rowCount() == 1; sd.reject(); assert len(a.cfg["regions"]) == 2
+sd = SettingsDialog(a.cfg); sd._reg_edit(); assert sd.edit_regions and sd.result() == 1
 a.quit(); print("UI SMOKE OK")

@@ -50,10 +50,7 @@ class SettingsDialog(QDialog):
         self.w["target_app"] = (self.app_combo, self._app_value)
         self._check(f, "clear_on_empty", "settings.ocr.clear_on_empty")
         self._check(f, "fix_spacing", "settings.ocr.fix_spacing")
-        f.addRow(QLabel("<i>" + tr("settings.ocr.pick_dialogue_speaker_name_areas") + "</i>"))
-        self.btn_snap = QPushButton(tr("settings.ocr.save_current_region_image_for")); self.btn_show = QPushButton(tr("settings.ocr.show_selected_areas"))
-        self.btn_show.setToolTip("<p>" + tr("settings.ocr.outline_dialogue_and_speaker_name") + "</p>")
-        hb2 = QHBoxLayout(); hb2.addWidget(self.btn_show); hb2.addWidget(self.btn_snap, 1); f.addRow(hb2)
+        self._regions_group(f)
         for k, t in OCR_TIPS.items(): self._tip(f, hb if k == "target_app" else self.w[k][0], t)
         self.btn_snap.setToolTip(f"<p>{tr(SNAP_TIP)}</p>")
         # quản lý OCR engine tải thêm: trạng thái + dung lượng, Tải / Xóa
@@ -186,6 +183,70 @@ class SettingsDialog(QDialog):
         self.btn_update = QPushButton(tr("updater.check_button"))                         # app.check_update nối vào
         self.reset = False; btn_reset = QPushButton(tr("settings.reset.button")); btn_reset.clicked.connect(self._reset)
         foot = QHBoxLayout(); foot.addWidget(ver); foot.addWidget(self.btn_update); foot.addWidget(btn_reset); foot.addStretch(1); foot.addWidget(bb); v.addLayout(foot)
+
+    def _regions_group(self, f):
+        """Danh sách vùng thoại (thứ tự = ưu tiên): đổi tên, bật/tắt, nhường, xếp lại, xóa. Vẽ / chỉnh khung: nút Sửa trên màn hình."""
+        g = self._group(f, "settings.ocr.group.regions")
+        self.regs = [dict(r) for r in self.cfg["regions"]]; self.spk_region = self.cfg["speaker_region"]; self.edit_regions = False
+        t = self.reg_tbl = QTableWidget(0, 4); t.setHorizontalHeaderLabels([tr("settings.ocr.regions.name"), tr("settings.ocr.regions.on"), tr("settings.ocr.regions.yield"), tr("settings.ocr.regions.where")])
+        t.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        for i in (1, 2, 3): t.horizontalHeader().setSectionResizeMode(i, QHeaderView.ResizeToContents)
+        t.setSelectionBehavior(QAbstractItemView.SelectRows); t.setSelectionMode(QAbstractItemView.SingleSelection); t.setMaximumHeight(170)
+        t.horizontalHeaderItem(2).setToolTip(f"<p>{tr('regions.yield_on')}</p>")
+        g.addRow(t)
+        up, dn, rm = QPushButton(mdi("mdi6.arrow-up"), ""), QPushButton(mdi("mdi6.arrow-down"), ""), QPushButton(mdi("mdi6.close"), tr("settings.ocr.regions.delete"))
+        up.setToolTip(tr("settings.ocr.regions.up")); dn.setToolTip(tr("settings.ocr.regions.down"))
+        up.clicked.connect(lambda: self._reg_move(-1)); dn.clicked.connect(lambda: self._reg_move(1)); rm.clicked.connect(self._reg_del)
+        self.btn_edit_regions = QPushButton(mdi("mdi6.selection-drag"), tr("settings.ocr.regions.edit_on_screen")); self.btn_edit_regions.clicked.connect(self._reg_edit)
+        hb = QHBoxLayout(); hb.addWidget(up); hb.addWidget(dn); hb.addWidget(rm); hb.addStretch(1); hb.addWidget(self.btn_edit_regions); g.addRow(hb)
+        self.spk_lbl = QLabel(); self.spk_del = QPushButton(tr("settings.ocr.regions.delete")); self.spk_del.clicked.connect(lambda: (self._reg_read(), setattr(self, "spk_region", None), self._reg_fill(self.reg_tbl.currentRow())))
+        hb = QHBoxLayout(); hb.addWidget(self.spk_lbl, 1); hb.addWidget(self.spk_del); g.addRow(tr("regions.speaker_area"), hb)
+        self.btn_snap = QPushButton(tr("settings.ocr.save_current_region_image_for")); self.btn_show = QPushButton(tr("settings.ocr.show_selected_areas"))
+        self.btn_show.setToolTip("<p>" + tr("settings.ocr.outline_dialogue_and_speaker_name") + "</p>")
+        hb2 = QHBoxLayout(); hb2.addWidget(self.btn_show); hb2.addWidget(self.btn_snap, 1); g.addRow(hb2)
+        hint = QLabel("<i>" + tr("settings.ocr.pick_dialogue_speaker_name_areas") + "</i>"); hint.setWordWrap(True); g.addRow(hint)
+        self._reg_fill()
+
+    @staticmethod
+    def _default_name(i): return tr("app.dialogue_area") if i == 0 else tr("regions.default_name", n=i + 1)
+
+    @staticmethod
+    def _where(r): return f"{r['x']},{r['y']}  {r['w']}×{r['h']}"
+
+    def _reg_fill(self, sel=None):
+        t = self.reg_tbl; t.setRowCount(0)
+        for i, r in enumerate(self.regs):
+            t.insertRow(i); name = QTableWidgetItem(r.get("name") or self._default_name(i))
+            name.setData(Qt.ToolTipRole, tr("settings.ocr.regions.name_tip")); t.setVerticalHeaderItem(i, QTableWidgetItem(str(i + 1)))
+            t.setItem(i, 0, name)
+            for col, k in ((1, "on"), (2, "yield")):
+                it = QTableWidgetItem(); it.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+                it.setCheckState(Qt.Checked if r.get(k, True) else Qt.Unchecked); t.setItem(i, col, it)
+            w = QTableWidgetItem(self._where(r)); w.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable); t.setItem(i, 3, w)
+        if sel is not None and 0 <= sel < len(self.regs): t.selectRow(sel)
+        self.spk_lbl.setText(self._where(self.spk_region) if self.spk_region else tr("settings.ocr.regions.none")); self.spk_del.setEnabled(bool(self.spk_region))
+
+    def _reg_read(self):
+        """Bảng -> self.regs (tên, bật, nhường)."""
+        t = self.reg_tbl
+        for i, r in enumerate(self.regs):
+            if i >= t.rowCount(): break
+            n = t.item(i, 0).text().strip(); r["name"] = "" if n == self._default_name(i) else n; r["on"] = t.item(i, 1).checkState() == Qt.Checked; r["yield"] = t.item(i, 2).checkState() == Qt.Checked
+        return self.regs
+
+    def _reg_move(self, d):
+        i = self.reg_tbl.currentRow(); j = i + d
+        if i < 0 or not 0 <= j < len(self.regs): return
+        self._reg_read(); self.regs[i], self.regs[j] = self.regs[j], self.regs[i]; self._reg_fill(j)
+
+    def _reg_del(self):
+        i = self.reg_tbl.currentRow()
+        if i < 0: return
+        self._reg_read(); del self.regs[i]; self._reg_fill(min(i, len(self.regs) - 1))
+
+    def _reg_edit(self):
+        """Lưu cài đặt rồi mở chế độ sửa vùng (hộp thoại đang modal sẽ chặn chuột vào màn hình sửa)."""
+        self.edit_regions = True; self.accept()
 
     def _reset(self):
         """Khôi phục cài đặt gốc -> đóng hộp thoại; app mở lại để áp dụng hết (app.open_settings xem self.reset)."""
@@ -328,6 +389,7 @@ class SettingsDialog(QDialog):
         c["name_tokens"] = [x.strip() for x in self.tokens.text().split(",") if x.strip()]
         c["dict_files"] = [self.dicts.item(i).text() for i in range(self.dicts.count())]
         c["hotkeys"] = {k: e.text().strip() for k, e in self.hk.items()}
+        c["regions"] = [dict(r) for r in self._reg_read()]; c["speaker_region"] = self.spk_region
         c.save()
 
 

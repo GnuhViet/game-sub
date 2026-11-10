@@ -17,6 +17,7 @@ Bấm vào từ bất kỳ để tra nghĩa và lưu vào sổ từ để ôn.
 
 ## Tính năng
 - **Dịch thoại tự động**: chọn vùng thoại 1 lần, câu mới được OCR và dịch ngay. Chữ chạy từng ký tự thì đợi chạy xong mới đọc.
+- **Nhiều vùng chụp, có ưu tiên**: vd hộp thoại + lời dẫn giữa màn hình. Overlay hiện vùng ưu tiên cao nhất đang có chữ; lúc đó vùng thấp hơn tạm dừng OCR nên thêm vùng gần như không tốn thêm.
 - **Ưu tiên bộ sub Việt hóa**: nhập CSV / TSV / TXT / XLSX / JSON, chọn cột gốc và cột dịch. Khớp chính xác → gần đúng → từng câu; hỗ trợ placeholder tên nhân vật và macro theo giới tính.
 - **Dịch máy dự phòng**: Google Translate (miễn phí) hoặc Gemini (key miễn phí), có ngữ cảnh các câu trước, hiện chữ dần khi đang dịch, hết quota tự chuyển.
 - **Glossary**: giữ nguyên tên riêng / thuật ngữ hoặc ép cách dịch; dịch bằng Google cũng được bảo vệ thuật ngữ.
@@ -31,7 +32,7 @@ Bấm vào từ bất kỳ để tra nghĩa và lưu vào sổ từ để ôn.
 1. Tải `GameSub.zip` ở [Releases](https://github.com/GnuhViet/game-sub/releases), **giải nén hết** vào thư mục ghi được (vd. `D:\GameSub`, đừng để trong Program Files).
 2. Chạy `GameSub\GameSub.exe` (đừng chạy thẳng trong zip). App nằm ở khay hệ thống.
 3. Để game ở chế độ **Borderless / Windowed**, ngôn ngữ chữ **English**, tắt tự chạy thoại (Auto-play).
-4. Bấm `Ctrl+Alt+R` (hoặc nút chọn vùng) rồi kéo khung quanh chữ thoại.
+4. Bấm `Ctrl+Alt+R` (hoặc nút chọn vùng) để vào chế độ sửa vùng: kéo khung quanh chữ thoại, hoặc bấm **Gợi ý vùng** rồi bấm vào khối chữ tìm được. Mỗi vùng hiện ngay kết quả OCR thử; Enter để lưu.
 5. Tùy chọn: nhập bộ sub (📂), thêm key Gemini ở Cài đặt → Dịch.
 
 Bản exe có sẵn **Windows OCR** (cần gói ngôn ngữ English trong Windows, thường có sẵn). RapidOCR và Tesseract tải trong Cài đặt → OCR.
@@ -45,7 +46,7 @@ Bấm **Cập nhật**: app tải bản mới, kiểm tra SHA256, tự tắt, th
 ## Hotkey
 | Hotkey | Chức năng |
 |---|---|
-| `Ctrl+Alt+R` | Chọn vùng thoại |
+| `Ctrl+Alt+R` | Sửa vùng thoại (thêm / di chuyển / xóa / ưu tiên) |
 | `Ctrl+Alt+Q` | Chụp & dịch 1 vùng bất kỳ |
 | `Ctrl+Alt+T` | Ẩn / hiện overlay (hoặc bấm icon khay) |
 | `Ctrl+Alt+P` | Tạm dừng |
@@ -83,7 +84,7 @@ tra cụm, lưu sổ từ, thêm glossary hoặc nhờ AI giải nghĩa theo ng�
 | AI theo ngữ cảnh | Gemini, có cache |
 
 ## Gặp lỗi
-- **Vùng lệch, ảnh đen, OCR không chạy, hotkey không ăn:** chạy `GameSub.exe --diag`, gửi `data\diag.txt` + `data\diag_region.png` kèm issue.
+- **Vùng lệch, ảnh đen, OCR không chạy, hotkey không ăn:** chạy `GameSub.exe --diag`, gửi `data\diag.txt` + `data\diag_region1.png` kèm issue.
 - **Chữ nhỏ:** tăng "Phóng to ảnh trước OCR" lên 1.5–2 ở Cài đặt → OCR. Nút "Lưu ảnh vùng hiện tại để kiểm tra" cho xem đúng vùng đang đọc.
 - **Hotkey không ăn trong game:** game chạy quyền admin thì Game Sub cũng phải vậy (menu khay → Chạy lại với quyền admin).
 
