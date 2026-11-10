@@ -24,7 +24,7 @@ Tool overlay dịch thoại game sang tiếng Việt, chạy trên **Windows**, 
 | Hover tra từ | `ui_overlay.py`: câu gốc render thành link mỗi từ (`linkHovered`) → `WordPopup` (ghim bằng click). Bôi đen cụm → menu chuột phải. `dictionary.py`: StarDict/TSV/JSON offline, dictionaryapi.dev online, AI giải nghĩa theo câu (cache SQLite). |
 | Mapping bộ sub | `importer.py` (CSV/TSV/TXT/XLSX/JSON, đoán cột EN/VI), `matcher.py` (exact → rapidfuzz lọc theo độ dài → tách câu). Xử lý `{PlayerName}`, `{Male=..;Female=..}`, `<color>`. |
 
-Ngoài ra: `capture.py` chờ ảnh đứng yên `stable_ms` (hiệu ứng chữ chạy) rồi mới OCR, bỏ câu trùng (dedupe); lịch sử ◀ ▶; tray icon; hotkey Win32 `RegisterHotKey` (Ctrl+Alt+T/R/P/S); cooldown khi gặp 429.
+Ngoài ra: `capture.py` chờ ảnh đứng yên `stable_ms` (hiệu ứng chữ chạy) rồi mới OCR, bỏ câu trùng (dedupe); nút Lịch sử (menu ~30 câu gần nhất, `App.show_history` / `goto`); tray icon; hotkey Win32 `RegisterHotKey` (Ctrl+Alt+T/R/P/S); cooldown khi gặp 429.
 
 ## 4. Cấu trúc
 ```

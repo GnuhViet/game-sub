@@ -57,7 +57,7 @@ Bấm **Cập nhật**: app tải bản mới, kiểm tra SHA256, tự tắt, th
 | `Ctrl+Alt+X` | Xóa chữ trên overlay |
 
 Đổi hotkey: Cài đặt → Hotkey, bấm vào ô rồi nhấn tổ hợp phím mới. Rê chuột vào overlay để hiện toolbar: kéo phần nền để di chuyển,
-kéo góc phải dưới để đổi cỡ, ◀ ▶ để xem lại các câu trước. Overlay hẹp không đủ chỗ thì các nút còn lại nằm trong menu ☰.
+kéo góc phải dưới để đổi cỡ, nút Lịch sử để xem lại các câu trước. Overlay hẹp không đủ chỗ thì các nút còn lại nằm trong menu ☰.
 Chỉ chạy được 1 Game Sub cùng lúc. Có thể chọn thêm **vùng tên nhân vật**.
 
 ## Cách dịch

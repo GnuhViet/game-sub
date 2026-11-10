@@ -53,7 +53,7 @@ DEFAULTS = {
     "unlock_key": "Alt",                              # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
     "check_updates": False,                           # khởi động: hỏi GitHub có bản mới không (báo ở khay); mặc định tắt
     "run_as_admin": False,                            # game chạy quyền admin -> GameSub cũng phải admin thì hotkey/giữ phím mới tới
-    "toolbar": ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "show_region", "subs", "glossary", "vocab", "lock"],
+    "toolbar": ["history", "pause", "translate", "rescan", "clear", "scan", "region", "show_region", "subs", "glossary", "vocab", "lock"],
     "toolbar_known": [],                              # nút toolbar đã có lúc lưu cài đặt: nút mới ra sau đó tự hiện (bỏ tick rồi thì thôi)
     "text_outline": 0,                                # độ dày viền chữ px (0 = tắt)
     "animations": True,                               # rê chuột vào overlay: nền giãn ra / toolbar hiện dần; False = hiện / ẩn ngay
@@ -100,7 +100,7 @@ class Config(dict):
                 if "unlock_key" not in data and data.get("alt_unlock") is False: self["unlock_key"] = ""
                 if "toolbar" in data:
                     known = data.get("toolbar_known") or OLD_TOOLBAR
-                    order = DEFAULTS["toolbar"]; tb = self["toolbar"] = [k for k in self["toolbar"] if k in order]   # bỏ nút đã gỡ (vd speaker)
+                    order = DEFAULTS["toolbar"]; tb = self["toolbar"] = [k for k in self["toolbar"] if k in order]   # bỏ nút đã gỡ (speaker, prev/next -> history)
                     for k in order:                               # nút mới chèn ngay sau nút đứng trước nó (theo mặc định) đang hiện
                         if k in known or k in tb: continue
                         tb.insert(max((tb.index(x) + 1 for x in order[:order.index(k)] if x in tb), default=0), k)

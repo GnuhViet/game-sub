@@ -36,7 +36,7 @@ class OutlineEffect(QGraphicsEffect):
         p.drawPixmap(off, pm)
 
 # (nút, icon Material Design Icons — gamesub/icons.py); chọn hiện/ẩn trong Cài đặt
-TOOLBAR = [("prev", "mdi6.skip-previous"), ("next", "mdi6.skip-next"), ("pause", "mdi6.pause"), ("translate", "mdi6.translate"),
+TOOLBAR = [("history", "mdi6.history"), ("pause", "mdi6.pause"), ("translate", "mdi6.translate"),
            ("rescan", "mdi6.refresh"), ("clear", "mdi6.eraser"), ("scan", "mdi6.camera"), ("region", "mdi6.selection-drag"),
            ("show_region", "mdi6.selection-search"), ("subs", "mdi6.folder-open"), ("glossary", "mdi6.tag"), ("vocab", "mdi6.book-open-variant"), ("lock", "mdi6.lock")]
 ICON_ON = {"pause": "mdi6.play", "translate": "mdi6.translate-off", "lock": "mdi6.lock-open-variant"}   # icon khi đang dừng / tắt dịch / đang khóa
@@ -48,7 +48,7 @@ def caption_font():
     return next((f for f in ("Segoe Fluent Icons", "Segoe MDL2 Assets") if f in fams), None)
 
 # tooltip toolbar; hotkey (nếu có) được ghép vào lúc apply_style
-TIPS = {"prev": N_("toolbar.prev"), "next": N_("toolbar.next"), "pause": N_("toolbar.pause"), "translate": N_("toolbar.translate"),
+TIPS = {"history": N_("toolbar.history"), "pause": N_("toolbar.pause"), "translate": N_("toolbar.translate"),
         "rescan": N_("toolbar.rescan"), "clear": N_("toolbar.clear"), "scan": N_("toolbar.scan"),
         "region": N_("toolbar.region"), "show_region": N_("toolbar.show_region"), "subs": N_("toolbar.subs"), "glossary": N_("toolbar.glossary"),
         "vocab": N_("toolbar.vocab"), "lock": N_("toolbar.lock"), "settings": N_("toolbar.settings"), "hide": N_("toolbar.hide"), "quit": N_("toolbar.quit")}
@@ -94,7 +94,7 @@ class Overlay(QWidget):
     word_hover = Signal(str, QPoint)           # word ("" = rời), vị trí con trỏ
     word_click = Signal(str, QPoint)
     phrase_action = Signal(str, str)           # action, phrase
-    action = Signal(str)                       # prev/next/pause/region/vocab/glossary/subs/settings/quit/rescan
+    action = Signal(str)                       # history/pause/region/vocab/glossary/subs/settings/quit/rescan
 
     def __init__(self, cfg):
         super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._alert = False; self._auto = False; self._alt = False
@@ -335,6 +335,22 @@ class Overlay(QWidget):
         self.hide_bar.stop(); self._hover_bar(True)
     def leaveEvent(self, e):
         if not self._menu_open: self.hide_bar.start()            # đang mở menu ☰ thì giữ toolbar
+
+    def pick_from(self, rows, anchor="history"):
+        """Menu xổ xuống dưới nút anchor (bị gom vào ☰ thì dưới ☰). rows: [(key, chữ, tooltip, đang chọn)];
+        key None = gạch ngăn, "" = dòng mờ không bấm được. Trả key được chọn hoặc None."""
+        m = QMenu(self); m.setToolTipsVisible(True); fm = m.fontMetrics(); got = {}
+        for key, text, tip, cur in rows:
+            if key is None: m.addSeparator(); continue
+            a = m.addAction(fm.elidedText(text.replace("\n", " "), Qt.ElideRight, 480).replace("&", "&&")); a.setToolTip(tip); a.setEnabled(key != "")
+            if cur: a.setCheckable(True); a.setChecked(True)
+            a.triggered.connect(lambda _=0, k=key: got.setdefault("k", k))
+        b = self.btns[anchor]; at = self.more if b in self.flow.hidden or not b.isVisible() else b
+        self._menu_open = True; self.hide_bar.stop()
+        m.exec(at.mapToGlobal(QPoint(0, at.height())))
+        self._menu_open = False
+        if not self.underMouse(): self.hide_bar.start()
+        return got.get("k")
 
     def _more_menu(self):
         """Nút ☰: các nút toolbar bị ẩn vì overlay hẹp (OverflowLayout.hidden)."""

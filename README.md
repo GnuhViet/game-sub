@@ -57,7 +57,7 @@ turn on "Check for updates on startup" in Settings → Appearance (off by defaul
 | `Ctrl+Alt+X` | Clear the overlay |
 
 To change a hotkey, click its field in Settings → Hotkeys and press the new combination. The toolbar appears when you hover the overlay:
-drag the background to move it, drag the bottom-right corner to resize it, and use ◀ ▶ to go back through previous lines.
+drag the background to move it, drag the bottom-right corner to resize it, and use the History button to look back at earlier lines.
 Buttons that don't fit on a narrow overlay move into the ☰ menu. Only one copy of Game Sub runs at a time. You can also select a **speaker name area**.
 
 ## How translation works

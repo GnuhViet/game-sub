@@ -70,7 +70,15 @@ a.tr.translate = bad; a.on_text("", "Another line that fails."); pump()
 assert "Lỗi dịch" in a.ov._tag and a.ov._alert and "Lỗi dịch" in a.ov.tag.text()      # lỗi: hiện cả khi không rê chuột
 
 # 3) history nav
-a.on_action("prev"); assert "[2/3]" in a.ov._tag; a.on_action("next"); assert "[" not in a.ov._tag
+a.goto(a.pos - 1); assert "[2/3]" in a.ov._tag; a.goto(len(a.history) - 1); assert "[" not in a.ov._tag
+rows = []; a.ov.pick_from = lambda r: rows.extend(r); a.on_action("history")       # menu lịch sử: mới nhất trên cùng, đang xem có dấu
+assert [r[0] for r in rows] == [2, 1, 0] and rows[0][3] and rows[2][1] == "Rover, cuối cùng anh cũng tỉnh rồi." and "woke up" in rows[2][2], rows
+a.goto(0); rows.clear(); a.on_action("history"); assert rows[0][:2] == (2, "Về câu mới nhất") and rows[1][0] is None and rows[4][3]
+a.ov.pick_from = lambda r: 2; a.on_action("history"); assert a.pos == 2 and "[" not in a.ov._tag
+del a.ov.pick_from
+from PySide6.QtCore import QTimer as _QT
+_QT.singleShot(150, lambda: QApplication.activePopupWidget() and QApplication.activePopupWidget().close())
+assert a.ov.pick_from([(0, "x" * 500, "tip", True), (None, "", "", False), ("", "mờ", "", False)]) is None     # menu thật mở/đóng không lỗi
 
 # 3b) mặc định: rê chuột không hiện popup, bấm vào từ mới hiện
 assert a.cfg["popup_trigger"] == "click"; a.pop.hide(); a.on_hover("finally", QPoint(500, 500)); pump(0.5); assert not a.pop.isVisible()
@@ -78,7 +86,7 @@ a.on_click("finally", QPoint(500, 500)); pump(); assert a.pop.isVisible() and a.
 a.cfg["popup_trigger"] = "hover"
 
 # 4) hover lookup offline
-a.on_action("prev"); a.on_action("prev")
+a.goto(a.pos - 2)
 a.on_hover("finally", QPoint(500, 500)); pump(0.5)
 assert a.pop.isVisible() and "cuối cùng" in a.pop.body.text(), a.pop.body.text()
 a.cfg["dict_mode"] = "offline"; a.on_hover("", QPoint()); pump(0.7)
@@ -141,15 +149,15 @@ assert sd.w["gemini_model"][1]() == "gemini-3.1-flash-lite" and "không còn" in
 sd.apply(); assert a.cfg["gemini_model"] == "gemini-3.1-flash-lite"; a.cfg["gemini_model"] = "gemini-2.5-flash-lite"
 # toolbar: bỏ ghim nút -> ẩn; ⚙ — ✕ luôn hiện và nằm bên phải
 sd = SettingsDialog(a.cfg); sd.w["toolbar"][0].item(0).setCheckState(Qt.Unchecked); sd.apply()
-assert "prev" not in a.cfg["toolbar"]; a.ov.apply_style(); a.ov._set_bar(True); a.ov.show(); pump(0.05)
-assert a.ov.btns["prev"].isHidden() and not a.ov.btns["next"].isHidden() and not a.ov.btns["settings"].isHidden()
+assert "history" not in a.cfg["toolbar"]; a.ov.apply_style(); a.ov._set_bar(True); a.ov.show(); pump(0.05)
+assert a.ov.btns["history"].isHidden() and not a.ov.btns["pause"].isHidden() and not a.ov.btns["settings"].isHidden()
 assert a.ov.btns["quit"].mapTo(a.ov, QPoint(0, 0)).x() > a.ov.width() - 80                       # ✕ ở mép phải
-a.cfg["toolbar"].insert(0, "prev"); a.ov.apply_style(); a.ov._set_bar(False)
+a.cfg["toolbar"].insert(0, "history"); a.ov.apply_style(); a.ov._set_bar(False)
 # sắp xếp toolbar: nút ↑ trong Cài đặt đổi thứ tự -> overlay xếp theo
 sd = SettingsDialog(a.cfg); lst = sd.w["toolbar"][0]; k1 = lst.item(1).data(Qt.UserRole); lst.setCurrentRow(1)
 next(b for b in sd.findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QPushButton) if b.toolTip().startswith("Lên")).click(); sd.apply()
-assert a.cfg["toolbar"][0] == k1 and a.cfg["toolbar"][1] == "prev", a.cfg["toolbar"]
-a.ov.apply_style(); a.ov._set_bar(True); pump(0.05); assert a.ov.btns[k1].x() < a.ov.btns["prev"].x()
+assert a.cfg["toolbar"][0] == k1 and a.cfg["toolbar"][1] == "history", a.cfg["toolbar"]
+a.ov.apply_style(); a.ov._set_bar(True); pump(0.05); assert a.ov.btns[k1].x() < a.ov.btns["history"].x()
 a.cfg["toolbar"].remove(k1); a.cfg["toolbar"].insert(1, k1); a.ov.apply_style(); a.ov._set_bar(False)
 from gamesub import __version__
 assert any(l.text() == f"Game Sub v{__version__}" for l in SettingsDialog(a.cfg).findChildren(__import__("PySide6.QtWidgets", fromlist=["x"]).QLabel))
@@ -258,7 +266,7 @@ a.on_text("", "Yet another fresh line."); pump(); assert a.ov.vi.text()
 a.on_text("", " |- . "); assert a.ov.vi.text() == "" and a.ov.src == "" and a.cleared
 a.render(a.history[a.pos]); assert a.ov.vi.text() == ""
 a.on_text("", "Yet another fresh line."); pump(); assert a.ov.src == "Yet another fresh line." and not a.cleared
-a.on_action("prev"); assert a.ov.src and not a.cleared; a.on_action("next")
+a.goto(a.pos - 1); assert a.ov.src and not a.cleared; a.goto(len(a.history) - 1)
 
 # 8c) bôi đen câu gốc -> popup dịch đoạn bôi đen
 a.ov.show_line("", "Rover's \"friend\" isn't here.", "", ""); a.ov.src_lbl.setSelection(0, 28); a.ov._selected(); pump()

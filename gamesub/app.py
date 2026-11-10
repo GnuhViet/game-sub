@@ -299,8 +299,7 @@ class App:
     # ---------------- actions
     def on_action(self, k):
         c = self.cfg
-        if k == "prev" and self.pos > 0: self.pos -= 1; self.cleared = False; self.render()
-        elif k == "next" and self.pos < len(self.history) - 1: self.pos += 1; self.cleared = False; self.render()
+        if k == "history": self.show_history()
         elif k == "pause": self.worker.paused = not self.worker.paused; self.ov.set_paused(self.worker.paused)
         elif k == "rescan": self.rlast.clear(); self.worker.force = True
         elif k == "translate":
@@ -327,6 +326,24 @@ class App:
         elif k == "relaunch_admin":
             if winapp.relaunch_as_admin(): self.quit()
         elif k == "quit": self.quit()
+
+    HISTORY_N = 30
+
+    def show_history(self):
+        """Nút Lịch sử: menu các câu gần nhất (mới nhất trên cùng), bấm = xem lại câu đó; trên cùng là Về câu mới nhất."""
+        h = self.history; last = len(h) - 1
+        if not h: self.ov.pick_from([("", tr("app.history_empty"), "", False)]); return
+        multi = len(active_regions(self.cfg)) > 1
+        rows = [(last, tr("app.history_latest"), "", False), (None, "", "", False)] if self.pos != last else []
+        for i in range(last, max(-1, last - self.HISTORY_N), -1):
+            l = h[i]; text = (self.region_name(l.get("reg", 0)) + " · " if multi else "") + (l["vi"] or l["src"])
+            rows.append((i, text, l["src"] + ("\n" + l["vi"] if l["vi"] else ""), i == self.pos))
+        k = self.ov.pick_from(rows)
+        if k is not None: self.goto(k)
+
+    def goto(self, i):
+        """Xem câu thứ i trong lịch sử (câu vùng phụ chưa dịch thì dịch lúc này)."""
+        if 0 <= i < len(self.history): self.pos = i; self.cleared = False; self.render()
 
     def on_show_requested(self):
         """Người dùng mở GameSub lần nữa trong lúc đang chạy -> hiện overlay + báo ở khay."""
