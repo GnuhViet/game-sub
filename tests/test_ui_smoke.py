@@ -275,16 +275,30 @@ a.on_action("clickthrough"); assert a.cfg["click_through"] and a.ov.passthrough_
 a.on_action("clickthrough"); assert not a.ov.passthrough_wanted() and not a.ct_action.isChecked()
 
 # 10) xem vùng đang chọn: bật / bấm lại tắt / tự tắt
-a.cfg["region"] = a.cfg["speaker_region"] = None; a.on_action("show_region"); assert not a.flash
-a.cfg["region"] = {"x": 10, "y": 40, "w": 300, "h": 60}; a.cfg["speaker_region"] = {"x": 10, "y": 10, "w": 100, "h": 15}
+a.cfg["regions"] = []; a.cfg["speaker_region"] = None; a.on_action("show_region"); assert not a.flash
+a.cfg["regions"] = [{"x": 10, "y": 40, "w": 300, "h": 60}]; a.cfg["speaker_region"] = {"x": 10, "y": 10, "w": 100, "h": 15}
 a.on_action("show_region"); assert len(a.flash) == 2 and all(w.isVisible() for w in a.flash)
 a.on_action("show_region"); assert not a.flash
 a.on_action("show_region"); a.flash_t.start(50); pump(0.2); assert not a.flash
 # khôi phục cài đặt gốc: giữ vùng thoại (tick mặc định), các thứ khác về mặc định, hộp thoại đóng với cờ reset
 from PySide6.QtWidgets import QMessageBox as _MB
-a.cfg["font_size"] = 33; reg = dict(a.cfg["region"]); sd = SettingsDialog(a.cfg)
+a.cfg["font_size"] = 33; reg = list(a.cfg["regions"]); sd = SettingsDialog(a.cfg)
 _exec = _MB.exec; _MB.exec = lambda self: _MB.Yes
 try: sd._reset()
 finally: _MB.exec = _exec
-assert sd.reset and a.cfg["font_size"] == 17 and a.cfg["region"] == reg
+assert sd.reset and a.cfg["font_size"] == 17 and a.cfg["regions"] == reg
+
+# 11) nhiều vùng: vùng trên đang hiện -> câu vùng dưới chỉ vào lịch sử (chưa dịch); vùng trên hết chữ -> hiện + dịch câu vùng dưới
+a.cfg["translate"] = True; a.cfg["regions"] = [{"x": 0, "y": 0, "w": 10, "h": 10, "name": "Thoại"}, {"x": 0, "y": 20, "w": 10, "h": 10, "name": "Dẫn"}]; a.reset_regions()
+tcalls = []; a.tr.translate = lambda src, spk, ctx, partial, engine=None: (tcalls.append(src), ("VI " + src, "google"))[1]
+a.on_text("", "Upper region speaks first.", 0); pump()
+assert a.ov.src == "Upper region speaks first." and a.ov._tag.startswith("Thoại · "), a.ov._tag
+a.on_text("", "Lower narration appears now.", 1); pump()
+assert a.ov.src == "Upper region speaks first." and a.history[-2]["src"] == "Lower narration appears now." and a.history[-2].get("pending")
+assert tcalls == ["Upper region speaks first."] and a.pos == len(a.history) - 1
+a.on_text("", "", 0); pump()
+assert a.ov.src == "Lower narration appears now." and a.ov.vi.text() == "VI Lower narration appears now." and a.history[-1]["reg"] == 1 and not a.cleared
+a.on_text("", "Upper region again.", 0); pump(); assert a.ov.src == "Upper region again."
+a.on_text("", "", 1); assert a.ov.src == "Upper region again." and not a.cleared       # vùng dưới hết chữ: không đụng vùng trên
+a.on_text("", "", 0); assert a.cleared
 a.quit(); print("UI SMOKE OK")

@@ -121,6 +121,7 @@
   "popup.translate": "Translate as…",
   "popup.vocab": "＋ Vocabulary",
   "region.drag_select_area_esc_cancel": "Drag to select an area — Esc to cancel",
+  "regions.default_name": "Area {n}",
   "review.next": "Next →",
   "review.review": "Review",
   "review.show_meaning_space": "Show meaning (Space)",

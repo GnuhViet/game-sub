@@ -21,7 +21,8 @@ EXPLAIN_PROMPT = """Giải nghĩa ngắn gọn bằng tiếng Việt cho "{word}
 • Ví dụ ngắn kèm dịch"""
 
 DEFAULTS = {
-    "region": None, "speaker_region": None,          # {"x","y","w","h"} physical px
+    "regions": [],                                    # vùng thoại theo thứ tự ưu tiên: {"x","y","w","h"} physical px + name/on/yield (xem region())
+    "speaker_region": None,                           # vùng tên nhân vật, đi kèm vùng 1
     "ocr_engine": "windows", "ocr_lang": "en-US", "ocr_scale": 1.0,
     "interval_ms": 250, "stable_ms": 350, "diff_threshold": 3.0, "dedupe_ratio": 92,
     "src_lang": "tiếng Anh", "fix_spacing": True, "clear_on_empty": True,
@@ -68,7 +69,20 @@ OLD_HOTKEYS = {"toggle": "Alt+T", "region": "Alt+R", "pause": "Alt+P", "rescan":
 
 OLD_TOOLBAR = ["prev", "next", "pause", "translate", "rescan", "clear", "scan", "region", "speaker", "subs", "glossary", "vocab", "lock"]
 
-KEEP_ON_RESET = ("region", "speaker_region", "gemini_key")   # khôi phục mặc định nhưng giữ vùng đã chọn + API key (tùy chọn)
+KEEP_ON_RESET = ("regions", "speaker_region", "gemini_key")   # khôi phục mặc định nhưng giữ vùng đã chọn + API key (tùy chọn)
+
+MAX_REGIONS = 6
+
+def region(r, **kw):
+    """Chuẩn hóa 1 vùng thoại. name: tên hiển thị ("" = tên mặc định); on: đang dùng;
+    yield: vùng ưu tiên cao hơn đang có chữ thì vùng này không OCR (chỉ theo dõi thay đổi, rẻ)."""
+    d = {"name": "", "on": True, "yield": True}; d.update({k: v for k, v in (r or {}).items() if k in ("x", "y", "w", "h", "name", "on", "yield")}); d.update(kw)
+    for k in ("x", "y", "w", "h"): d[k] = int(d.get(k) or 0)
+    return d
+
+def active_regions(cfg):
+    """[(chỉ số trong cfg["regions"], vùng)] các vùng đang bật, theo thứ tự ưu tiên."""
+    return [(i, r) for i, r in enumerate(cfg["regions"] or []) if r.get("on", True) and r.get("w", 0) > 0 and r.get("h", 0) > 0]
 
 class Config(dict):
     def __init__(self, path=None):
@@ -80,6 +94,8 @@ class Config(dict):
                     if k == "hotkeys" and isinstance(v, dict):    # hotkey còn để mặc định cũ (Alt+phím) -> lên mặc định mới
                         self[k].update({a: s for a, s in v.items() if s != OLD_HOTKEYS.get(a)})
                     elif k in DEFAULTS: self[k] = v
+                if "regions" not in data and data.get("region"): self["regions"] = [data["region"]]     # bản cũ: 1 vùng
+                self["regions"] = [region(r) for r in (self["regions"] or []) if isinstance(r, dict)][:MAX_REGIONS]
                 if "display" not in data and data.get("show_source") is False: self["display"] = "vi"     # cài đặt cũ
                 if "unlock_key" not in data and data.get("alt_unlock") is False: self["unlock_key"] = ""
                 if "toolbar" in data:

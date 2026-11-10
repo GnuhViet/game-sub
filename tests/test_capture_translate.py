@@ -22,8 +22,8 @@ def test_capture_waits_for_stable_text():
     class FakeMss:
         def close(self): pass
     cap.open_sct = lambda: FakeMss()
-    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(region={"x": 0, "y": 0, "w": 200, "h": 40}, interval_ms=20, stable_ms=150)
-    w = cap.CaptureWorker(cfg); got = []; w.text_ready.connect(lambda s, t: got.append(t)); w.start()
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(regions=[{"x": 0, "y": 0, "w": 200, "h": 40}], interval_ms=20, stable_ms=150)
+    w = cap.CaptureWorker(cfg); got = []; w.text_ready.connect(lambda i, s, t: got.append(t)); w.start()
     end = time.time() + 1.2
     while time.time() < end: q.processEvents(); time.sleep(0.01)
     w.stop(); q.processEvents()
@@ -44,7 +44,7 @@ def test_capture_waits_for_target_app():
     class FakeMss:
         def close(self): pass
     cap.open_sct = lambda: FakeMss()
-    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(region={"x": 0, "y": 0, "w": 200, "h": 40}, interval_ms=20, stable_ms=50, target_app="game.exe")
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(regions=[{"x": 0, "y": 0, "w": 200, "h": 40}], interval_ms=20, stable_ms=50, target_app="game.exe")
     w = cap.CaptureWorker(cfg); st = []; w.status.connect(st.append); w.start()
     def run(sec):
         end = time.time() + sec
@@ -69,7 +69,7 @@ def test_capture_skips_same_frame():
     class FakeMss:
         def close(self): pass
     cap.open_sct = lambda: FakeMss()
-    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(region={"x": 0, "y": 0, "w": 200, "h": 40}, interval_ms=20, stable_ms=100)
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(regions=[{"x": 0, "y": 0, "w": 200, "h": 40}], interval_ms=20, stable_ms=100)
     w = cap.CaptureWorker(cfg); w.start()
     end = time.time() + 1.6
     while time.time() < end: q.processEvents(); time.sleep(0.01)
@@ -95,8 +95,8 @@ def test_capture_rereads_slow_typing_tail():
         def close(self): pass
     cap.open_sct = lambda: FakeMss()
     assert float(np.abs(cap.signature(frame(60)) - cap.signature(frame(80))).mean()) < 3.0     # đúng ca cũ bỏ sót
-    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(region={"x": 0, "y": 0, "w": 940, "h": 100}, interval_ms=20, stable_ms=100)
-    w = cap.CaptureWorker(cfg); got = []; w.text_ready.connect(lambda s, t: got.append(t)); w.start()
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(regions=[{"x": 0, "y": 0, "w": 940, "h": 100}], interval_ms=20, stable_ms=100)
+    w = cap.CaptureWorker(cfg); got = []; w.text_ready.connect(lambda i, s, t: got.append(t)); w.start()
     end = time.time() + 1.0
     while time.time() < end: q.processEvents(); time.sleep(0.01)
     w.stop(); q.processEvents()
@@ -122,12 +122,58 @@ def test_capture_detects_short_line_swap():
         def close(self): pass
     cap.open_sct = lambda: FakeMss()
     assert float(np.abs(cap.signature(A) - cap.signature(B)).mean()) < 3.0      # đúng ca cũ bỏ sót
-    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(region={"x": 0, "y": 0, "w": 940, "h": 100}, interval_ms=20, stable_ms=100)
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(regions=[{"x": 0, "y": 0, "w": 940, "h": 100}], interval_ms=20, stable_ms=100)
     w = cap.CaptureWorker(cfg); w.start()
     end = time.time() + 1.2
     while time.time() < end: q.processEvents(); time.sleep(0.01)
     w.stop()
     assert Eng.calls == 2, Eng.calls             # A rồi B
+
+def _multi_region(yield1):
+    """Vùng 1 có chữ, vùng 2 cũng có chữ; sau ~30 lượt vùng 1 hết chữ. Trả về [(vùng, text)] theo thứ tự phát."""
+    q = QCoreApplication.instance() or QCoreApplication(sys.argv)
+    tick = {"i": 0}
+    def img(v): a = np.zeros((40, 200, 3), np.uint8); a[10:30, 20:180] = v; return a
+    def fake_grab(sct, r):
+        if r["x"] == 0: tick["i"] += 1; return img(200) if tick["i"] < 30 else img(0)
+        return img(100)
+    class Eng:
+        name = "fake"; calls = 0
+        def recognize(self, im): Eng.calls += 1; v = int(im.max()); return [f"text {v}"] if v else []
+    cap.grab = fake_grab; cap.ocr.create = lambda n, l: Eng()
+    class FakeMss:
+        def close(self): pass
+    cap.open_sct = lambda: FakeMss(); cap.winapp.is_target = lambda t: True
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json")
+    cfg.update(regions=[{"x": 0, "y": 0, "w": 200, "h": 40}, {"x": 500, "y": 0, "w": 200, "h": 40, "yield": yield1}], interval_ms=20, stable_ms=100)
+    w = cap.CaptureWorker(cfg); got = []; w.text_ready.connect(lambda i, s, t: got.append((i, t))); w.start()
+    end = time.time() + 1.5
+    while time.time() < end: q.processEvents(); time.sleep(0.01)
+    w.stop(); q.processEvents()
+    return got, Eng.calls
+
+def test_capture_multi_region_priority():
+    """Vùng 2 "nhường": vùng 1 còn chữ thì không OCR vùng 2; vùng 1 hết chữ -> OCR vùng 2 ngay. Không nhường: OCR cả 2."""
+    got, calls = _multi_region(True)
+    assert got == [(0, "text 200"), (0, ""), (1, "text 100")] and calls == 3, (got, calls)
+    got, calls = _multi_region(False)
+    assert got == [(0, "text 200"), (1, "text 100"), (0, "")] and calls == 3, (got, calls)
+
+def test_capture_backoff_on_empty_noise():
+    """Nền động (không bao giờ đứng yên), OCR ra rỗng: OCR thưa dần 2s -> 4s -> 8s thay vì mỗi 2s."""
+    import types
+    clock = [0.0]; rng = np.random.default_rng(1)
+    cap.grab = lambda sct, r: rng.integers(0, 255, (40, 200, 3), dtype=np.uint8)
+    class Eng:
+        calls = 0
+        def recognize(self, im): Eng.calls += 1; return []
+    real = cap.time; cap.time = types.SimpleNamespace(time=lambda: clock[0], sleep=real.sleep)
+    try:
+        cfg = Config(Path(tempfile.mkdtemp()) / "s.json"); cfg.update(regions=[{"x": 0, "y": 0, "w": 200, "h": 40}], stable_ms=350)
+        w = cap.CaptureWorker(cfg); tracks = {}; regs = cap.active_regions(cfg)
+        while clock[0] <= 15: w._scan(None, Eng(), regs, tracks, False); clock[0] += 0.25
+    finally: cap.time = real
+    assert Eng.calls == 3, Eng.calls             # ~2s, ~6s, ~14s
 
 class FakeResp:
     def __init__(self, lines, status=200, js=None): self.lines, self.status_code, self._js, self.text = lines, status, js, ""
@@ -170,4 +216,4 @@ def test_google_fallback_and_cache():
     assert tr.translate("Same line.") == ("Bản dịch", "google", "") and tr.translate("Same line.") == ("Bản dịch", "google", "") and len(n) == 1
 
 if __name__ == "__main__":
-    test_capture_waits_for_stable_text(); print("PASS capture"); test_capture_skips_same_frame(); print("PASS skip same frame"); test_capture_rereads_slow_typing_tail(); print("PASS typing tail"); test_capture_detects_short_line_swap(); print("PASS short line swap"); test_capture_waits_for_target_app(); print("PASS target app"); test_google_fallback_and_cache(); print("PASS google fallback + cache"); test_streaming_parsers(); print("PASS translate")
+    test_capture_waits_for_stable_text(); print("PASS capture"); test_capture_skips_same_frame(); print("PASS skip same frame"); test_capture_rereads_slow_typing_tail(); print("PASS typing tail"); test_capture_detects_short_line_swap(); print("PASS short line swap"); test_capture_waits_for_target_app(); print("PASS target app"); test_google_fallback_and_cache(); print("PASS google fallback + cache"); test_streaming_parsers(); print("PASS translate"); test_capture_multi_region_priority(); print("PASS multi region"); test_capture_backoff_on_empty_noise(); print("PASS backoff")

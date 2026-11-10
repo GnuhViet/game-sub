@@ -4,7 +4,7 @@ import platform, sys, time, traceback
 import numpy as np
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtCore import QRect
-from gamesub.config import Config, DATA_DIR
+from gamesub.config import Config, DATA_DIR, active_regions
 from gamesub.ui_region import to_physical
 from gamesub.capture import grab, open_sct
 from gamesub import ocr
@@ -44,8 +44,7 @@ def check_screens(cfg):
             hit = any((m["left"], m["top"], m["width"], m["height"]) == (p["x"], p["y"], p["w"], p["h"]) for m in mons)
             log(f"Qt   : {s.name()} geom={g.x()},{g.y()} {g.width()}x{g.height()} DPR={s.devicePixelRatio()} -> physical {p} "
                 + ("OK" if hit else "!! KHÔNG khớp mss — vùng chụp sẽ lệch"))
-        for key in ("region", "speaker_region"):
-            r = cfg[key]
+        for key, r in [(f"region{i + 1}", r) for i, r in enumerate(cfg["regions"])] + [("speaker_region", cfg["speaker_region"])]:
             if not r: log(f"{key}: chưa chọn"); continue
             img = grab(sct, r); path = DATA_DIR / f"diag_{key}.png"
             from PIL import Image; Image.fromarray(img).save(path)
@@ -64,8 +63,8 @@ def check_ocr(cfg):
             text = " ".join(lines)
             from rapidfuzz import fuzz
             log(f"{name:10s}: init {t1 - t0:.2f}s, nhận dạng {(t2 - t1) * 1000:.0f}ms, khớp {fuzz.ratio(text, SAMPLE):.0f}% -> {text!r}")
-            if cfg["region"]:
-                with open_sct() as sct: log(f"{'':10s}  vùng thoại hiện tại -> {' | '.join(e.recognize(grab(sct, cfg['region'])))!r}")
+            for i, r in active_regions(cfg):
+                with open_sct() as sct: log(f"{'':10s}  vùng thoại {i + 1} -> {' | '.join(e.recognize(grab(sct, r)))!r}")
         except Exception as ex:
             log(f"{name:10s}: lỗi {type(ex).__name__}: {ex}")
             if name == cfg["ocr_engine"]: log(traceback.format_exc().rstrip())
@@ -98,7 +97,7 @@ def main():
         except Exception: log(traceback.format_exc().rstrip())
     section("Kiểm tra tay")
     log("1. Mở game (Borderless), bật GameSub: overlay có nổi trên game không? Alt+Tab có mất overlay không?")
-    log("2. Mở data/diag_region.png: đúng khung thoại không (không lệch, không đen)?")
+    log("2. Mở data/diag_region1.png: đúng khung thoại không (không lệch, không đen)?")
     (DATA_DIR / "diag.txt").write_text("\n".join(out), "utf-8"); log(); log(f"Đã ghi {DATA_DIR / 'diag.txt'} — gửi file này khi báo lỗi.")
     del app
 

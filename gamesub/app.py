@@ -1,15 +1,15 @@
-import html, os, re, sys, traceback
+import html, os, sys, traceback
 from pathlib import Path
 from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal, QTimer, QPoint, QProcess, QUrl
 from PySide6.QtGui import QIcon, QCursor, QAction, QDesktopServices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QInputDialog, QMessageBox, QProgressDialog
 from rapidfuzz import fuzz
-from .config import Config, DATA_DIR
+from .config import Config, DATA_DIR, active_regions, region as mk_region
 from .db import DB
 from .matcher import SubIndex
 from .translator import Translator
 from .dictionary import Dictionaries, online_lookup, google_lookup
-from .textnorm import norm, WORD_RE
+from .textnorm import norm, WORD_RE, has_text
 from .spacing import Spacer
 from .capture import CaptureWorker
 from .hotkeys import Hotkeys
@@ -54,7 +54,8 @@ class App:
         self.index = SubIndex(); self.spacer = Spacer(); self.rebuild_index()
         self.dicts = Dictionaries().load(cfg["dict_files"])
         self.tr = Translator(cfg, self.db)
-        self.history, self.pos, self.last, self.seq, self.cleared, self.noted = [], -1, "", 0, False, set()
+        self.history, self.pos, self.seq, self.cleared, self.noted = [], -1, 0, False, set()
+        self.rlast, self.rline, self.shown = {}, {}, None   # theo vùng: câu cuối (chống trùng), câu đang có trên màn hình game; vùng đang hiện
         self.ov = Overlay(cfg); self.pop = WordPopup(cfg); winapp.accept_show(int(self.ov.winId()))
         self.lookup_ctx = None                    # câu ngữ cảnh khi tra từ trong cửa sổ Dịch vùng
         self.inflight = set()                     # tra từ đang chờ kết quả -> không gửi trùng
@@ -69,7 +70,7 @@ class App:
         self.idle_t = QTimer(singleShot=True, timeout=self._auto_hide); self.auto_hidden = False
         self.ov.set_click_through(cfg["click_through"])
         self.worker = CaptureWorker(cfg)
-        self.worker.text_ready.connect(self.on_text); self.worker.error.connect(self.on_error); self.worker.status.connect(self.ov.status.setText)
+        self.worker.text_ready.connect(lambda i, s, t: self.on_text(s, t, i)); self.worker.error.connect(self.on_error); self.worker.status.connect(self.ov.status.setText)
         self.worker.start()
         self.hk = Hotkeys(qapp); self.hk.triggered.connect(self.on_action); self._register_hotkeys()
         self.hk.show_requested.connect(self.on_show_requested)
@@ -78,7 +79,7 @@ class App:
         self.update_info = None
         if cfg["check_updates"]: QTimer.singleShot(5000, self.check_update)
         self.ov.show()
-        hint = [] if cfg["region"] else [tr("app.press_select_region_button_or", hk=cfg["hotkeys"]["region"])]
+        hint = [] if active_regions(cfg) else [tr("app.press_select_region_button_or", hk=cfg["hotkeys"]["region"])]
         if not len(self.index): hint.append(tr("app.press_folder_button_subtitle_pack"))
         if self.dicts.errors: hint.append(tr("app.dictionary_error_e", e="; ".join(self.dicts.errors)))
         self.ov.show_line("", "", " ".join(hint) or tr("app.ready"), tr("app.n_subtitle_lines", n=f"{len(self.index):,}"))
@@ -114,21 +115,48 @@ class App:
         if QSystemTrayIcon.isSystemTrayAvailable(): self.tray.show()
 
     # ---------------- pipeline
-    def on_text(self, speaker, text):
-        if not re.search(r"[A-Za-z]{2,}", text):              # rỗng / chỉ ký tự rác = hết thoại
-            self.last = ""
+    def on_text(self, speaker, text, reg=0):
+        """reg = chỉ số vùng trong cfg["regions"] (nhỏ = ưu tiên cao). Overlay hiện câu của vùng ưu tiên cao nhất đang có chữ;
+        câu vùng thấp hơn vào lịch sử (dịch khi được xem), vùng trên hết chữ thì chuyển sang nó."""
+        if not has_text(text):                                  # rỗng / chỉ ký tự rác = vùng này hết thoại
+            self.rlast.pop(reg, None); self.rline.pop(reg, None)
+            if self.shown is not None and self.shown != reg and self.shown in self.rline: return     # vùng khác đang hiện
+            if self.rline: self._show_live(self.rline[min(self.rline)]); return
+            self.shown = None
             if self.cfg["clear_on_empty"] and not self.cleared: self.cleared = True; self.ov.show_line("", "", "", ""); self.pop.request_hide()
             if self.cfg["auto_hide_s"] > 0 and self.ov.isVisible(): self.idle_t.start(int(self.cfg["auto_hide_s"] * 1000))
             return
-        self.idle_t.stop(); self.cleared = False
-        if self.auto_hidden: self.auto_hidden = False; self.ov.show()
         if self.cfg["fix_spacing"]: text = self.spacer.fix(text)
         n = norm(text)
-        if self.last and fuzz.ratio(n, self.last) >= self.cfg["dedupe_ratio"]: return
-        self.last = n; self.seq += 1
-        line = {"id": self.seq, "speaker": speaker.strip(), "src": text, "vi": "", "tag": ""}
-        self.history.append(line); self.history = self.history[-300:]; self.pos = len(self.history) - 1
-        self.resolve(line)
+        if self.rlast.get(reg) and fuzz.ratio(n, self.rlast[reg]) >= self.cfg["dedupe_ratio"]: return
+        self.rlast[reg] = n; self.seq += 1
+        line = {"id": self.seq, "speaker": speaker.strip(), "src": text, "vi": "", "tag": "", "reg": reg}
+        self.rline[reg] = line
+        if self.rline[min(self.rline)] is line: self._show_live(line, new=True); return
+        line["pending"] = True                                  # vùng trên đang hiện: chỉ ghi lịch sử (trước câu đang hiện), chưa dịch
+        cur = self.history[self.pos] if self.history else None
+        self.history.insert(max(0, len(self.history) - 1), line); self._trim(cur)
+
+    def _show_live(self, line, new=False):
+        """Đưa câu đang có trên màn hình game lên overlay (cuối lịch sử)."""
+        self.idle_t.stop(); self.cleared = False; self.shown = line.get("reg", 0)
+        if self.auto_hidden: self.auto_hidden = False; self.ov.show()
+        if not new and line in self.history: self.history.remove(line)
+        self.history.append(line); self._trim(line)
+        if line.pop("pending", False) or new: self.resolve(line)
+        else: self.render()
+
+    def _trim(self, cur):
+        self.history = self.history[-300:]
+        self.pos = next((k for k, l in enumerate(self.history) if l is cur), len(self.history) - 1)
+
+    def reset_regions(self):
+        """Đổi / xóa / xếp lại vùng: quên trạng thái theo vùng, quét lại."""
+        self.rlast.clear(); self.rline.clear(); self.shown = None; self.worker.force = True
+
+    def region_name(self, i):
+        regs = self.cfg["regions"]; r = regs[i] if 0 <= i < len(regs) else {}
+        return r.get("name") or (tr("app.dialogue_area") if i == 0 else tr("regions.default_name", n=i + 1))
 
     def resolve(self, line, machine=False):
         c = self.cfg
@@ -138,7 +166,8 @@ class App:
             if m: line.update(vi=m.vi, tag=tr("app.subtitle_pack_p_match", p=f"{m.score:.0f}"), notr=False, alert=False); self.render(line); return
         line.update(tag="", busy=True, notr=False, alert=False); self.render(line)               # không hiện "Đang dịch…"
         i = next((k for k, l in enumerate(self.history) if l is line), len(self.history))
-        ctx = [(l["speaker"], l["src"], l["vi"]) for l in self.history[max(0, i - c["context_lines"]):i]] if c["context_lines"] else []
+        same = [l for l in self.history[:i] if l.get("reg", 0) == line.get("reg", 0)]          # ngữ cảnh: câu trước của cùng vùng
+        ctx = [(l["speaker"], l["src"], l["vi"]) for l in same[-c["context_lines"]:]] if c["context_lines"] else []
         def partial(t): line["vi"] = t; self.render(line)
         def done(res): line.update(vi=res[0], tag=self.tr.label(res[1]) + self._note(res[2] if len(res) > 2 else ""), busy=False); self.render(line)
         def err(e): line.update(tag=tr("app.translation_error_e", e=e), busy=False, alert=True); self.render(line)
@@ -152,10 +181,12 @@ class App:
     def render(self, line=None):
         if not self.history: return
         cur = self.history[self.pos]
+        if line is None and cur.pop("pending", False): self.resolve(cur); return     # câu vùng phụ chưa dịch: dịch khi được xem
         if line is not None and (line is not cur or self.cleared): return     # đã xóa (hết thoại): bản dịch về muộn không hiện lại
         nav = f"  [{self.pos + 1}/{len(self.history)}]" if self.pos != len(self.history) - 1 else ""
         hold = cur.get("busy") or cur.get("alert") or cur.get("notr")       # đang dịch / lỗi / tắt dịch: không lấy câu gốc làm bản dịch
-        self.ov.show_line(cur["speaker"], cur["src"], cur["vi"] or ("" if hold else cur["src"]), cur["tag"] + nav, alert=bool(cur.get("alert")))
+        rn = self.region_name(cur.get("reg", 0)) + " · " if len(active_regions(self.cfg)) > 1 else ""
+        self.ov.show_line(cur["speaker"], cur["src"], cur["vi"] or ("" if hold else cur["src"]), rn + cur["tag"] + nav, alert=bool(cur.get("alert")))
 
     def _check_elevation(self):
         """Game chạy quyền admin mà GameSub thì không -> Windows (UIPI) chặn hotkey/giữ phím mở khóa/focus: báo 1 lần."""
@@ -270,7 +301,7 @@ class App:
         if k == "prev" and self.pos > 0: self.pos -= 1; self.cleared = False; self.render()
         elif k == "next" and self.pos < len(self.history) - 1: self.pos += 1; self.cleared = False; self.render()
         elif k == "pause": self.worker.paused = not self.worker.paused; self.ov.set_paused(self.worker.paused)
-        elif k == "rescan": self.last = ""; self.worker.force = True
+        elif k == "rescan": self.rlast.clear(); self.worker.force = True
         elif k == "translate":
             c["translate"] = not c["translate"]; c.save(); self.ov.apply_style(); self._toast(tr("app.translation_on") if c["translate"] else tr("app.translation_off_source_text_only"))
             if self.history: self.resolve(self.history[self.pos])
@@ -305,8 +336,8 @@ class App:
         """Viền sáng quanh vùng thoại + vùng tên nhân vật trong 3 giây; bấm lần nữa thì tắt."""
         if self.flash: self._flash_off(); return
         c = self.cfg
-        self.flash = [RegionFlash(to_logical(r), name, col) for r, name, col in
-                      [(c["region"], tr("app.dialogue_area"), c["accent"]), (c["speaker_region"], tr("app.speaker_name_area"), "#6ab7e8")] if r]
+        items = [(r, f"{n + 1} · {self.region_name(i)}", c["accent"]) for n, (i, r) in enumerate(active_regions(c))]
+        self.flash = [RegionFlash(to_logical(r), name, col) for r, name, col in items + [(c["speaker_region"], tr("app.speaker_name_area"), "#6ab7e8")] if r]
         if not self.flash: self._toast(tr("app.no_dialogue_area_selected_press", hk=c["hotkeys"]["region"])); return
         for w in self.flash: w.show()
         self.flash_t.start()
@@ -324,7 +355,9 @@ class App:
             self.sel = RegionSelector(tr(title))
             def ok(r):
                 if kind == "scan": end(); self.scan_capture(r); return
-                self.cfg["region" if kind == "region" else "speaker_region"] = r; self.cfg.save(); self.last = ""; self.worker.force = True; end()
+                if kind == "region": self.cfg["regions"][:1] = [mk_region(r, **{k: v for k, v in (self.cfg["regions"][:1] or [{}])[0].items() if k in ("name", "on", "yield")})]
+                else: self.cfg["speaker_region"] = r
+                self.cfg.save(); self.reset_regions(); end()
             def cancel():
                 if kind == "speaker" and self.cfg["speaker_region"]:
                     b = QMessageBox.question(None, tr("app.speaker_name_area"), tr("app.remove_current_speaker_name_area"))

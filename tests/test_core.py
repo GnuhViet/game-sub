@@ -128,9 +128,14 @@ def test_pick_model():
     assert T.pick_model(["gemini-2.5-pro", "gemini-2.5-flash"]) == "gemini-2.5-flash" and T.pick_model([]) == ""
 
 def test_config_reset():
-    c = Config(T / "reset.json"); c["region"] = {"x": 1, "y": 2, "w": 3, "h": 4}; c["gemini_key"] = "k"; c["font_size"] = 30; c["hotkeys"]["region"] = "F9"
-    c.reset(); assert c["font_size"] == 17 and c["hotkeys"]["region"] == "Ctrl+Alt+R" and c["region"]["w"] == 3 and c["gemini_key"] == "k"
-    c.reset(keep=False); assert c["region"] is None and c["gemini_key"] == ""
+    c = Config(T / "reset.json"); c["regions"] = [{"x": 1, "y": 2, "w": 3, "h": 4}]; c["gemini_key"] = "k"; c["font_size"] = 30; c["hotkeys"]["region"] = "F9"
+    c.reset(); assert c["font_size"] == 17 and c["hotkeys"]["region"] == "Ctrl+Alt+R" and c["regions"][0]["w"] == 3 and c["gemini_key"] == "k"
+    c.reset(keep=False); assert c["regions"] == [] and c["gemini_key"] == ""
+    import json                                   # settings cũ 1 vùng -> regions[0]
+    (T / "old.json").write_text(json.dumps({"region": {"x": 5, "y": 6, "w": 70, "h": 8}}), "utf-8")
+    c = Config(T / "old.json"); assert c["regions"] == [{"x": 5, "y": 6, "w": 70, "h": 8, "name": "", "on": True, "yield": True}] and "region" not in c
+    from gamesub.config import active_regions
+    c["regions"] += [{"x": 0, "y": 0, "w": 9, "h": 9, "on": False}, {"x": 0, "y": 0, "w": 9, "h": 9}]; assert [i for i, _ in active_regions(c)] == [0, 2]
     c["hotkeys"]["toggle"] = "F8"; assert Config(T / "x.json")["hotkeys"]["toggle"] == "Ctrl+Alt+T"     # DEFAULTS không bị sửa theo
 
 def test_updater():

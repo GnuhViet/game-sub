@@ -7,6 +7,11 @@ PH_RE = re.compile(r"\{[^{}]{0,40}\}|%[sdf]|\{\d+\}")
 QUOTES = str.maketrans({"‘": "'", "’": "'", "‚": "'", "“": '"', "”": '"', "„": '"', "…": "...", "—": "-", "–": "-", "｜": "|"})
 NON_WORD = re.compile(rf"[^\w{WILD}]+", re.U)
 WORD_RE = re.compile(r"[A-Za-z][A-Za-z'\-]*[A-Za-z]|[A-Za-z]")
+TEXT_RE = re.compile(r"[A-Za-z]{2,}")
+
+def has_text(t: str) -> bool:
+    """OCR ra chữ thật (không rỗng / chỉ ký tự rác) = vùng đang có thoại."""
+    return bool(TEXT_RE.search(t or ""))
 
 def resolve(text: str, gender="male", name_tokens=(), player_name="", for_match=False) -> str:
     """Thay macro giới tính, tên người chơi, tag rich-text. for_match=True: placeholder -> WILD."""
