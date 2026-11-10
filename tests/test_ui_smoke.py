@@ -382,4 +382,27 @@ a.cfg["translate"] = False
 import random as _r
 for n in range(40): a.on_text("", f"Line{n} " + " ".join("".join(_r.Random(n * 9 + k).choices("abcdefghij", k=5)) for k in range(6)))     # câu khác hẳn nhau (không bị chống trùng)
 assert len(a.history) == a.HISTORY_N == 30 and a.history[-1]["src"].startswith("Line39 ") and a.pos == 29, (len(a.history), a.history[-1]["src"])
+
+# 17) vùng chồng nhau: câu đầy đủ thắng mẩu câu (dù ưu tiên thấp hơn); dài ngang nhau -> theo ưu tiên; vùng không chồng -> không gộp
+a.cfg["translate"] = False; a.cfg["regions"] = [C.region({"x": 0, "y": 0, "w": 100, "h": 50}), C.region({"x": 50, "y": 0, "w": 100, "h": 50}),
+                                                 C.region({"x": 500, "y": 500, "w": 100, "h": 50})]; a.reset_regions(); n0 = len(a.history)
+FULL, FRAG = "Three days later, at the edge of Jinzhou the wind changed.", "at the edge of Jinzhou the wind changed."
+a.on_text("", FRAG, 0); assert a.ov.src == FRAG
+a.on_text("", FULL, 1); assert a.ov.src == FULL and FRAG not in [l["src"] for l in a.history] and a.rline[0]["src"] == FULL and a.shown == 1
+a.on_text("", "", 0); assert a.ov.src == FULL and not a.cleared        # vùng 1 hết mẩu: câu vùng 2 vẫn hiện
+a.on_text("", "", 1); assert a.cleared and not a.rline
+a.on_text("", FULL, 1); a.on_text("", FRAG, 0); assert a.ov.src == FULL and a.history[-1]["src"] == FULL and a.history[-2]["src"] != FRAG   # mẩu về sau: bỏ
+a.on_text("", "", 0); a.on_text("", "", 1)
+SAME = "Hello there, my old friend Rover."
+a.on_text("", SAME, 1); a.on_text("", SAME + "!", 0); assert a.history[-1]["reg"] == 0 and [l["src"] for l in a.history].count(SAME) == 0   # ngang nhau: vùng 1 thắng
+a.on_text("", "", 0); a.on_text("", "", 1)
+a.on_text("", FRAG, 0); a.on_text("", FULL, 2); assert a.ov.src == FRAG and a.history[-2]["src"] == FULL      # vùng 3 không chồng: theo ưu tiên, không gộp
+a.on_text("", "", 0); a.on_text("", "", 2)
+# chế độ sửa vùng: Shift + kéo trong vùng có sẵn = vẽ vùng mới; bấm lại chỗ chồng = chọn vùng nằm dưới
+ed = RegionEditor([C.region({"x": 100, "y": 100, "w": 300, "h": 200})], None); ed.start(); assert not ed.overlapping()
+QTest.mousePress(ed, Qt.LeftButton, Qt.ShiftModifier, QPoint(150, 150)); QTest.mouseRelease(ed, Qt.LeftButton, Qt.ShiftModifier, QPoint(250, 200))
+assert len(ed.items) == 2 and ed.items[0].rect.topLeft() == QPoint(100, 100) and ed.sel is ed.items[1] and ed.overlapping()
+QTest.mouseClick(ed, Qt.LeftButton, Qt.NoModifier, QPoint(200, 170)); assert ed.sel is ed.items[0]      # bấm lại -> vùng nằm dưới
+QTest.mouseClick(ed, Qt.LeftButton, Qt.NoModifier, QPoint(200, 170)); assert ed.sel is ed.items[1]
+ed.grab(); QTest.keyClick(ed, Qt.Key_Escape)
 a.quit(); print("UI SMOKE OK")

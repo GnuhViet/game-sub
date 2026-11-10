@@ -4,7 +4,7 @@ import numpy as np
 from PySide6.QtCore import QThread, Signal
 from . import ocr, winapp
 from .textnorm import join_lines, has_text
-from .config import active_regions
+from .config import active_regions, overlaps
 from .i18n import tr
 
 def open_sct():
@@ -36,7 +36,8 @@ class _Track:
 
 class CaptureWorker(QThread):
     """Theo dõi nhiều vùng theo thứ tự ưu tiên. Mỗi vùng chỉ tốn chụp + chữ ký (~1-3ms); OCR chỉ khi vùng đó đổi rồi đứng yên.
-    Vùng có "yield": vùng ưu tiên cao hơn đang có chữ thì chỉ theo dõi, không OCR (vùng trên hết chữ thì OCR bù ngay)."""
+    Vùng có "yield": vùng ưu tiên cao hơn đang có chữ thì chỉ theo dõi, không OCR (vùng trên hết chữ thì OCR bù ngay).
+    Không nhường vùng chồng lên nó: chữ của vùng dưới có thể tràn sang vùng trên, vùng trên chỉ đọc được 1 mẩu (app chọn câu đầy đủ)."""
     text_ready = Signal(int, str, str)   # chỉ số vùng trong cfg["regions"], speaker, text (rỗng = vùng hết chữ)
     status = Signal(str)
     error = Signal(str)
@@ -60,7 +61,7 @@ class CaptureWorker(QThread):
 
     def _scan(self, sct, eng, regs, tracks, force):
         """1 lượt qua các vùng (đã theo thứ tự ưu tiên)."""
-        thr, st_ms = self.cfg["diff_threshold"], self.cfg["stable_ms"]; upper = False
+        thr, st_ms = self.cfg["diff_threshold"], self.cfg["stable_ms"]; busy = []      # vùng trên đang có chữ
         for i, r in regs:
             t = tracks.setdefault((i, r["x"], r["y"], r["w"], r["h"]), _Track())
             img = grab(sct, r); sig = signature(img); now = time.time()
@@ -70,7 +71,7 @@ class CaptureWorker(QThread):
             dirty = changed(sig, t.last_ocr, thr)
             if not dirty: t.dirty_since = 0
             elif not t.dirty_since: t.dirty_since = now
-            if upper and r.get("yield", True): continue                  # vùng trên đang có thoại -> chỉ theo dõi
+            if r.get("yield", True) and any(not overlaps(u, r) for u in busy): continue     # vùng trên (không chồng) đang có thoại -> chỉ theo dõi
             stable = (now - t.last_move) * 1000 >= st_ms
             # nền động không bao giờ đứng yên -> vẫn OCR sau 1 lúc; OCR ra rỗng thì giãn dần 2s -> 4s -> 8s
             stuck = t.dirty_since and (now - t.dirty_since) * 1000 >= max(2000, 3 * st_ms) * 2 ** min(t.miss, 2)
@@ -81,7 +82,7 @@ class CaptureWorker(QThread):
                 sr = self.cfg["speaker_region"]
                 spk = self._ocr(eng, grab(sct, sr)) if t.has_text and sr and i == regs[0][0] else ""
                 self.text_ready.emit(i, spk, text)
-            upper = upper or t.has_text
+            if t.has_text: busy.append(r)
 
     def run(self):
         sct = open_sct(); eng = self._engine(); tracks = {}; waiting = False

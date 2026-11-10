@@ -80,7 +80,7 @@ class RegionEditor(QWidget):
         self.accent, self.max = QColor(accent), max_regions
         self.items = [self._item(r) for r in regions]; self.spk = self._item(speaker, True) if speaker else None
         self.sel = self.drag = None; self.draw_spk = draw_speaker; self.msg = ""; self._seq = 0; self._req = {}
-        self.sugg = []; self.busy = False      # khối chữ gợi ý [(QRect, text)]
+        self.sugg = []; self.busy = False; self._again = False      # khối chữ gợi ý [(QRect, text)]; bấm lại vùng đang chọn
         self.pv_t = QTimer(self, singleShot=True, interval=300, timeout=lambda: self.sel and self._ask_preview(self.sel))   # dịch bằng phím: đợi xong mới OCR
         self._toolbar()
 
@@ -191,7 +191,9 @@ class RegionEditor(QWidget):
         box = p.fontMetrics().boundingRect(hint).adjusted(-10, -4, 10, 4); box.moveCenter(QPoint(self.width() // 2, self.bar.geometry().bottom() + 20))
         p.setPen(Qt.NoPen); p.setBrush(QColor(16, 20, 24, 220)); p.drawRoundedRect(box, 6, 6)
         p.setPen(QColor(self.accent) if self.msg else QColor("white")); p.drawText(box, Qt.AlignCenter, hint)
-        if not self.draw_spk: self._draw_legend(p, box.bottom() + 8)
+        if not self.draw_spk:
+            y = self._draw_legend(p, box.bottom() + 8)
+            if self.overlapping(): self._draw_note(p, y + 6, tr("regions.overlap_hint"))
 
     LEGEND = [(("mdi6.arrow-up", "mdi6.arrow-down"), N_("regions.legend.priority")), (("mdi6.pause-circle-outline",), N_("regions.legend.yield")),
               (("mdi6.play-circle-outline",), N_("regions.legend.always")), (("mdi6.eye", "mdi6.eye-off"), N_("regions.legend.on")),
@@ -208,6 +210,18 @@ class RegionEditor(QWidget):
         for names, t, w in parts:
             for n, name in enumerate(names): icon(name, col).paint(p, QRect(x + n * ic, top + 4, ic, ic))
             p.drawText(QRect(x + len(names) * ic + 4, top, w, 24), Qt.AlignVCenter | Qt.AlignLeft, t); x += w + gap
+        return box.bottom()
+
+    def _draw_note(self, p, top, text):
+        p.setFont(_font(9)); box = p.fontMetrics().boundingRect(text).adjusted(-10, -4, 10, 4)
+        box.moveTop(top); box.moveLeft((self.width() - box.width()) // 2)
+        p.setPen(Qt.NoPen); p.setBrush(QColor(16, 20, 24, 200)); p.drawRoundedRect(box, 6, 6)
+        p.setPen(QColor(SUGG_COLOR)); p.drawText(box, Qt.AlignCenter, text)
+
+    def overlapping(self):
+        """Có 2 vùng thoại chồng lên nhau?"""
+        rs = [it.rect.normalized() for it in self.items if it.rect is not None]
+        return any(a.intersects(b) for i, a in enumerate(rs) for b in rs[i + 1:])
 
     def _draw_preview(self, p, it, r):
         """Kết quả OCR thử ngay dưới vùng (sát đáy màn hình thì nằm trong vùng)."""
@@ -242,9 +256,12 @@ class RegionEditor(QWidget):
             return
         if e.button() != Qt.LeftButton: return
         if h and h[0] == "btn": self._button(h[1], h[2]); return
+        if e.modifiers() & Qt.ShiftModifier: h = None                     # Shift + kéo: luôn vẽ vùng mới (đè lên vùng có sẵn)
         s = None if h else self._sugg_at(pos)
         if s: self.sugg.remove(s); self.add(QRect(s[0]), self.draw_spk); return
-        if h and not self.draw_spk: self.sel = h[1]; self.drag = (h[0], pos, QRect(h[1].rect.normalized()), h[2])
+        if h and not self.draw_spk:
+            self._again = h[0] == "body" and h[1] is self.sel                # bấm lại vùng đang chọn (chưa kéo) -> chọn vùng nằm dưới
+            self.sel = h[1]; self.drag = (h[0], pos, QRect(h[1].rect.normalized()), h[2])
         else: self.sel = None; self.drag = ("new", pos, pos)
         self.update()
 
@@ -291,7 +308,11 @@ class RegionEditor(QWidget):
             r = QRect(p0, e.position().toPoint()).normalized().intersected(self.rect())
             if r.width() >= 8 and r.height() >= 8: self.add(r, self.draw_spk)
         elif self.sel and self.sel.rect != r0: self._ask_preview(self.sel)
-        self.update()
+        elif kind == "body" and self.sel and self._again:
+            pos = e.position().toPoint()
+            under = [it for it in self.all_items() if it.rect is not None and it.rect.normalized().contains(pos)]
+            if len(under) > 1 and self.sel in under: self.sel = under[(under.index(self.sel) + 1) % len(under)]
+        self._again = False; self.update()
 
     def mouseDoubleClickEvent(self, e):
         h = self._hit(e.position().toPoint())

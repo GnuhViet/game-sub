@@ -80,6 +80,10 @@ def region(r, **kw):
     for k in ("x", "y", "w", "h"): d[k] = int(d.get(k) or 0)
     return d
 
+def overlaps(a, b):
+    """2 vùng (pixel vật lý) chồng lên nhau?"""
+    return a["x"] < b["x"] + b["w"] and b["x"] < a["x"] + a["w"] and a["y"] < b["y"] + b["h"] and b["y"] < a["y"] + a["h"]
+
 def active_regions(cfg):
     """[(chỉ số trong cfg["regions"], vùng)] các vùng đang bật, theo thứ tự ưu tiên."""
     return [(i, r) for i, r in enumerate(cfg["regions"] or []) if r.get("on", True) and r.get("w", 0) > 0 and r.get("h", 0) > 0]

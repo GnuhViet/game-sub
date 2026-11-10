@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal, QTimer, 
 from PySide6.QtGui import QIcon, QCursor, QAction, QDesktopServices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QInputDialog, QMessageBox, QProgressDialog
 from rapidfuzz import fuzz
-from .config import Config, DATA_DIR, MAX_REGIONS, active_regions
+from .config import Config, DATA_DIR, MAX_REGIONS, active_regions, overlaps
 from .db import DB
 from .matcher import SubIndex
 from .translator import Translator
@@ -121,6 +121,7 @@ class App:
         câu vùng thấp hơn vào lịch sử (dịch khi được xem), vùng trên hết chữ thì chuyển sang nó."""
         if not has_text(text):                                  # rỗng / chỉ ký tự rác = vùng này hết thoại
             self.rlast.pop(reg, None); self.rline.pop(reg, None)
+            for k in [k for k, v in self.rline.items() if v.get("reg") == reg]: del self.rline[k]     # vùng khác đang trỏ vào câu của vùng này
             if self.shown is not None and self.shown != reg and self.shown in self.rline: return     # vùng khác đang hiện
             if self.rline: self._show_live(self.rline[min(self.rline)]); return
             self.shown = None
@@ -130,13 +131,34 @@ class App:
         if self.cfg["fix_spacing"]: text = self.spacer.fix(text)
         n = norm(text)
         if self.rlast.get(reg) and fuzz.ratio(n, self.rlast[reg]) >= self.cfg["dedupe_ratio"]: return
-        self.rlast[reg] = n; self.seq += 1
+        self.rlast[reg] = n; cur = self.history[self.pos] if self.history else None; losers = []
+        for ol in {id(v): v for v in self.rline.values()}.values():          # vùng chồng nhau: câu đầy đủ thắng mẩu câu
+            w = self._overlap_winner(n, reg, ol)
+            if w == "old": self.rline[reg] = ol; return                        # câu này là mẩu / bản trùng của câu vùng kia
+            if w == "new": losers.append(ol)
+        self.seq += 1
         line = {"id": self.seq, "speaker": speaker.strip(), "src": text, "vi": "", "tag": "", "reg": reg}
+        for ol in losers:                                                      # câu cũ là mẩu: bỏ khỏi lịch sử, vùng của nó trỏ sang câu này
+            if ol in self.history: self.history.remove(ol)
+            for k, v in list(self.rline.items()):
+                if v is ol: self.rline[k] = line
+        if cur in losers: cur = None
         self.rline[reg] = line
         if self.rline[min(self.rline)] is line: self._show_live(line, new=True); return
         line["pending"] = True                                  # vùng trên đang hiện: chỉ ghi lịch sử (trước câu đang hiện), chưa dịch
-        cur = self.history[self.pos] if self.history else None
         self.history.insert(max(0, len(self.history) - 1), line); self._trim(cur)
+
+    LONGER = 1.2                           # câu dài hơn >= 20% mới thắng câu ưu tiên cao hơn
+
+    def _overlap_winner(self, n, reg, ol):
+        """Câu mới (chuẩn hóa n, vùng reg) và câu ol của vùng khác chồng lên nó: 1 câu nằm gọn trong câu kia?
+        -> "new" / "old" = câu thắng (dài hơn hẳn; dài ngang nhau thì vùng ưu tiên cao hơn), None = không liên quan."""
+        o = ol.get("reg", 0); regs = self.cfg["regions"]
+        if o == reg or not (0 <= o < len(regs) and 0 <= reg < len(regs)) or not overlaps(regs[o], regs[reg]): return None
+        m = norm(ol["src"]); short, long_ = (n, m) if len(n) <= len(m) else (m, n)
+        if not short or fuzz.partial_ratio(short, long_) < self.cfg["dedupe_ratio"]: return None
+        if len(long_) >= len(short) * self.LONGER: return "new" if len(n) > len(m) else "old"
+        return "new" if reg < o else "old"
 
     def _show_live(self, line, new=False):
         """Đưa câu đang có trên màn hình game lên overlay (cuối lịch sử)."""

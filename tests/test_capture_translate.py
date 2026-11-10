@@ -159,6 +159,26 @@ def test_capture_multi_region_priority():
     got, calls = _multi_region(False)
     assert got == [(0, "text 200"), (1, "text 100"), (0, "")] and calls == 3, (got, calls)
 
+def test_capture_overlap_no_yield():
+    """Vùng 2 chồng lên vùng 1: chữ vùng 2 có thể tràn sang vùng 1 -> vùng 2 không nhường, vẫn OCR dù vùng 1 có chữ."""
+    q = QCoreApplication.instance() or QCoreApplication(sys.argv)
+    def img(v): a = np.zeros((40, 200, 3), np.uint8); a[10:30, 20:180] = v; return a
+    cap.grab = lambda sct, r: img(200) if r["x"] == 0 else img(100)
+    class Eng:
+        name = "fake"; calls = 0
+        def recognize(self, im): Eng.calls += 1; return [f"text {int(im.max())}"]
+    cap.ocr.create = lambda n, l: Eng()
+    class FakeMss:
+        def close(self): pass
+    cap.open_sct = lambda: FakeMss(); cap.winapp.is_target = lambda t: True
+    cfg = Config(Path(tempfile.mkdtemp()) / "s.json")
+    cfg.update(regions=[{"x": 0, "y": 0, "w": 200, "h": 40}, {"x": 150, "y": 0, "w": 200, "h": 40}], interval_ms=20, stable_ms=100)
+    w = cap.CaptureWorker(cfg); got = []; w.text_ready.connect(lambda i, s, t: got.append((i, t))); w.start()
+    end = time.time() + 0.8
+    while time.time() < end: q.processEvents(); time.sleep(0.01)
+    w.stop(); q.processEvents()
+    assert got == [(0, "text 200"), (1, "text 100")], got
+
 def test_capture_backoff_on_empty_noise():
     """Nền động (không bao giờ đứng yên), OCR ra rỗng: OCR thưa dần 2s -> 4s -> 8s thay vì mỗi 2s."""
     import types
@@ -216,4 +236,4 @@ def test_google_fallback_and_cache():
     assert tr.translate("Same line.") == ("Bản dịch", "google", "") and tr.translate("Same line.") == ("Bản dịch", "google", "") and len(n) == 1
 
 if __name__ == "__main__":
-    test_capture_waits_for_stable_text(); print("PASS capture"); test_capture_skips_same_frame(); print("PASS skip same frame"); test_capture_rereads_slow_typing_tail(); print("PASS typing tail"); test_capture_detects_short_line_swap(); print("PASS short line swap"); test_capture_waits_for_target_app(); print("PASS target app"); test_google_fallback_and_cache(); print("PASS google fallback + cache"); test_streaming_parsers(); print("PASS translate"); test_capture_multi_region_priority(); print("PASS multi region"); test_capture_backoff_on_empty_noise(); print("PASS backoff")
+    test_capture_waits_for_stable_text(); print("PASS capture"); test_capture_skips_same_frame(); print("PASS skip same frame"); test_capture_rereads_slow_typing_tail(); print("PASS typing tail"); test_capture_detects_short_line_swap(); print("PASS short line swap"); test_capture_waits_for_target_app(); print("PASS target app"); test_google_fallback_and_cache(); print("PASS google fallback + cache"); test_streaming_parsers(); print("PASS translate"); test_capture_multi_region_priority(); print("PASS multi region"); test_capture_backoff_on_empty_noise(); print("PASS backoff"); test_capture_overlap_no_yield(); print("PASS overlap no yield")

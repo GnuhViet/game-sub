@@ -134,6 +134,7 @@
   "regions.max_n": "At most {n} areas",
   "regions.name_label": "Area name:",
   "regions.no_text": "(no text read)",
+  "regions.overlap_hint": "Areas overlap — Shift + drag: draw a new area on top · click the overlap again: select the area underneath · text spilling into another area: the full line wins",
   "regions.rename": "Rename",
   "regions.save": "Save",
   "regions.speaker_area": "Speaker name area",

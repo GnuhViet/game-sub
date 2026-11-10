@@ -58,6 +58,7 @@ của `create_copy_from_buffer` → dùng 4 tham số. Windows OCR: 81ms, khớp
 Phiên 5 (v0.3.0): nhiều vùng chụp theo ưu tiên (`cfg["regions"]`, `config.region()/active_regions()`): worker giữ trạng thái riêng từng vùng,
 vùng `yield` không OCR khi vùng trên còn chữ, nền động OCR rỗng giãn 2→4→8s; app hiện vùng ưu tiên cao nhất, câu vùng dưới vào lịch sử và dịch khi xem.
 Chế độ sửa vùng `RegionEditor` (Ctrl+Alt+R): kéo/đổi cỡ/xóa/xếp ưu tiên, OCR thử, Gợi ý vùng (`ocr.boxes()` + `ocr.blocks()`), bám mép. Cài đặt → OCR có bảng vùng.
+Vùng chồng nhau (`config.overlaps`): không nhường nhau; câu nằm gọn trong câu vùng khác -> câu dài hơn ≥20% thắng, ngang nhau theo ưu tiên (`App._overlap_winner`).
 
 Phiên 4: build exe 1 file (`build.bat`, `--diag`). Nút tải OCR engine (`engines.py`): RapidOCR = giải nén wheel PyPI (bản ghim) vào `engines/py`
 (exe cần `--collect-submodules numpy`), Tesseract = bộ cài UB-Mannheim `/S /D=engines/tesseract` (CHƯA test, cần UAC).

@@ -134,6 +134,7 @@
   "regions.max_n": "Tối đa {n} vùng",
   "regions.name_label": "Tên vùng:",
   "regions.no_text": "(chưa đọc được chữ)",
+  "regions.overlap_hint": "Có vùng chồng nhau — Shift + kéo: vẽ vùng mới đè lên · bấm lại vào chỗ chồng: chọn vùng bên dưới · chữ tràn sang vùng khác: app lấy câu đầy đủ",
   "regions.rename": "Đổi tên",
   "regions.save": "Lưu",
   "regions.speaker_area": "Vùng tên nhân vật",
