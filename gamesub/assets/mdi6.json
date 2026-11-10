@@ -22,5 +22,12 @@
  "tag": 984313,
  "translate": 984522,
  "translate-off": 986630,
- "window-minimize": 984496
+ "window-minimize": 984496,
+ "eye": 983560,
+ "eye-off": 983561,
+ "auto-fix": 983144,
+ "check": 983340,
+ "account-plus": 983060,
+ "pencil": 984043,
+ "pause-circle-outline": 984038
 }

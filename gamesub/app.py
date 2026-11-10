@@ -1,10 +1,10 @@
-import html, os, sys, traceback
+import html, os, sys, threading, traceback
 from pathlib import Path
 from PySide6.QtCore import Qt, QObject, QRunnable, QThreadPool, Signal, QTimer, QPoint, QProcess, QUrl
 from PySide6.QtGui import QIcon, QCursor, QAction, QDesktopServices
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QInputDialog, QMessageBox, QProgressDialog
 from rapidfuzz import fuzz
-from .config import Config, DATA_DIR, active_regions, region as mk_region
+from .config import Config, DATA_DIR, MAX_REGIONS, active_regions
 from .db import DB
 from .matcher import SubIndex
 from .translator import Translator
@@ -14,12 +14,12 @@ from .spacing import Spacer
 from .capture import CaptureWorker
 from .hotkeys import Hotkeys
 from .ui_overlay import Overlay, WordPopup
-from .ui_region import RegionSelector, RegionFlash, to_logical
+from .ui_region import RegionSelector, RegionEditor, RegionFlash, to_logical
 from .ui_scan import ScanWindow
 from . import winapp, updater, __version__
 from .capture import open_sct, grab
 from . import ocr
-from .textnorm import paragraphs
+from .textnorm import paragraphs, join_lines
 from .ui_dialogs import SettingsDialog, GlossaryDialog, VocabDialog, SubsDialog, _Job
 from .i18n import tr, N_
 
@@ -61,6 +61,7 @@ class App:
         self.inflight = set()                     # tra từ đang chờ kết quả -> không gửi trùng
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(lambda w, p: self._hover_from(None, w, p)); self.ov.word_click.connect(lambda w, p: self._click_from(None, w, p))
         self.scan_win = ScanWindow(cfg); self.scan = {"src": "", "vi": ""}
+        self.sel = None; self._pv_eng = None; self._pv_lock = threading.Lock()      # chế độ sửa vùng + engine OCR thử
         self.flash = []; self.flash_t = QTimer(singleShot=True, interval=3000, timeout=self._flash_off)   # viền "Xem vùng đang chọn"
         self.scan_win.word_hover.connect(lambda w, p: self._hover_from(self.scan, w, p)); self.scan_win.word_click.connect(lambda w, p: self._click_from(self.scan, w, p))
         self.scan_win.action.connect(self.on_action)
@@ -348,27 +349,37 @@ class App:
         self.flash = []
 
     def select_region(self, kind):
+        """scan: kéo nhanh 1 vùng để dịch 1 lần. region / speaker: chế độ sửa vùng (speaker = bật sẵn vẽ vùng tên)."""
+        if self.sel is not None and self.sel.isVisible(): return
         ov_vis, scan_vis = self.ov.isVisible() or kind != "scan", self.scan_win.isVisible()
         self.ov.hide(); self.pop.hide(); self.scan_win.hide(); self.worker.paused = True
+        def end():
+            self.worker.paused = False; self.ov.set_paused(False); self._pv_eng = None       # nhả engine OCR thử
+            if ov_vis: self.ov.show()
+            if scan_vis: self.scan_win.show()
         def go():
-            title = {"region": N_("app.drag_select_dialogue_area_translate"), "scan": N_("app.drag_select_area_translate_once")}.get(kind, N_("app.drag_select_speaker_name_area"))
-            self.sel = RegionSelector(tr(title))
-            def ok(r):
-                if kind == "scan": end(); self.scan_capture(r); return
-                if kind == "region": self.cfg["regions"][:1] = [mk_region(r, **{k: v for k, v in (self.cfg["regions"][:1] or [{}])[0].items() if k in ("name", "on", "yield")})]
-                else: self.cfg["speaker_region"] = r
-                self.cfg.save(); self.reset_regions(); end()
-            def cancel():
-                if kind == "speaker" and self.cfg["speaker_region"]:
-                    b = QMessageBox.question(None, tr("app.speaker_name_area"), tr("app.remove_current_speaker_name_area"))
-                    if b == QMessageBox.Yes: self.cfg["speaker_region"] = None; self.cfg.save()
-                end()
-            def end():
-                self.worker.paused = False; self.ov.set_paused(False)
-                if ov_vis: self.ov.show()
-                if scan_vis: self.scan_win.show()
-            self.sel.selected.connect(ok); self.sel.cancelled.connect(cancel); self.sel.start()
+            if kind == "scan":
+                self.sel = RegionSelector(tr("app.drag_select_area_translate_once"))
+                self.sel.selected.connect(lambda r: (end(), self.scan_capture(r))); self.sel.cancelled.connect(end); self.sel.start(); return
+            c = self.cfg
+            self.sel = ed = RegionEditor(c["regions"], c["speaker_region"], c["accent"], MAX_REGIONS, draw_speaker=kind == "speaker")
+            def saved(regs, spk):
+                c["regions"], c["speaker_region"] = regs, spk; c.save(); self.reset_regions(); end()
+                if not active_regions(c): self._toast(tr("app.no_dialogue_area_selected_press", hk=c["hotkeys"]["region"]))
+            ed.saved.connect(saved); ed.cancelled.connect(end)
+            ed.preview.connect(lambda seq, img: run(lambda _: self._preview_ocr(img), lambda t: ed.set_preview(seq, t),
+                                                    lambda e: ed.set_preview(seq, tr("app.ocr_error_e", e=e))))
+            ed.start()
         QTimer.singleShot(180, go)
+
+    def _preview_ocr(self, img):
+        """OCR thử trong chế độ sửa vùng (thread pool). 1 engine dùng chung, lần lượt từng ảnh."""
+        with self._pv_lock:
+            c = self.cfg; key = (c["ocr_engine"], c["ocr_lang"])
+            if self._pv_eng is None or self._pv_eng[0] != key: self._pv_eng = (key, ocr.create(*key))
+            s = float(c["ocr_scale"] or 1)
+            if abs(s - 1) > 0.01: img = ocr._resize(img, s)
+            return join_lines(self._pv_eng[1].recognize(img))
 
     # ---------------- chụp & dịch 1 vùng
     def scan_capture(self, r):

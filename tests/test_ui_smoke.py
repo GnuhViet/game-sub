@@ -301,4 +301,33 @@ assert a.ov.src == "Lower narration appears now." and a.ov.vi.text() == "VI Lowe
 a.on_text("", "Upper region again.", 0); pump(); assert a.ov.src == "Upper region again."
 a.on_text("", "", 1); assert a.ov.src == "Upper region again." and not a.cleared       # vùng dưới hết chữ: không đụng vùng trên
 a.on_text("", "", 0); assert a.cleared
+
+# 12) chế độ sửa vùng: kéo chỗ trống = thêm, phím số = ưu tiên, nút ✕ = xóa, vùng tên, giới hạn số vùng, OCR thử
+from PySide6.QtTest import QTest
+from gamesub.ui_region import RegionEditor
+ed = RegionEditor([C.region({"x": 10, "y": 40, "w": 300, "h": 60, "name": "Hộp thoại"})], None, max_regions=3)
+pv = []; ed.preview.connect(lambda seq, img: pv.append((seq, img.shape))); ed.start(); pump(0.1)
+assert pv == [(1, (60, 300, 3))], pv
+ed.set_preview(1, "Hello there"); assert ed.items[0].preview == "Hello there"
+def drag(w, p0, p1): QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, p0); QTest.mouseMove(w, p1); QTest.mouseRelease(w, Qt.LeftButton, Qt.NoModifier, p1)
+drag(ed, QPoint(400, 300), QPoint(600, 350)); assert len(ed.items) == 2 and ed.sel is ed.items[1] and ed.items[1].rect == QRect(400, 300, 201, 51) and len(pv) == 2
+ed.set_preview(1, "late"); assert ed.items[0].preview == "Hello there"            # kết quả cũ về muộn: bỏ qua
+QTest.keyClick(ed, Qt.Key_1); assert ed.items[0].rect.x() == 400 and ed.items[1].meta["name"] == "Hộp thoại"
+drag(ed, QPoint(410, 310), QPoint(430, 320)); assert ed.items[0].rect.topLeft() == QPoint(420, 310)    # kéo vùng = di chuyển
+QTest.keyClick(ed, Qt.Key_Right, Qt.ShiftModifier); assert ed.items[0].rect.x() == 430
+b = next(r for k, _, r in ed._label_box(ed.items[1])[1] if k == "yield"); QTest.mouseClick(ed, Qt.LeftButton, Qt.NoModifier, b.center()); assert ed.items[1].meta["yield"] is False
+ed.btn_spk.setChecked(True); drag(ed, QPoint(10, 10), QPoint(110, 25)); assert ed.spk and ed.spk.rect.width() == 101 and not ed.draw_spk
+drag(ed, QPoint(50, 200), QPoint(150, 250)); drag(ed, QPoint(50, 500), QPoint(150, 550)); assert len(ed.items) == 3 and ed.msg       # tối đa 3
+b = next(r for k, _, r in ed._label_box(ed.items[2])[1] if k == "close"); QTest.mouseClick(ed, Qt.LeftButton, Qt.NoModifier, b.center()); assert len(ed.items) == 2
+regs, spk = ed.result()
+assert [r["x"] for r in regs] == [430, 10] and regs[1]["name"] == "Hộp thoại" and regs[1]["yield"] is False and spk == {"x": 10, "y": 10, "w": 101, "h": 16}, (regs, spk)
+QTest.keyClick(ed, Qt.Key_Escape); assert not ed.isVisible()
+# qua app: Ctrl+Alt+R mở chế độ sửa, OCR thử chạy nền, Lưu -> cfg + worker chạy lại
+a._preview_ocr = lambda img: f"ocr {img.shape[1]}"
+a.on_action("region"); pump(0.5); ed = a.sel
+assert isinstance(ed, RegionEditor) and a.worker.paused and not a.ov.isVisible() and ed.items[0].preview == "ocr 10", ed.items[0].preview
+ed.remove(ed.items[1]); ed.add(QRect(100, 100, 50, 20)); QTest.keyClick(ed, Qt.Key_Return)
+assert [r["w"] for r in a.cfg["regions"]] == [10, 50] and not a.worker.paused and a.ov.isVisible()
+a.on_action("speaker"); pump(0.3); assert a.sel.draw_spk; QTest.keyClick(a.sel, Qt.Key_Escape); assert a.sel.isVisible(); QTest.keyClick(a.sel, Qt.Key_Escape)
+assert not a.sel.isVisible() and [r["w"] for r in a.cfg["regions"]] == [10, 50] and not a.worker.paused
 a.quit(); print("UI SMOKE OK")
