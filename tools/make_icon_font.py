@@ -6,7 +6,7 @@ from pathlib import Path
 import qtawesome
 from fontTools import subset
 
-NAMES = ["account", "arrow-down", "arrow-up", "book-open-variant", "camera", "close", "cog", "eraser", "folder-open",
+NAMES = ["arrow-down", "arrow-up", "book-open-variant", "camera", "close", "cog", "eraser", "folder-open",
          "information-outline", "lock", "lock-open-variant", "menu", "pause", "play", "refresh", "selection-drag", "selection-search",
          "skip-next", "skip-previous", "tag", "translate", "translate-off", "window-minimize",
          "eye", "eye-off", "auto-fix", "check", "account-plus", "pencil", "pause-circle-outline"]

@@ -144,6 +144,8 @@ def test_config_reset():
     c = Config(T / "old.json"); assert c["regions"] == [{"x": 5, "y": 6, "w": 70, "h": 8, "name": "", "on": True, "yield": True}] and "region" not in c
     from gamesub.config import active_regions
     c["regions"] += [{"x": 0, "y": 0, "w": 9, "h": 9, "on": False}, {"x": 0, "y": 0, "w": 9, "h": 9}]; assert [i for i, _ in active_regions(c)] == [0, 2]
+    (T / "tb.json").write_text(json.dumps({"toolbar": ["prev", "speaker", "region"], "toolbar_known": []}), "utf-8")
+    assert "speaker" not in Config(T / "tb.json")["toolbar"]          # nút đã gỡ không còn trong settings cũ
     c["hotkeys"]["toggle"] = "F8"; assert Config(T / "x.json")["hotkeys"]["toggle"] == "Ctrl+Alt+T"     # DEFAULTS không bị sửa theo
 
 def test_updater():

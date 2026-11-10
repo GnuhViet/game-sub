@@ -328,7 +328,7 @@ a.on_action("region"); pump(0.5); ed = a.sel
 assert isinstance(ed, RegionEditor) and a.worker.paused and not a.ov.isVisible() and ed.items[0].preview == "ocr 10", ed.items[0].preview
 ed.remove(ed.items[1]); ed.add(QRect(100, 100, 50, 20)); QTest.keyClick(ed, Qt.Key_Return)
 assert [r["w"] for r in a.cfg["regions"]] == [10, 50] and not a.worker.paused and a.ov.isVisible()
-a.on_action("speaker"); pump(0.3); assert a.sel.draw_spk; QTest.keyClick(a.sel, Qt.Key_Escape); assert a.sel.isVisible(); QTest.keyClick(a.sel, Qt.Key_Escape)
+a.on_action("region"); pump(0.3); a.sel.btn_spk.setChecked(True); QTest.keyClick(a.sel, Qt.Key_Escape); assert a.sel.isVisible() and not a.sel.draw_spk; QTest.keyClick(a.sel, Qt.Key_Escape)
 assert not a.sel.isVisible() and [r["w"] for r in a.cfg["regions"]] == [10, 50] and not a.worker.paused
 
 # 13) gợi ý vùng: khối chữ nằm gọn trong vùng có sẵn bị bỏ; bấm khối gợi ý = thêm vùng; kéo vùng gần mép khối chữ thì bám vào

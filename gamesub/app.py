@@ -311,7 +311,7 @@ class App:
             self._toast(tr("app.overlay_locked_mouse_passes_through", hk=c["hotkeys"].get("lock", "")) if c["locked"] else tr("app.overlay_unlocked"))
         elif k == "clear": self.ov.show_line("", "", "", ""); self.pop.close_pop()
         elif k == "retranslate" and self.history: self.resolve(self.history[self.pos], machine=True)
-        elif k in ("region", "speaker", "scan"): self.select_region(k)
+        elif k in ("region", "scan"): self.select_region(k)
         elif k == "show_region": self.show_regions()
         elif k == "scan_retranslate" and self.scan["src"]: self.scan_translate(machine=True)
         elif k == "toggle": self.auto_hidden = False; self.ov.setVisible(not self.ov.isVisible()); self.pop.hide()
@@ -349,7 +349,7 @@ class App:
         self.flash = []
 
     def select_region(self, kind):
-        """scan: kéo nhanh 1 vùng để dịch 1 lần. region / speaker: chế độ sửa vùng (speaker = bật sẵn vẽ vùng tên)."""
+        """scan: kéo nhanh 1 vùng để dịch 1 lần. region: chế độ sửa vùng (vùng tên nhân vật cũng vẽ ở đó)."""
         if self.sel is not None and self.sel.isVisible(): return
         ov_vis, scan_vis = self.ov.isVisible() or kind != "scan", self.scan_win.isVisible()
         self.ov.hide(); self.pop.hide(); self.scan_win.hide(); self.worker.paused = True
@@ -362,7 +362,7 @@ class App:
                 self.sel = RegionSelector(tr("app.drag_select_area_translate_once"))
                 self.sel.selected.connect(lambda r: (end(), self.scan_capture(r))); self.sel.cancelled.connect(end); self.sel.start(); return
             c = self.cfg
-            self.sel = ed = RegionEditor(c["regions"], c["speaker_region"], c["accent"], MAX_REGIONS, draw_speaker=kind == "speaker")
+            self.sel = ed = RegionEditor(c["regions"], c["speaker_region"], c["accent"], MAX_REGIONS)
             def saved(regs, spk):
                 c["regions"], c["speaker_region"] = regs, spk; c.save(); self.reset_regions(); end()
                 if not active_regions(c): self._toast(tr("app.no_dialogue_area_selected_press", hk=c["hotkeys"]["region"]))

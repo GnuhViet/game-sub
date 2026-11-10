@@ -38,7 +38,7 @@ class OutlineEffect(QGraphicsEffect):
 # (nút, icon Material Design Icons — gamesub/icons.py); chọn hiện/ẩn trong Cài đặt
 TOOLBAR = [("prev", "mdi6.skip-previous"), ("next", "mdi6.skip-next"), ("pause", "mdi6.pause"), ("translate", "mdi6.translate"),
            ("rescan", "mdi6.refresh"), ("clear", "mdi6.eraser"), ("scan", "mdi6.camera"), ("region", "mdi6.selection-drag"),
-           ("speaker", "mdi6.account"), ("show_region", "mdi6.selection-search"), ("subs", "mdi6.folder-open"), ("glossary", "mdi6.tag"), ("vocab", "mdi6.book-open-variant"), ("lock", "mdi6.lock")]
+           ("show_region", "mdi6.selection-search"), ("subs", "mdi6.folder-open"), ("glossary", "mdi6.tag"), ("vocab", "mdi6.book-open-variant"), ("lock", "mdi6.lock")]
 ICON_ON = {"pause": "mdi6.play", "translate": "mdi6.translate-off", "lock": "mdi6.lock-open-variant"}   # icon khi đang dừng / tắt dịch / đang khóa
 RIGHT_BTNS = [("settings", "mdi6.cog"), ("hide", "mdi6.window-minimize"), ("quit", "mdi6.close")]     # luôn hiện, ghim phải
 CAPTION = {"hide": "", "quit": ""}       # ChromeMinimize / ChromeClose: nét giống nút cửa sổ Windows (máy thiếu font -> icon mdi)
@@ -50,7 +50,7 @@ def caption_font():
 # tooltip toolbar; hotkey (nếu có) được ghép vào lúc apply_style
 TIPS = {"prev": N_("toolbar.prev"), "next": N_("toolbar.next"), "pause": N_("toolbar.pause"), "translate": N_("toolbar.translate"),
         "rescan": N_("toolbar.rescan"), "clear": N_("toolbar.clear"), "scan": N_("toolbar.scan"),
-        "region": N_("toolbar.region"), "speaker": N_("toolbar.speaker"), "show_region": N_("toolbar.show_region"), "subs": N_("toolbar.subs"), "glossary": N_("toolbar.glossary"),
+        "region": N_("toolbar.region"), "show_region": N_("toolbar.show_region"), "subs": N_("toolbar.subs"), "glossary": N_("toolbar.glossary"),
         "vocab": N_("toolbar.vocab"), "lock": N_("toolbar.lock"), "settings": N_("toolbar.settings"), "hide": N_("toolbar.hide"), "quit": N_("toolbar.quit")}
 
 class OverflowLayout(QLayout):
