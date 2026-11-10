@@ -50,7 +50,9 @@ DEFAULTS = {
     "line_gap": 0,                                    # khoảng cách thêm giữa câu gốc và bản dịch (px)
     "display": "both",                                # both / vi / vi_hover (rê chuột hiện câu gốc) / src_hover (rê chuột hiện bản dịch)
     "ui_lang": "",                                    # ngôn ngữ giao diện: "" = theo Windows / vi / en (đổi cần mở lại app)
-    "unlock_key": "Alt",                              # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
+    "term_mark": "hold",                              # gạch chân thuật ngữ glossary trong bản dịch (bấm vào hiện ghi chú): hold = chỉ khi giữ term_key / always / off
+    "term_key": "Alt",                                # phím giữ để hiện thuật ngữ (term_mark = hold); đang giữ thì overlay nhận chuột để bấm
+    "unlock_key": "Alt",                            # đang khóa: giữ phím/tổ hợp này (vd Alt, Ctrl+Shift, Mouse4) thì overlay nhận chuột; "" = tắt
     "check_updates": False,                           # khởi động: hỏi GitHub có bản mới không (báo ở khay); mặc định tắt
     "run_as_admin": False,                            # game chạy quyền admin -> GameSub cũng phải admin thì hotkey/giữ phím mới tới
     "toolbar": ["history", "pause", "translate", "rescan", "clear", "scan", "region", "show_region", "subs", "glossary", "vocab", "lock"],

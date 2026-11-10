@@ -66,7 +66,7 @@
   "glossary.glossary_names_terms": "Glossary — names / terms",
   "glossary.import_csv": "Import CSV",
   "glossary.import_title": "Import glossary",
-  "glossary.imported_n_entries_columns_term": "Imported {n} entries (columns: term, vi, mode, note).",
+  "glossary.imported_n_entries_columns_term": "Imported {n} entries (columns: term or en, vi, mode, note).",
   "glossary.imported_title": "Import",
   "glossary.keep_as_is": "Keep as is",
   "glossary.mode": "Mode",
@@ -447,5 +447,13 @@
   "vocab.source_line": "Source line",
   "vocab.translated_line": "Translated line",
   "vocab.vocabulary": "Vocabulary",
-  "vocab.word": "Word"
+  "vocab.word": "Word",
+  "settings.appearance.term_mark": "Underline glossary terms in the translation",
+  "settings.appearance.term_mark.hold": "Only while holding the key",
+  "settings.appearance.term_mark.always": "Always",
+  "settings.appearance.term_mark.off": "Off",
+  "settings.appearance.tip.term_mark": "Glossary terms (by translation or source text) are underlined in the translation; click one to see its note. \"Only while holding the key\": the line looks normal until you hold the key below, then terms are underlined and clickable (even when the overlay is locked / click-through).",
+  "settings.appearance.term_key": "Hold key to show terms",
+  "app.term_no_note": "No note for this term yet (add one in Glossary, Note column).",
+  "app.glossary_note_source": "Glossary"
 }

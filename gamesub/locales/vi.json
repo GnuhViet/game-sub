@@ -66,7 +66,7 @@
   "glossary.glossary_names_terms": "Glossary — tên riêng / thuật ngữ",
   "glossary.import_csv": "Import CSV",
   "glossary.import_title": "Import glossary",
-  "glossary.imported_n_entries_columns_term": "Đã nhập {n} mục (cột: term, vi, mode, note).",
+  "glossary.imported_n_entries_columns_term": "Đã nhập {n} mục (cột: term hoặc en, vi, mode, note).",
   "glossary.imported_title": "Import",
   "glossary.keep_as_is": "Giữ nguyên",
   "glossary.mode": "Chế độ",
@@ -447,5 +447,13 @@
   "vocab.source_line": "Câu gốc",
   "vocab.translated_line": "Câu dịch",
   "vocab.vocabulary": "Sổ từ",
-  "vocab.word": "Từ"
+  "vocab.word": "Từ",
+  "settings.appearance.term_mark": "Gạch chân thuật ngữ trong bản dịch",
+  "settings.appearance.term_mark.hold": "Chỉ khi giữ phím",
+  "settings.appearance.term_mark.always": "Luôn gạch chân",
+  "settings.appearance.term_mark.off": "Tắt",
+  "settings.appearance.tip.term_mark": "Thuật ngữ có trong Glossary (theo cách dịch hoặc chữ gốc) được gạch chân trong bản dịch; bấm vào để xem ghi chú giải thích. \"Chỉ khi giữ phím\": bình thường chữ hiện như câu thường, giữ phím bên dưới mới gạch chân và bấm được (kể cả khi overlay đang khóa / click-through).",
+  "settings.appearance.term_key": "Phím giữ để hiện thuật ngữ",
+  "app.term_no_note": "Chưa có ghi chú cho thuật ngữ này (thêm ở Glossary, cột Ghi chú).",
+  "app.glossary_note_source": "Glossary"
 }

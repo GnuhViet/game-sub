@@ -95,10 +95,13 @@ class Overlay(QWidget):
     word_click = Signal(str, QPoint)
     phrase_action = Signal(str, str)           # action, phrase
     action = Signal(str)                       # history/pause/region/vocab/glossary/subs/settings/quit/rescan
+    term_click = Signal(object, QPoint)        # mục glossary được bấm trong bản dịch, vị trí con trỏ
 
     def __init__(self, cfg):
         super().__init__(None, FLAGS); self.cfg = cfg; self.src = ""; self._tag = ""; self._alert = False; self._auto = False; self._alt = False
         self.alt_t = QTimer(self, interval=60, timeout=self._poll_alt)        # đang khóa: giữ phím mở khóa (mặc định Alt) -> overlay nhận chuột
+        self.term_spans = None; self._vi_text = ""; self._spans = []; self._term_held = False   # term_spans(text) -> [(đầu, cuối, mục glossary)] (App gán)
+        self.term_t = QTimer(self, interval=60, timeout=self._poll_term)      # term_mark = hold: dò phím term_key để gạch chân thuật ngữ
         self.setAttribute(Qt.WA_TranslucentBackground); self.setMouseTracking(True)
         self.setAttribute(Qt.WA_AlwaysShowToolTips)          # cửa sổ Tool không focus: Windows mặc định không hiện tooltip
         self.setWindowTitle("Game Sub"); self.setMinimumSize(320, 90)
@@ -128,7 +131,8 @@ class Overlay(QWidget):
         self.src_lbl.linkHovered.connect(self._hover); self.src_lbl.linkActivated.connect(self._click)
         self.src_lbl.installEventFilter(self)                 # bôi đen xong (thả chuột) -> dịch đoạn bôi đen
         self.src_lbl.setContextMenuPolicy(Qt.CustomContextMenu); self.src_lbl.customContextMenuRequested.connect(self._menu)
-        self.vi.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.vi.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse); self.vi.setTextFormat(Qt.PlainText)
+        self.vi.linkActivated.connect(self._term_click)
         self.vi.setContextMenuPolicy(Qt.CustomContextMenu); self.vi.customContextMenuRequested.connect(self._menu_vi)
         # khoảng trống thừa của khung dồn vào sp_top / sp_bot (theo "Vị trí chữ"), không chen giữa câu gốc và bản dịch
         self.sp_top, self.gap, self.sp_bot = (QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Fixed) for _ in range(3))
@@ -162,7 +166,7 @@ class Overlay(QWidget):
         self.tag.setStyleSheet(f"color:{c['src_fg']}; font-size:10px"); self.status.setStyleSheet(f"color:{c['src_fg']}; font-size:10px")
         w = int(c["text_outline"])
         for l in (self.speaker, self.src_lbl, self.vi, self.tag, self.status): l.setGraphicsEffect(OutlineEffect(w, l) if w > 0 else None)
-        self._apply_text_layout(); self._apply_display(); self.update(); self._render_src()
+        self._apply_text_layout(); self._apply_display(); self.update(); self._render_src(); self._update_terms()
         self._icons()
         for k, _ in TOOLBAR: self.btns[k].setVisible(k in c["toolbar"])           # nút ghim trên toolbar (Cài đặt → Giao diện)
         pos = {b: c["toolbar"].index(k) if k in c["toolbar"] else 99 for k, b in self.btns.items()}
@@ -197,7 +201,42 @@ class Overlay(QWidget):
     def show_line(self, speaker, src, vi, tag, alert=False):
         self.speaker.setText(speaker or ""); self.speaker.setVisible(bool(speaker) and self.cfg["show_speaker"])
         if src != self.src: self.src = src; self._render_src()
-        self.vi.setText(vi or ""); self._tag = tag or ""; self._alert = alert; self._tag_vis(); self._fit(); self.update()
+        self._vi_text = vi or ""; self._update_terms()
+        self._tag = tag or ""; self._alert = alert; self._tag_vis(); self._fit(); self.update()
+
+    # ---- thuật ngữ trong bản dịch: gạch chân (luôn / khi giữ term_key), bấm vào -> App hiện ghi chú glossary
+    def _update_terms(self):
+        mode = self.cfg["term_mark"]
+        self._spans = self.term_spans(self._vi_text) if self.term_spans and mode != "off" else []
+        self._term_vks = held_vks(self.cfg["term_key"] or "") or []
+        if self._spans and mode == "hold" and self._term_vks: self.term_t.start()
+        else: self.term_t.stop(); self._set_term_held(False, render=False)
+        self._render_vi()
+
+    def _render_vi(self):
+        """Không gạch chân thì hiện y như câu thường (plain text); gạch chân thì mỗi thuật ngữ là link t:<số thứ tự>."""
+        marked = self._spans and (self.cfg["term_mark"] == "always" or self._term_held)
+        if not marked: self.vi.setTextFormat(Qt.PlainText); self.vi.setText(self._vi_text); return
+        t, out, i = self._vi_text, [], 0
+        for n, (a, b, _) in enumerate(self._spans):
+            out.append(esc(t[i:a])); out.append(f'<a href="t:{n}" style="color:{self.cfg["accent"]};text-decoration:underline">{esc(t[a:b])}</a>'); i = b
+        out.append(esc(t[i:]))
+        self.vi.setTextFormat(Qt.RichText); self.vi.setText(f"<div style='white-space:pre-wrap'>{''.join(out)}</div>")
+
+    def _poll_term(self):
+        if sys.platform == "win32": down = all(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000 for vk in self._term_vks)
+        else: down = bool(QApplication.queryKeyboardModifiers() & Qt.AltModifier) and self.cfg["term_key"].lower() == "alt"
+        self._set_term_held(down)
+
+    def _set_term_held(self, down, render=True):
+        if down == self._term_held: return
+        self._term_held = down; self._apply_input()             # đang giữ: overlay nhận chuột để bấm thuật ngữ (kể cả khi khóa / click-through)
+        if render: self._render_vi()
+
+    def _term_click(self, href):
+        try: g = self._spans[int(href.split(":")[1])][2]
+        except (ValueError, IndexError): return
+        self.term_click.emit(g, QCursor.pos())
 
     def _tag_vis(self):
         """Nguồn dịch (Google/Gemini/Bộ sub…) chỉ hiện khi rê chuột; báo lỗi (alert) thì luôn hiện."""
@@ -242,13 +281,13 @@ class Overlay(QWidget):
         m.exec(self.src_lbl.mapToGlobal(pos))
 
     def _menu_vi(self, pos):
-        m = QMenu(self); m.addAction(tr("overlay.copy_translation"), lambda: QApplication.clipboard().setText(self.vi.text()))
+        m = QMenu(self); m.addAction(tr("overlay.copy_translation"), lambda: QApplication.clipboard().setText(self._vi_text))
         m.addAction(tr("overlay.re_translate_by_machine"), lambda: self.action.emit("retranslate")); m.exec(self.vi.mapToGlobal(pos))
 
     def set_click_through(self, on): self.cfg["click_through"] = on; self._apply_input()
 
     def passthrough_wanted(self):
-        return bool((self.cfg["locked"] and not self._alt) or self.cfg["click_through"])
+        return bool(((self.cfg["locked"] and not self._alt) or self.cfg["click_through"]) and not (self._term_held and self._spans))
 
     def _apply_input(self):
         """Chuột xuyên qua overlay khi khóa (trừ lúc giữ phím mở khóa) hoặc bật click-through (không chắn chuột game)."""

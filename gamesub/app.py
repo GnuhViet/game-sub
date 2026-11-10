@@ -59,6 +59,7 @@ class App:
         self.ov = Overlay(cfg); self.pop = WordPopup(cfg); winapp.accept_show(int(self.ov.winId()))
         self.lookup_ctx = None                    # câu ngữ cảnh khi tra từ trong cửa sổ Dịch vùng
         self.inflight = set()                     # tra từ đang chờ kết quả -> không gửi trùng
+        self.ov.term_spans = self.db.term_spans; self.ov.term_click.connect(self.show_term)
         self.ov.action.connect(self.on_action); self.ov.word_hover.connect(lambda w, p: self._hover_from(None, w, p)); self.ov.word_click.connect(lambda w, p: self._click_from(None, w, p))
         self.scan_win = ScanWindow(cfg); self.scan = {"src": "", "vi": ""}
         self.sel = None; self._pv_eng = None; self._pv_lock = threading.Lock()      # chế độ sửa vùng + engine OCR thử
@@ -248,6 +249,12 @@ class App:
 
     def on_click(self, word, pos): self.hover_t.stop(); self.lookup(word, pos, pinned=True)
 
+    def show_term(self, g, pos):
+        """Bấm thuật ngữ gạch chân trong bản dịch: popup ghi chú glossary (thuật ngữ gốc → cách dịch, giải thích)."""
+        self.hover_t.stop(); self.lookup_ctx = None
+        note = html.escape(g["note"]).replace("\n", "<br>") if g["note"] else "<i>" + tr("app.term_no_note") + "</i>"
+        self.pop.show_for(g["term"], g["vi"] if g["mode"] == "translate" else "", "", note, pos, True, tr("app.glossary_note_source"))
+
     def _meta(self, word):
         out = []
         g = next((g for g in self.db.glossary() if g["term"].lower() == word.lower()), None)
@@ -341,7 +348,7 @@ class App:
             self._toast(tr("app.click_through_on_hk_turn", hk=c["hotkeys"].get("clickthrough", "")) if c["click_through"] else tr("app.click_through_off"))
         elif k == "hide": self.auto_hidden = False; self.ov.hide(); self.pop.hide(); self._toast("")
         elif k == "subs": on_top(SubsDialog(self.db, self.index, c, self.rebuild_index)).exec(); self.render()
-        elif k == "glossary": on_top(GlossaryDialog(self.db, c)).exec(); self._known_words()
+        elif k == "glossary": on_top(GlossaryDialog(self.db, c)).exec(); self._known_words(); self.ov._update_terms()
         elif k == "vocab": on_top(VocabDialog(self.db)).exec()
         elif k == "settings": self.open_settings()
         elif k == "update": self.check_update(manual=True)

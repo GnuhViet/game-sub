@@ -16,7 +16,7 @@ class DB:
         self.c = sqlite3.connect(str(path), check_same_thread=False)
         self.c.execute("PRAGMA journal_mode=WAL"); self.c.execute("PRAGMA synchronous=NORMAL")   # ít fsync khi lưu cache tra từ
         self.c.executescript(SCHEMA); self.c.commit()
-        self._gl_cache = None
+        self._gl_cache = None; self._span_re = None
 
     def q(self, sql, args=()):
         with self.lock: return self.c.execute(sql, args).fetchall()
@@ -48,9 +48,24 @@ class DB:
 
     def set_term(self, term, vi="", mode="keep", note=""):
         self.x("INSERT OR REPLACE INTO glossary(term,vi,mode,note) VALUES(?,?,?,?)", (term.strip(), vi.strip(), mode, note))
-        self._gl_cache = None
+        self._gl_cache = None; self._span_re = None
 
-    def del_term(self, term): self.x("DELETE FROM glossary WHERE term=?", (term,)); self._gl_cache = None
+    def del_term(self, term): self.x("DELETE FROM glossary WHERE term=?", (term,)); self._gl_cache = None; self._span_re = None
+
+    def term_spans(self, text):
+        """Vị trí thuật ngữ glossary trong text (bản dịch hoặc câu gốc): [(đầu, cuối, mục)], cụm dài ưu tiên, không chồng nhau.
+        Mỗi mục khớp theo cách dịch (vi) lẫn chữ gốc (term). Bỏ qua mục giữ nguyên không ghi chú (tên riêng): gạch chân cũng chẳng có gì để xem."""
+        if not text: return []
+        if self._span_re is None:
+            look = {}
+            for g in self.glossary():
+                if g["mode"] != "translate" and not g["note"].strip(): continue
+                for s in (g["vi"] if g["mode"] == "translate" else "", g["term"]):
+                    if len(s.strip()) >= 2: look.setdefault(s.strip().lower(), g)
+            pat = "|".join(re.escape(s) for s in sorted(look, key=len, reverse=True))
+            self._span_re = (re.compile(rf"(?<!\w)(?:{pat})(?!\w)", re.I) if pat else None, look)
+        rx, look = self._span_re
+        return [(m.start(), m.end(), look[m.group().lower()]) for m in rx.finditer(text)] if rx else []
 
     def terms_in(self, text):
         """Các mục glossary xuất hiện trong text (khớp nguyên từ, không phân biệt hoa thường)."""
@@ -87,6 +102,6 @@ class DB:
         n = 0
         with open(path, newline="", encoding="utf-8-sig") as f:
             for r in csv.DictReader(f):
-                t = (r.get("term") or "").strip()
+                t = (r.get("term") or r.get("en") or "").strip()     # nhận cả cột en (sổ thuật ngữ wuwa-vi-pack)
                 if t: self.set_term(t, r.get("vi", ""), r.get("mode") or ("translate" if r.get("vi") else "keep"), r.get("note", "")); n += 1
         return n

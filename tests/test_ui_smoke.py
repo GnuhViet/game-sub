@@ -405,4 +405,17 @@ assert len(ed.items) == 2 and ed.items[0].rect.topLeft() == QPoint(100, 100) and
 QTest.mouseClick(ed, Qt.LeftButton, Qt.NoModifier, QPoint(200, 170)); assert ed.sel is ed.items[0]      # bấm lại -> vùng nằm dưới
 QTest.mouseClick(ed, Qt.LeftButton, Qt.NoModifier, QPoint(200, 170)); assert ed.sel is ed.items[1]
 ed.grab(); QTest.keyClick(ed, Qt.Key_Escape)
+# thuật ngữ glossary trong bản dịch: mặc định chỉ gạch chân khi giữ phím, bấm vào hiện ghi chú
+a.db.set_term("Echo", "Thanh Hài", "translate", "Tần số đặc biệt bắt được bằng Terminal."); a.db.set_term("Jinzhou", "", "keep", "Thành phố biên ải."); a.db.set_term("Yangyang", "", "keep")
+a.ov.show_line("", "src", "Thanh Hài ở Jinzhou.", ""); assert [g["term"] for *_, g in a.ov._spans] == ["Echo", "Jinzhou"]
+assert not a.db.term_spans("Yangyang")                     # tên giữ nguyên không ghi chú: không gạch chân
+assert a.ov.vi.textFormat() == Qt.PlainText and a.ov.vi.text() == "Thanh Hài ở Jinzhou."          # không giữ phím: như câu thường
+a.ov._set_term_held(True); assert 'href="t:0"' in a.ov.vi.text() and "underline" in a.ov.vi.text() and not a.ov.passthrough_wanted()
+a.ov._term_click("t:0"); assert a.pop.isVisible() and a.pop.word == "Echo" and "Terminal" in a.pop.raw
+a.ov._set_term_held(False); assert a.ov.vi.text() == "Thanh Hài ở Jinzhou."; a.pop.close_pop()
+a.cfg["term_mark"] = "always"; a.ov._update_terms(); assert 'href="t:1"' in a.ov.vi.text()
+a.cfg["term_mark"] = "off"; a.ov._update_terms(); assert a.ov.vi.text() == "Thanh Hài ở Jinzhou." and not a.ov._spans
+a.cfg["term_mark"] = "hold"
+(C.DATA_DIR / "g.csv").write_text("en,vi,note\nResonator,Cộng Hưởng Giả,Người có năng lực cộng hưởng\n", "utf-8-sig")
+assert a.db.import_glossary_csv(C.DATA_DIR / "g.csv") == 1 and a.db.term_spans("Một Cộng Hưởng Giả")[0][2]["mode"] == "translate"
 a.quit(); print("UI SMOKE OK")

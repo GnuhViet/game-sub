@@ -167,6 +167,10 @@ class SettingsDialog(QDialog):
         f = self._group(tab, "settings.appearance.group.behavior")
         self._dspin(f, "auto_hide_s", "settings.appearance.auto_hide_s", 0, 60, 0.5)
         self._check(f, "animations", "settings.appearance.animations")
+        tm = self._combo(f, "term_mark", "settings.appearance.term_mark", {"hold": "settings.appearance.term_mark.hold",
+                         "always": "settings.appearance.term_mark.always", "off": "settings.appearance.term_mark.off"})
+        self._tip(f, tm, "settings.appearance.tip.term_mark")
+        tk = KeyCapture(cfg["term_key"]); f.addRow(tr("settings.appearance.term_key"), tk); self.w["term_key"] = (tk, tk.text)
         uk = KeyCapture(cfg["unlock_key"]); f.addRow(tr("settings.appearance.hold_key_interact_while_locked"), uk); self.w["unlock_key"] = (uk, uk.text)
         self._tip(f, uk, "settings.appearance.tip.while_overlay_is_locked")
         c = self._check(f, "hide_from_capture", "settings.appearance.hide_from_capture")
@@ -305,7 +309,7 @@ class SettingsDialog(QDialog):
     def _combo(self, f, k, label, opts):
         c = QComboBox()
         for key, txt in opts.items(): c.addItem(tr(txt), key)
-        c.setCurrentIndex(max(0, c.findData(self.cfg[k]))); f.addRow(tr(label), c); self.w[k] = (c, c.currentData)
+        c.setCurrentIndex(max(0, c.findData(self.cfg[k]))); f.addRow(tr(label), c); self.w[k] = (c, c.currentData); return c
 
     def _eng_refresh(self):
         ok = {"rapidocr": engines.has_rapidocr(), "tesseract": bool(engines.tesseract_exe())}
