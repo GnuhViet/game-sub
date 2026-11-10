@@ -9,7 +9,7 @@ from fontTools import subset
 NAMES = ["arrow-down", "arrow-up", "book-open-variant", "camera", "close", "cog", "eraser", "folder-open",
          "information-outline", "lock", "lock-open-variant", "menu", "pause", "play", "refresh", "selection-drag", "selection-search",
          "skip-next", "skip-previous", "tag", "translate", "translate-off", "window-minimize",
-         "eye", "eye-off", "auto-fix", "check", "account-plus", "pencil", "pause-circle-outline"]
+         "eye", "eye-off", "auto-fix", "check", "account-plus", "pencil", "pause-circle-outline", "play-circle-outline"]
 
 SRC = Path(qtawesome.__file__).parent / "fonts"
 OUT = Path(__file__).resolve().parent.parent / "gamesub" / "assets"

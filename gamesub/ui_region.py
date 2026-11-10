@@ -63,7 +63,7 @@ class _Item:
 
 class RegionEditor(QWidget):
     """Chế độ sửa vùng: đóng băng màn hình, hiện mọi vùng thoại (thứ tự = ưu tiên) + vùng tên nhân vật.
-    Kéo chỗ trống = thêm vùng; kéo vùng = di chuyển; kéo ô ở góc/cạnh = đổi cỡ; nút trên nhãn: ▲▼ ưu tiên, ⏸ nhường, 👁 bật/tắt, ✕ xóa.
+    Kéo chỗ trống = thêm vùng; kéo vùng = di chuyển; kéo ô ở góc/cạnh = đổi cỡ; nút trên nhãn: ▲▼ ưu tiên, ⏸ nhường / ▶ luôn đọc, 👁 bật/tắt, ✕ xóa.
     Phím: Del xóa, mũi tên dịch 1px (Shift 10px), 1-9 đặt ưu tiên, Tab chọn vùng kế, F2 đổi tên, Enter lưu, Esc hủy.
     Vùng nào đổi xong thì OCR thử trên ảnh đóng băng (signal preview -> app chạy OCR -> set_preview).
     Gợi ý: OCR cả màn hình đóng băng 1 lần, khối chữ tìm được hiện nét đứt, bấm vào = thêm vùng; mép vùng bám vào khối chữ / vùng khác (giữ Alt = không bám)."""
@@ -135,7 +135,7 @@ class RegionEditor(QWidget):
 
     def _buttons(self, it):
         if it.spk: return [("close", "mdi6.close")]
-        return [("up", "mdi6.arrow-up"), ("down", "mdi6.arrow-down"), ("yield", "mdi6.pause-circle-outline"),
+        return [("up", "mdi6.arrow-up"), ("down", "mdi6.arrow-down"), ("yield", "mdi6.pause-circle-outline" if it.meta.get("yield", True) else "mdi6.play-circle-outline"),
                 ("on", "mdi6.eye" if it.meta.get("on", True) else "mdi6.eye-off"), ("close", "mdi6.close")]
 
     def _label_box(self, it):
@@ -174,7 +174,7 @@ class RegionEditor(QWidget):
                 p.drawText(r.bottomLeft() + QPoint(2, 16), f"{round(r.width() * d)}×{round(r.height() * d)}"); continue
             tab, bts = self._label_box(it); p.fillRect(tab, c); p.setFont(_font(9, True)); p.setPen(QColor("#111"))
             p.drawText(tab.adjusted(7, 0, 0, 0), Qt.AlignVCenter | Qt.AlignLeft, self._label(it))
-            for k, name, br in bts: icon(name, "#666" if k == "yield" and not it.meta.get("yield", True) else "#111").paint(p, br)
+            for k, name, br in bts: icon(name, "#111").paint(p, br)
             if it is self.sel:
                 p.setBrush(QColor("white")); p.setPen(QPen(c, 1))
                 for h in self._handles(r).values(): p.drawRect(h)
