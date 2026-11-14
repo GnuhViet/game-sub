@@ -99,9 +99,14 @@ class DB:
             w = csv.writer(f); w.writerow(cols.split(",")); w.writerows(self.q(f"SELECT {cols} FROM {table}"))
 
     def import_glossary_csv(self, path):
-        n = 0
+        """Nhập CSV THAY TOÀN BỘ glossary cũ (thường là xóa đi nhập lại bản mới). Đọc hết file trước rồi mới xóa,
+        nên file rỗng / không có cột term (hoặc en) thì glossary cũ vẫn giữ nguyên. Trả về số mục đã nhập."""
+        rows = []
         with open(path, newline="", encoding="utf-8-sig") as f:
             for r in csv.DictReader(f):
                 t = (r.get("term") or r.get("en") or "").strip()     # nhận cả cột en (sổ thuật ngữ wuwa-vi-pack)
-                if t: self.set_term(t, r.get("vi", ""), r.get("mode") or ("translate" if r.get("vi") else "keep"), r.get("note", "")); n += 1
-        return n
+                if t: rows.append((t, r.get("vi") or "", r.get("mode") or ("translate" if r.get("vi") else "keep"), r.get("note") or ""))
+        if not rows: return 0
+        self.x("DELETE FROM glossary"); self._gl_cache = None; self._span_re = None
+        for row in rows: self.set_term(*row)
+        return len(rows)

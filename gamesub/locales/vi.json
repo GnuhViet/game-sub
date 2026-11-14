@@ -66,7 +66,7 @@
   "glossary.glossary_names_terms": "Glossary — tên riêng / thuật ngữ",
   "glossary.import_csv": "Import CSV",
   "glossary.import_title": "Import glossary",
-  "glossary.imported_n_entries_columns_term": "Đã nhập {n} mục (cột: term hoặc en, vi, mode, note).",
+  "glossary.imported_n_entries_columns_term": "Đã nhập {n} mục, thay toàn bộ glossary cũ (cột: term hoặc en, vi, mode, note).",
   "glossary.imported_title": "Import",
   "glossary.keep_as_is": "Giữ nguyên",
   "glossary.mode": "Chế độ",

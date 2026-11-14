@@ -63,7 +63,9 @@ def test_db_glossary_vocab():
     assert [g["term"] for g in db.terms_in("A resonator fights the Tacet Discord")] == ["Tacet Discord", "Resonator"]
     db.add_vocab("echo", "tiếng vang", "Use your Echo.", "Dùng Echo đi."); db.add_vocab("echo", "", "", "")
     assert db.vocab()[0][1] == "tiếng vang" and db.has_vocab("ECHO")
-    db.export_csv("glossary", T / "g.csv"); db.del_term("Resonator"); assert db.import_glossary_csv(T / "g.csv") == 2
+    db.export_csv("glossary", T / "g.csv"); db.del_term("Resonator"); db.set_term("Forte", "", "keep")
+    assert db.import_glossary_csv(T / "g.csv") == 2 and sorted(g["term"] for g in db.glossary()) == ["Resonator", "Tacet Discord"]   # nhập = thay toàn bộ
+    (T / "empty.csv").write_text("term,vi\n", "utf-8-sig"); assert db.import_glossary_csv(T / "empty.csv") == 0 and len(db.glossary()) == 2   # file rỗng: giữ bản cũ
     return db
 
 def test_translator_prompt_and_protect():

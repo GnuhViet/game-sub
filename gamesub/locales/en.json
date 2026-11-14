@@ -66,7 +66,7 @@
   "glossary.glossary_names_terms": "Glossary — names / terms",
   "glossary.import_csv": "Import CSV",
   "glossary.import_title": "Import glossary",
-  "glossary.imported_n_entries_columns_term": "Imported {n} entries (columns: term or en, vi, mode, note).",
+  "glossary.imported_n_entries_columns_term": "Imported {n} entries, replacing the whole previous glossary (columns: term or en, vi, mode, note).",
   "glossary.imported_title": "Import",
   "glossary.keep_as_is": "Keep as is",
   "glossary.mode": "Mode",

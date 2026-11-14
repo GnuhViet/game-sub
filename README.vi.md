@@ -22,7 +22,7 @@ Bấm vào từ bất kỳ để tra nghĩa và lưu vào sổ từ để ôn.
 - **Dịch máy dự phòng**: Google Translate (miễn phí) hoặc Gemini (key miễn phí), có ngữ cảnh các câu trước, hiện chữ dần khi đang dịch, hết quota tự chuyển.
 - **Cập nhật**: Cài đặt → Kiểm tra cập nhật, hoặc **Chọn phiên bản…** để cài bản bất kỳ (kể cả bản beta, hoặc quay về bản cũ).
 - **Glossary**: giữ nguyên tên riêng / thuật ngữ hoặc ép cách dịch; dịch bằng Google cũng được bảo vệ thuật ngữ.
-  Rê chuột vào overlay (đang khóa thì giữ phím mở khóa, mặc định Alt) thì thuật ngữ trong bản dịch được gạch chân, bấm vào hiện ghi chú giải thích. Cài đặt → **Glossary**: bảng thuật ngữ, nhập / xuất CSV (nhận cột `term` hoặc `en`), chế độ gạch chân (khi bấm được vào overlay / luôn / tắt).
+  Rê chuột vào overlay (đang khóa thì giữ phím mở khóa, mặc định Alt) thì thuật ngữ trong bản dịch được gạch chân, bấm vào hiện ghi chú giải thích. Cài đặt → **Glossary**: bảng thuật ngữ, nhập / xuất CSV (nhận cột `term` hoặc `en`; nhập là thay toàn bộ glossary cũ), chế độ gạch chân (khi bấm được vào overlay / luôn / tắt).
 - **Bấm từ để tra**: từ điển offline StarDict / TSV, Google, dictionaryapi.dev, hoặc AI giải nghĩa theo ngữ cảnh câu.
 - **Sổ từ**: lưu từ kèm câu gốc, ôn bằng flashcard, xuất CSV / Anki.
 - **Chụp & dịch** 1 vùng bất kỳ (thư, menu, mô tả vật phẩm) ra cửa sổ riêng; câu nào khớp bộ sub Việt hóa thì lấy bản sub, còn lại mới dịch máy.
